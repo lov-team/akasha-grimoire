@@ -1,11 +1,12 @@
 # Akasha Grimoire（阿卡夏秘典）
 
-团队共享的 Codex Skill 合集。仓库是通用 Skill 的唯一事实源。
+团队共享的 Agent Skill 合集。仓库是通用 Skill 的唯一事实源。
 
 ## Skills
 
 - `agent-task-supervisor`：轻量监工多个任务并独立验收。
 - `game-asset-forge`：生成并验收可直接导入引擎的游戏资产。
+- `gpt-image-generation`：通过 OpenAI-compatible GPT Image 端点生图、改图和诊断。
 - `grok-cli-development`：在可见 Terminal + tmux 中驱动 Grok CLI。
 - `gemini-cli-development`：在可见 Terminal + tmux 中驱动 Gemini CLI。
 - `claude-code-cli-development`：在可见 Terminal + tmux 中驱动 Claude Code。

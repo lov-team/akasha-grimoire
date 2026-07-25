@@ -3,7 +3,7 @@
 ## 本机核对
 
 - 核对日期：2026-07-25
-- 已发现版本：Claude Code `2.1.72`
+- 已发现版本：Claude Code `2.1.146`
 - 事实来源：本机 `claude --version` 与 `claude --help`
 - 已验证入口：位置参数 prompt 启动交互；`-p/--print` 为非交互输出。
 - 权限：`--permission-mode` 包含 `bypassPermissions`；另有 `--dangerously-skip-permissions` 与显式允许开关，使用前须遵守项目安全边界。

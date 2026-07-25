@@ -1,0 +1,4 @@
+interface:
+  display_name: "GPT Image 生图与诊断"
+  short_description: "通过 OpenAI-compatible GPT Image 端点生图、改图并安全落盘"
+  default_prompt: "使用 $gpt-image-generation 先 smoke 验证指定 GPT Image 端点，再生成或编辑图像并核验落盘文件。"

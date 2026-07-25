@@ -36,9 +36,20 @@ claude --permission-mode bypassPermissions \
 
 `bypassPermissions` 只免除工具确认，不扩大范围、Git 或用户决策权限。若当前环境策略要求显式允许危险跳过，先核对 help 与项目安全边界，不擅自附加参数。不得用 `-p/--print` 单轮模式冒充持续 TUI，也不得在隐藏 PTY 启动。
 
-## 轻量等待与同会话返工
+## 低噪声长轮询与同会话返工
 
-只轮询状态与交付文件，不抓 pane、过程输出、思考、token、进程或中间 diff。blocked 时请求用户决策；状态与交付末行均完成后再 Review。正常返工直接在现有 TUI 提交一行读取仓库外返工合同的指令；不要使用 `--continue/--resume`，除非原 TUI 已意外退出且用户授权恢复。
+启动成功后运行：
+
+```bash
+scripts/wait-for-delivery.zsh \
+  "$STATUS_FILE" CLAUDE_DELIVERY_COMPLETE \
+  "$HANDOFF_FILE" CLAUDE_DELIVERY_COMPLETE \
+  240
+```
+
+让脚本在进程内固定每 5 秒检查一次。默认等待 240 秒；任务明确较长时可提高，但不要用更短等待恢复高频轮询。循环中零输出，双重完成时才输出一行并退出 0，整段超时只输出一次最后状态并退出 124。若宿主先返回运行 session，使用一次支持的最长等待续接，不要由主 Agent 每 5 秒轮询。
+
+退出 0 后只读一次交付文件再 Review。退出 124 时，implementing/missing 重新等待 240 秒或更长，blocked 才请求用户决策，异常状态才做一次最小诊断。不要抓 pane、过程输出、思考、token、进程或中间 diff。正常返工直接在现有 TUI 提交一行读取仓库外返工合同的指令；不要使用 `--continue/--resume`，除非原 TUI 已意外退出且用户授权恢复。
 
 ## 独立验收
 

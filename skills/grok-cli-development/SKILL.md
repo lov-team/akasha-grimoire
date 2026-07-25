@@ -138,26 +138,24 @@ grok --cwd "$TASK_WORKTREE" \
 5. 完成实现和自测后，才写指定交付文件；
 6. 交付文件用中文包含修改文件、需求映射、测试命令与结果、未验证项、风险和 Git 状态，末行写固定完成标记。
 
-## 启动后立即轮询状态与最终交付
+## 低噪声长轮询状态与最终交付
 
 启动前指定唯一的仓库外状态文件和交付文件。状态文件只允许单行 `GROK_PLANNING`、`GROK_IMPLEMENTING`、`GROK_BLOCKED_USER_DECISION` 或 `GROK_DELIVERY_COMPLETE`；Grok 在阶段切换时原子覆盖，不写思考过程或长日志。
 
-tmux 启动成功后立即进入 `WAITING_GROK_STATUS` 并持续轮询状态文件与交付文件完成标记，不先结束当前执行回合等待用户提醒。主 Agent 不检查中间 Git 状态、文件列表、tmux 会话、pane 命令、进程、测试进度或 TUI 内容，也不发送 `Ctrl-C` 或任意补充 prompt。唯一允许的中途输入是下述 `GROK_PLANNING` / `GROK_BLOCKED_USER_DECISION` 5 分钟看门狗。开发期间出现新增/修改文件属于预期现场，不触发意外文件闸门；意外文件判断统一留到最终完整 diff Review。
-
-不要采集 Grok 思考过程、TUI 刷新、持续日志或 token 状态，也不要用截图猜测完成。用户可在 Terminal 弹窗直接观察和交互。若使用当前任务心跳，心跳只能执行以下最终完成检查：
+tmux 启动成功后立即运行一次长轮询，让脚本在进程内每 5 秒检查，不要由主 Agent 高频调用工具：
 
 ```bash
-test -f "$GROK_HANDOFF" \
-  && test "$(tail -n 1 "$GROK_HANDOFF")" = "GROK_DELIVERY_COMPLETE"
+scripts/wait-for-delivery.zsh \
+  "$GROK_STATUS" GROK_DELIVERY_COMPLETE \
+  "$GROK_HANDOFF" GROK_DELIVERY_COMPLETE \
+  240
 ```
 
-第一次连续观察到 `GROK_PLANNING` 时，用主 Agent 的单调时钟记录起点和本次 planning episode 的 `nudge_sent=false`。若状态连续 300 秒未离开 `GROK_PLANNING`，且未出现 `GROK_BLOCKED_USER_DECISION` 或完成标记，则只向启动时记录的精确 tmux session/pane 投递一次单行 `按推荐执行`：先写入本轮唯一仓库外单行文件，再使用 `tmux load-buffer` + `tmux paste-buffer`，最后仅用一次 `tmux send-keys ... Enter`。不得读取/capture pane，不附加解释，不重复发送；投递后设 `nudge_sent=true` 并恢复只读状态/交付轮询。状态离开 `GROK_PLANNING` 后清除此轮计时；新的连续 planning episode 可重新计时。用户明确正在 TUI 输入时暂缓，待其完成后再判断。
+默认等待 240 秒；任务明确较长时可提高，但不要用更短等待恢复高频轮询。脚本循环中零输出；仅当状态和交付末行同时完成时输出一行并退出 0，整段超时才输出一次最后状态并退出 124。若宿主先返回仍在运行的 session，使用一次支持的最长等待续接该进程，不要每 5 秒读取文件、轮询 session 或发送状态更新。
 
-第一次连续观察到 `GROK_BLOCKED_USER_DECISION` 时，读取交付/状态中明确的问题和推荐项，立即向用户请求决策，并记录单调时钟起点与本次 blocking episode 的 `nudge_sent=false`。若连续 300 秒没有用户答复、状态仍未变化、Grok 有明确推荐，且该选择可逆、未扩大任务范围、不涉及凭证/安全边界/不可逆操作，则按同一安全投递方式只发送一次 `按推荐执行`；否则继续保持阻塞，不得自动决定。用户答复优先并立即取消自动推荐计时。状态离开阻塞后清除此轮计时；新的连续 blocking episode 可重新计时。
+退出 0 后保留 Grok TUI，只读一次中文交付文件并从完整累计 diff 开始独立验收。退出 124 时按最后状态做一次决策：`GROK_IMPLEMENTING` 或缺失则重新执行一轮 240 秒或更长的等待；`GROK_PLANNING` 持续超时且有明确安全推荐时才按既有安全方式发送一次 `按推荐执行`，随后重新长等；`GROK_BLOCKED_USER_DECISION` 才请求用户决策；异常状态才做一次最小诊断。
 
-状态缺失或 `GROK_IMPLEMENTING` 时保持等待，不检查仓库、不打断 Grok、不发送重复状态；`GROK_PLANNING` 与 `GROK_BLOCKED_USER_DECISION` 按上述 5 分钟看门狗处理。Grok 正常完成 Plan 自检后应原地覆盖为 `GROK_IMPLEMENTING`，不等待用户在窗口再次确认。只有用户明确报告 Grok 已退出但无完整交付，才允许一次性检查 tmux 会话与 Git 现场。
-
-完成标记出现后停止等待/心跳，保留当前可见 tmux session 与仍打开的 Grok TUI，读取中文交付文件用于定位证据，并从完整累计 diff 开始独立验收。交付文档不能替代业务实现 Review 或独立复测。若发现 P0-P2，直接向同一个 Grok TUI 提交中文返工 prompt；不退出或重启 Grok、不使用 `--continue`、不新建 tmux session，也不管理 Grok session ID。
+等待期间不检查中间 Git 状态、文件列表、tmux pane、进程、测试进度、思考过程、token 或中间 diff，不发送 `Ctrl-C`。开发中的文件变化留到最终 Review。若发现 P0-P2，向同一个 Grok TUI 提交返工合同后再次使用同一轮询脚本；不重启 Grok、不使用 `--continue`、不新建 tmux session，也不管理 Grok session ID。
 
 ## 从完整 diff 开始 Review
 

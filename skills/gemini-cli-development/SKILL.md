@@ -39,9 +39,20 @@ gemini --skip-trust --approval-mode yolo --prompt-interactive "$PLAN_AND_IMPLEME
 
 完全批准只免除工具逐项确认，不扩大路径、Git 或需求权限。不得用 `-p/--prompt` 的 headless 单轮模式冒充持续 TUI；不得在隐藏 PTY 或 Codex 右侧终端启动。启动器拒绝复用同名 tmux session，并开启 mouse 与足够 scrollback。
 
-## 轻量等待
+## 低噪声长轮询
 
-启动成功后持续只读状态与交付文件，不抓 pane、过程输出、思考、token、进程或中间 diff。状态缺失/implementing 时继续等待；blocked 时向用户请求决策；只有状态与交付末行都完成才进入 Review。同一 TUI 正常存活时不要使用 `--resume`。
+启动成功后立即运行轮询脚本，让脚本在进程内每 5 秒检查一次，不要由主 Agent 高频调用工具：
+
+```bash
+scripts/wait-for-delivery.zsh \
+  "$STATUS_FILE" GEMINI_DELIVERY_COMPLETE \
+  "$HANDOFF_FILE" GEMINI_DELIVERY_COMPLETE \
+  240
+```
+
+默认等待 240 秒；任务明确较长时可提高，但不要用更短等待恢复高频轮询。脚本在循环中零输出；仅当状态和交付末行同时完成时输出一行并退出 0，整段超时则只输出一次最后状态并退出 124。若宿主先返回仍在运行的 session，使用一次支持的最长等待继续该进程，不要每 5 秒读取文件或轮询 session。
+
+退出 0 后只读一次交付文件并进入 Review。退出 124 时按最后状态处理：implementing/missing 则重新执行一轮 240 秒或更长的等待；blocked 才请求用户决策；异常状态才做一次最小诊断。不要抓 pane、过程输出、思考、token、进程或中间 diff。同一 TUI 正常存活时不要使用 `--resume`。
 
 ## 独立 Review 与返工
 
