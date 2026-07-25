@@ -1,6 +1,6 @@
 ---
 name: gpt-image-generation
-description: 通过 OpenAI-compatible GPT Image 端点生成或编辑图像，将 url 或 b64_json 结果安全落盘，并诊断认证、重定向、provider 失败与超时。用户要求用 GPT Image 生图、参考图改图、验证 /v1/images/generations 或 /v1/images/edits、检查图像代理兼容性或排查生成失败时使用。
+description: 通过 OpenAI-compatible GPT Image 端点生成、单图编辑或多参考图合成图像，将 b64_json 结果安全落盘，并诊断认证、重定向、provider 失败与超时。用户要求用 GPT Image 生图、参考图改图、上传多张图片合成、验证 /v1/images/generations 或 /v1/images/edits、检查图像代理兼容性或排查生成失败时使用。
 ---
 
 # GPT Image 生图与端点诊断
@@ -40,6 +40,19 @@ python3 skills/gpt-image-generation/scripts/generate_openai_image.py \
 ```
 
 固定参考图、角色身份和 freeze-list。不要把一次 edits 成功外推为所有格式、尺寸或多图输入均受支持。
+
+重复传入 `--image` 可上传 2–5 张参考图并合成为一张结果。脚本使用重复的 `image[]` multipart 字段；在 prompt 中明确每张图需要保留的对象、身份、位置和禁止变化项：
+
+```bash
+python3 skills/gpt-image-generation/scripts/generate_openai_image.py \
+  --base-url https://example.invalid \
+  --image /absolute/path/to/first.png \
+  --image /absolute/path/to/second.png \
+  --prompt "Keep the red square from the first image on the left and the blue circle from the second image on the right, on one white background, no text" \
+  --output /tmp/image-composite.png
+```
+
+当前 new-api 的 Kie 图片通道只接受 `n=1`。不要把“多参考图输入”误写成一次生成多张输出；在路由支持 `n>1` 前，脚本继续固定单张输出。
 
 ## 使用项目环境文件
 

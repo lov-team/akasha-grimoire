@@ -23,6 +23,7 @@ DEFAULT_PROMPT = (
     "simple vector style, no text."
 )
 RESPONSE_FORMAT = "b64_json"
+MAX_EDIT_IMAGES = 5
 
 
 class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
@@ -99,12 +100,18 @@ def _json_body(args: argparse.Namespace) -> bytes:
 
 
 def _multipart_body(args: argparse.Namespace) -> tuple[bytes, str]:
-    image_path = Path(args.image).expanduser().resolve()
-    if not image_path.is_file():
-        raise SystemExit(f"image file does not exist: {image_path}")
+    image_values = [args.image] if isinstance(args.image, str) else list(args.image or [])
+    if not image_values:
+        raise SystemExit("provide at least one --image for image edits")
+    if len(image_values) > MAX_EDIT_IMAGES:
+        raise SystemExit(f"image edits support at most {MAX_EDIT_IMAGES} reference images")
+
+    image_paths = [Path(value).expanduser().resolve() for value in image_values]
+    for image_path in image_paths:
+        if not image_path.is_file():
+            raise SystemExit(f"image file does not exist: {image_path}")
 
     boundary = f"----gpt-image-{uuid.uuid4().hex}"
-    content_type = mimetypes.guess_type(str(image_path))[0] or "application/octet-stream"
     fields = {
         "model": args.model,
         "prompt": args.prompt,
@@ -118,15 +125,18 @@ def _multipart_body(args: argparse.Namespace) -> tuple[bytes, str]:
         chunks.append(str(value).encode("utf-8"))
         chunks.append(b"\r\n")
 
-    chunks.append(f"--{boundary}\r\n".encode("utf-8"))
-    chunks.append(
-        (
-            f'Content-Disposition: form-data; name="image"; filename="{image_path.name}"\r\n'
-            f"Content-Type: {content_type}\r\n\r\n"
-        ).encode("utf-8")
-    )
-    chunks.append(image_path.read_bytes())
-    chunks.append(b"\r\n")
+    image_field = "image" if len(image_paths) == 1 else "image[]"
+    for image_path in image_paths:
+        content_type = mimetypes.guess_type(str(image_path))[0] or "application/octet-stream"
+        chunks.append(f"--{boundary}\r\n".encode("utf-8"))
+        chunks.append(
+            (
+                f'Content-Disposition: form-data; name="{image_field}"; filename="{image_path.name}"\r\n'
+                f"Content-Type: {content_type}\r\n\r\n"
+            ).encode("utf-8")
+        )
+        chunks.append(image_path.read_bytes())
+        chunks.append(b"\r\n")
     chunks.append(f"--{boundary}--\r\n".encode("utf-8"))
     return b"".join(chunks), f"multipart/form-data; boundary={boundary}"
 
@@ -244,7 +254,12 @@ def main() -> int:
     parser.add_argument("--model", default="gpt-image-2")
     parser.add_argument("--prompt", default=DEFAULT_PROMPT)
     parser.add_argument("--size", default="1024x1024", choices=["auto", "1024x1024", "1536x1024", "1024x1536"])
-    parser.add_argument("--image", help="Optional reference image path. When set, calls /v1/images/edits.")
+    parser.add_argument(
+        "--image",
+        action="append",
+        default=[],
+        help=f"Optional reference image path; repeat for up to {MAX_EDIT_IMAGES} images. When set, calls /v1/images/edits.",
+    )
     parser.add_argument("--output", help="Optional path for the generated image. Existing files are preserved by default.")
     parser.add_argument("--overwrite", action="store_true", help="Allow replacing an existing --output file.")
     parser.add_argument("--env-file", default=os.environ.get("IMAGE_PROXY_ENV_FILE"), help="Optional .env file to load API keys from.")

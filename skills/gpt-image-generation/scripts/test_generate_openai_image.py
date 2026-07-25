@@ -39,13 +39,47 @@ class RequestFormatTest(unittest.TestCase):
                 prompt="test",
                 size="1024x1024",
                 response_format="url",
-                image=str(image_path),
+                image=[str(image_path)],
             )
 
             body, _content_type = MODULE._multipart_body(args)
 
         self.assertIn(b'name="response_format"\r\n\r\nb64_json\r\n', body)
         self.assertNotIn(b'name="response_format"\r\n\r\nurl\r\n', body)
+        self.assertIn(b'name="image"; filename="reference.png"', body)
+        self.assertNotIn(b'name="image[]"', body)
+
+    def test_multi_image_edit_uses_repeated_image_array_parts(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            first = Path(directory) / "first.png"
+            second = Path(directory) / "second.png"
+            first.write_bytes(b"first-image")
+            second.write_bytes(b"second-image")
+            args = argparse.Namespace(
+                model="gpt-image-2",
+                prompt="combine",
+                size="1024x1024",
+                image=[str(first), str(second)],
+            )
+
+            body, _content_type = MODULE._multipart_body(args)
+
+        self.assertEqual(body.count(b'name="image[]"; filename='), 2)
+        self.assertIn(b'filename="first.png"', body)
+        self.assertIn(b'filename="second.png"', body)
+        self.assertIn(b"first-image", body)
+        self.assertIn(b"second-image", body)
+
+    def test_edit_rejects_more_than_five_images(self) -> None:
+        args = argparse.Namespace(
+            model="gpt-image-2",
+            prompt="combine",
+            size="1024x1024",
+            image=[f"reference-{index}.png" for index in range(6)],
+        )
+
+        with self.assertRaisesRegex(SystemExit, "at most 5"):
+            MODULE._multipart_body(args)
 
     def test_url_response_is_rejected_as_contract_violation(self) -> None:
         payload = {
