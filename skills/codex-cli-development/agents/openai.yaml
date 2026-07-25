@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex CLI 可见 TUI 开发"
+  short_description: "在可见 Terminal 与 tmux 中驱动 Codex CLI 并独立验收"
+  default_prompt: "使用 $codex-cli-development 在可见 TUI 中驱动 Codex CLI 完成开发，再由主 Agent 独立 Review 与验证。"

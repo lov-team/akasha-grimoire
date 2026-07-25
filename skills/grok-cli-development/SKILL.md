@@ -1,0 +1,239 @@
+---
+name: grok-cli-development
+description: 使用可见 macOS Terminal + tmux 弹窗以简体中文编排 Grok CLI 在同一个 TUI 中先给 Plan 并自检，再原地完成开发、图像生成或视频生成；启动后轮询仓库外状态与最终交付标记，再由主 Agent 独立验收。用户要求“用 Grok CLI 开发”“让 Grok 干活”、让 Grok 生图/做 UI 概念稿/生成游戏资产/制作视频、要求 Grok plan 后编码、审查或打回 Grok diff、使用同一 Grok 会话返工，或让 Grok 生成最终交付文档时使用。禁止 Codex 右侧终端、后台 PTY、pane 过程采集和开发中途干预；覆盖中文需求对齐、视觉生成与 QA、状态轮询、业务实现 Review、风险复测、P0-P2 闭环及 Git 状态核验。
+---
+
+# Grok CLI 开发与独立验收
+
+把 Grok 当作实现 worker。主 Agent 始终负责需求解释、用户决策、范围控制、业务实现 Review、独立验证和最终交付结论。
+
+## 先确认边界
+
+1. 读取项目 `AGENTS.md`、用户需求、相关代码和完整 Git 现场；用户即时指令与项目规则优先于本技能。
+2. 默认一个 Issue、一个 Codex App 任务、一个 worktree、一个 Grok 会话；不得让多个写入者同时修改同一 worktree。
+3. 产品取舍、UI/协议歧义、破坏性操作、权限凭证不明或未知业务文件出现时，先停止并请求用户决策。
+4. 不把需求理解、真实调用链识别或成功标准制定外包给 Grok。
+
+## 强制中文交互
+
+- Grok 面向用户的计划、提问、选择项、进度摘要、测试说明、返工答复和最终交付一律使用**简体中文**。
+- 命令、代码、文件名、API/类型/字段标识符和原始错误可保留英文，但必须紧跟中文解释。
+- 每次 Plan、开发和返工启动都显式加入：
+
+  ```bash
+  --rules "全程使用简体中文与用户交互；计划、提问、进度摘要、测试说明和最终交付均用中文。命令、代码、标识符和原始错误可保留英文，但必须用中文解释。"
+  ```
+
+- prompt contract 第一行再次写明“全程使用简体中文”，仓库外交付文件也必须用中文撰写。
+- Grok 若输出英文计划或要求用户用英文确认，立即在同一可见 TUI 要求其用中文完整重写；中文版本通过前不得进入下一阶段。
+
+## 核对 CLI
+
+首次使用或版本变化时，用普通非 PTY 命令运行：
+
+```bash
+command -v grok
+grok --version
+grok --help
+```
+
+本流程依赖：
+
+- runner 的显式 `cd`、tmux `new-session -c` 与 Grok `--cwd`：三重锁定唯一 worktree；
+- `--permission-mode bypassPermissions` + `--always-approve`：TUI 明确处于完全批准状态；计划阶段由 prompt 强制先输出并自检，通过后在原 TUI 直接开发；
+- `--no-subagents`：禁止 Grok 再派生写入者；
+- `--minimal --no-alt-screen`：在 Terminal + tmux 弹窗中使用可见、可滚动的 inline TUI；
+- `--always-approve`：启动时固定启用，避免逐条工具审批；它不改变 worktree、路径、Git 权限与用户决策约束。
+
+参数不匹配当前 `grok --help` 时停止并更新调用方式，不能凭印象拼接。
+
+## 建立 prompt contract
+
+调用 Grok 前明确：
+
+- 原始目标和逐条验收标准；
+- 已确认决策、真实歧义与非目标；
+- worktree、基线、允许和禁止修改的路径；
+- Red → Green → Refactor 顺序；
+- focused、受影响模块、直接依赖契约测试、全量升级条件、import、UI、网络或真实设备验证；
+- Git 权限边界；
+- 仓库外交付文件路径与固定完成标记。
+
+视觉生成任务还必须明确：用途、画幅/分辨率或视频时长、风格、角色与世界观、必须出现和禁止出现的元素、参考图仅允许借鉴的维度、精确文字、候选数量、仓库外 staging 路径，以及是否需要用户选稿后才能进入实现。
+
+## 图像、UI 概念稿与视频生成
+
+- 用户把任务交给 Grok CLI 时，所需的图像、UI mockup、游戏资产、动效概念和视频也由同一个 Grok TUI 使用其当前可用的内置生成能力完成；主 Agent 不另开生图 worker，也不代替 Grok 调用其他生成通道。
+- 生成前先用最小 smoke 核对真实工具、模型、参考输入、输出格式和限制。不得凭记忆写死模型能力，不得绕过 Grok 内置能力直连供应商，也不得输出凭证、Cookie、临时授权 URL 或隐藏 provider 响应。
+- 纯视觉任务不强套 Red → Green → Refactor；改用 `smoke → 首稿 → 目视 QA → 单点修正 → 最终交付`。若同时包含代码实现，视觉确认之后的业务代码仍严格执行 TDD。
+- 预览和原始生成物放在仓库外唯一 `/tmp/<project>-<issue>-grok-visual-<round>/`；未经用户或 Issue 明确选定，不得复制进生产资产、修改 Godot 场景或围绕未确认稿编码。仓库的文件名、尺寸、版权/IP、import 和 staging 契约仍然有效。
+- 竞品图只能作为明确标注的构图、层级、节奏或交互参考，不得复刻角色、Logo、专有纹样、文案、具体控件造型或像素布局。生成稿必须符合项目原创世界观。
+- 每张图由 Grok 目视检查完整构图、主体、UI 层级、文字、禁用项和技术可实现区；视频还要检查关键帧、时长、运动连贯性、闪烁/形变、音画与循环边界。发现问题只做针对性重试，不用无差别重复生成掩盖失败。
+- 需要用户选稿时，Grok 把候选绝对路径、实际尺寸/时长、最终 prompt、设计取舍、推荐项和已知缺陷写入仓库外决策文件，状态切为 `GROK_BLOCKED_USER_DECISION` 并停在同一 TUI。主 Agent 独立查看原图或视频证据后再向用户展示；用户选择后才向同一会话恢复指令。
+- 最终交付文件必须列出所有采用/淘汰产物路径、实际模型或内置工具、生成次数、QA 结论、选稿结果、是否进入仓库及 Git 状态。主 Agent 必须独立查看图像原文件；视频至少核对元数据、代表性帧和可播放成片，不能只信 Grok 自述。
+
+交付文件使用本轮唯一的新路径，例如：
+
+```text
+/tmp/<project>-issue-<number>-grok-delivery-round-<n>.md
+```
+
+启动前确认该路径不存在；若已存在，递增 round，不删除或复用旧文件。末行固定为：
+
+```text
+GROK_DELIVERY_COMPLETE
+```
+
+## 启动可见 Terminal + tmux
+
+始终使用 **macOS Terminal + attached tmux**，不尝试 Codex App 右侧终端。使用 [`scripts/launch-visible-grok.zsh`](scripts/launch-visible-grok.zsh) 打开预先生成的 runner：
+
+```bash
+scripts/launch-visible-grok.zsh \
+  <tmux-session-name> \
+  </absolute/path/to/runner.zsh> \
+  </absolute/path/to/task-worktree>
+```
+
+若系统没有可见 Terminal 能力，把命令交给用户执行并暂停；不得用 Codex 右侧终端、`-p`、后台 PTY 或隐藏 tmux 冒充可见 TUI。
+
+使用弹窗前先说明将打开 Terminal。runner 必须位于仓库外的唯一临时路径、权限为 `700`，内容必须先 `cd "$TASK_WORKTREE"` 并校验成功，再显式传入同一路径的 Grok `--cwd`，同时固定 Grok 参数和 prompt 文件。启动器把同一路径传给 tmux `new-session -c`。session 名使用项目、Issue、阶段组合并只含字母、数字、点、下划线和短横线，例如 `mahjong-249-plan`。
+
+启动器必须加载 [`scripts/tmux-visible.conf`](scripts/tmux-visible.conf)：开启 `mouse` 并将 `history-limit` 设为 50000。用户可直接用滚轮进入 copy-mode 回看；键盘方式为 `Ctrl-b` 后按 `[`，再用 `PageUp`/方向键滚动，按 `q` 返回 Grok 输入。不得为解决滚动问题切回 full-screen/alternate-screen。
+
+初次启动禁止附着或复用同名 tmux session；同名已存在必须报错，避免 `new-session -A` 忽略本轮目录。启动脚本负责一次性核对 `pane_current_path` 的物理路径严格等于任务 worktree；不读取 pane 内容。目录不一致时不得进入计划或开发，应报告并只处理这个精确 session。路径通过后只允许用 `tmux list-sessions` 确认会话存在且 attached；禁止 `capture-pane`、后台 attach、截图读取 Grok 过程、持续 `pgrep` 或轮询 TUI 输出。没有现成 tmux client 时不要调用 `display-popup`；由启动脚本打开 Terminal 并在其中创建/附着会话。
+
+## 在可见终端一次启动 Plan 与开发
+
+主 Agent 完成前置决策闸门后，把计划与实现契约放入可见 Terminal + tmux 一次启动：
+
+```bash
+cd "$TASK_WORKTREE"
+test "$(pwd -P)" = "$(cd "$TASK_WORKTREE" && pwd -P)"
+grok --cwd "$TASK_WORKTREE" \
+  --minimal \
+  --no-alt-screen \
+  --permission-mode bypassPermissions \
+  --no-subagents \
+  --always-approve \
+  --rules "全程使用简体中文与用户交互；计划、提问、进度摘要、测试说明和最终交付均用中文。命令、代码、标识符和原始错误可保留英文，但必须用中文解释。" \
+  "$PLAN_AND_IMPLEMENT_PROMPT"
+```
+
+硬约束：
+
+- runner、tmux 与 `grok --cwd` 的三处路径必须是同一个经过物理路径解析的任务 worktree；任一不一致立即停止，不能靠 prompt 口头约束目录。
+- 不使用 `exec_command` 的 `tty:true`、后台统一 PTY或隐藏终端启动 Grok TUI。tmux 只允许按上一节通过可见 Terminal attached 会话使用。
+- 不使用 `-p/--single` 代替同一可见 TUI 内的 Plan 自检与直接开发。
+- 启动固定同时使用 `--permission-mode bypassPermissions --always-approve`，确保 TUI 显示并实际处于完全批准状态；完全授权只免除工具逐条审批，不授权扩大范围、Git 交付或替用户决定前置歧义。
+- prompt 必须要求 Grok 先输出中文计划并自检需求、TDD、边界、风险与验证；确认无遗漏后在同一 TUI 原地直接开发，不等待用户在窗口再次确认，不退出、不调用 `--continue`、不启动第二个 Grok。
+- 必须由用户决定的事项在启动前解决；开发中新发现的决策阻塞写入状态文件并停止等待用户。
+
+`PLAN_AND_IMPLEMENT_PROMPT` 必须要求：
+
+1. 先读 worktree 内 `AGENTS.md`；
+2. 先输出并自检计划；确认无遗漏后不等待用户在 TUI 再次确认，直接执行 Red → Green → Refactor；
+3. 只修改允许范围；
+4. 遇到冲突、未知业务改动、测试设施故障或用户决策时停止；
+5. 完成实现和自测后，才写指定交付文件；
+6. 交付文件用中文包含修改文件、需求映射、测试命令与结果、未验证项、风险和 Git 状态，末行写固定完成标记。
+
+## 启动后立即轮询状态与最终交付
+
+启动前指定唯一的仓库外状态文件和交付文件。状态文件只允许单行 `GROK_PLANNING`、`GROK_IMPLEMENTING`、`GROK_BLOCKED_USER_DECISION` 或 `GROK_DELIVERY_COMPLETE`；Grok 在阶段切换时原子覆盖，不写思考过程或长日志。
+
+tmux 启动成功后立即进入 `WAITING_GROK_STATUS` 并持续轮询状态文件与交付文件完成标记，不先结束当前执行回合等待用户提醒。主 Agent 不检查中间 Git 状态、文件列表、tmux 会话、pane 命令、进程、测试进度或 TUI 内容，也不发送 `Ctrl-C` 或任意补充 prompt。唯一允许的中途输入是下述 `GROK_PLANNING` / `GROK_BLOCKED_USER_DECISION` 5 分钟看门狗。开发期间出现新增/修改文件属于预期现场，不触发意外文件闸门；意外文件判断统一留到最终完整 diff Review。
+
+不要采集 Grok 思考过程、TUI 刷新、持续日志或 token 状态，也不要用截图猜测完成。用户可在 Terminal 弹窗直接观察和交互。若使用当前任务心跳，心跳只能执行以下最终完成检查：
+
+```bash
+test -f "$GROK_HANDOFF" \
+  && test "$(tail -n 1 "$GROK_HANDOFF")" = "GROK_DELIVERY_COMPLETE"
+```
+
+第一次连续观察到 `GROK_PLANNING` 时，用主 Agent 的单调时钟记录起点和本次 planning episode 的 `nudge_sent=false`。若状态连续 300 秒未离开 `GROK_PLANNING`，且未出现 `GROK_BLOCKED_USER_DECISION` 或完成标记，则只向启动时记录的精确 tmux session/pane 投递一次单行 `按推荐执行`：先写入本轮唯一仓库外单行文件，再使用 `tmux load-buffer` + `tmux paste-buffer`，最后仅用一次 `tmux send-keys ... Enter`。不得读取/capture pane，不附加解释，不重复发送；投递后设 `nudge_sent=true` 并恢复只读状态/交付轮询。状态离开 `GROK_PLANNING` 后清除此轮计时；新的连续 planning episode 可重新计时。用户明确正在 TUI 输入时暂缓，待其完成后再判断。
+
+第一次连续观察到 `GROK_BLOCKED_USER_DECISION` 时，读取交付/状态中明确的问题和推荐项，立即向用户请求决策，并记录单调时钟起点与本次 blocking episode 的 `nudge_sent=false`。若连续 300 秒没有用户答复、状态仍未变化、Grok 有明确推荐，且该选择可逆、未扩大任务范围、不涉及凭证/安全边界/不可逆操作，则按同一安全投递方式只发送一次 `按推荐执行`；否则继续保持阻塞，不得自动决定。用户答复优先并立即取消自动推荐计时。状态离开阻塞后清除此轮计时；新的连续 blocking episode 可重新计时。
+
+状态缺失或 `GROK_IMPLEMENTING` 时保持等待，不检查仓库、不打断 Grok、不发送重复状态；`GROK_PLANNING` 与 `GROK_BLOCKED_USER_DECISION` 按上述 5 分钟看门狗处理。Grok 正常完成 Plan 自检后应原地覆盖为 `GROK_IMPLEMENTING`，不等待用户在窗口再次确认。只有用户明确报告 Grok 已退出但无完整交付，才允许一次性检查 tmux 会话与 Git 现场。
+
+完成标记出现后停止等待/心跳，保留当前可见 tmux session 与仍打开的 Grok TUI，读取中文交付文件用于定位证据，并从完整累计 diff 开始独立验收。交付文档不能替代业务实现 Review 或独立复测。若发现 P0-P2，直接向同一个 Grok TUI 提交中文返工 prompt；不退出或重启 Grok、不使用 `--continue`、不新建 tmux session，也不管理 Grok session ID。
+
+## 从完整 diff 开始 Review
+
+主 Agent 亲自执行并阅读：
+
+```bash
+git status --short --branch
+git diff --stat
+git diff --check
+git diff
+# worker 已提交时：
+git diff "$BASE_REF"...HEAD
+git ls-files --others --exclude-standard
+```
+
+逐个读取所有 tracked/untracked 变更，并至少核对：
+
+1. 每条验收标准是否在真实生产入口生效；
+2. 状态是否由真实构造路径建立，规则是否进入真实命令消费、事件发布/回放和用户可见结果；
+3. 是否只新增了 helper、DTO、占位对象或自证测试，却没有接入业务路径；
+4. 是否遗漏关键副作用、错误分支、清理、幂等、回滚或跨模块契约；
+5. 是否提前实现后续 Issue 或引入未确认决策；
+6. 测试是否覆盖真实核心逻辑，mock 是否绕过被测对象；
+7. Red 证据是否能证明测试在实现前有效失败。
+
+测试全绿不能替代业务语义 Review。默认按真实生产调用链执行 focused → 受影响模块 → 直接依赖契约测试，不再为每个 Issue 或每轮返工固定跑全量。不得只跑新增测试自证，必须覆盖被改实现的直接调用方、被调用方和共享数据契约。涉及 class/资产跑 import，涉及 UI 做截图/主路径手测，涉及网络或设备而无法真实验证时明确披露。
+
+只有满足以下任一条件才升级全量测试：修改跨模块共享协议/schema、事件序列化/恢复、权威基础状态机或通用规则基础设施；修改 Autoload、项目级配置、插件/依赖、全局 class 解析链或大范围资源导入；focused 出现跨模块 Parse Error/系统性失败或无法可靠界定影响；用户、Issue、发布或里程碑明确要求。未命中时，Grok 在最后一次代码修改后只需跑受影响验证包，并在交付中写清范围推导、命令、totals 和未覆盖风险。主 Agent 审计该日志后用相邻 focused/契约测试独立交叉验证，不机械重复同一测试包。
+
+## P0-P2 打回同一会话
+
+统一严重度：
+
+- P0：阻断、数据损坏或严重安全问题；
+- P1：主要功能、架构或用户流程错误；
+- P2：正确性、契约、恢复语义或关键覆盖缺口；
+- P3：非阻断改进。
+
+P0-P2 必须关闭。返工要求必须用中文包含文件/行、违反的要求、实际行为、期望行为、失败命令和限定范围。使用新的 round 交付文件路径，直接向同一个可见 tmux session 中仍打开的 Grok TUI 提交返工 prompt；每轮重新审查完整累计 diff，而不是只看最后补丁。不得退出/重启 Grok、调用 `--continue` 或为同一 Issue 另建第二个 tmux session。
+
+标记出现前禁止补充 prompt 或干预。标记出现且 Review 确认需要返工后，先把完整中文返工合同写入唯一的仓库外 `/tmp/*.md` 文件；**不得把长篇、多行返工合同本身直接 paste 进 TUI**，避免 bracketed paste / 多行解析造成明显卡顿或提交状态不清。
+
+tmux 只投递一行短指令，内容必须包含该返工文件的绝对路径，例如：
+
+```text
+请读取 /tmp/<project>-issue-<number>-grok-rework-round-<n>.md，并严格执行其中全部返工指令；读取后立即按文件要求更新状态文件。
+```
+
+将这行短指令写入另一个唯一的仓库外文本文件，再用 `tmux load-buffer` + `tmux paste-buffer` 送入启动时记录的精确 session/pane，最后仅用一次 `tmux send-keys ... Enter` 提交。不得读取或捕获 pane 输出，不得退出/重启 Grok。随后只轮询该轮状态/交付文件；短时间内状态尚未出现属于正常接收延迟，不得重复粘贴。用户正在 TUI 内操作时先避免并发输入。
+
+## 验收通过后关闭 tmux 与专用 Terminal 窗口
+
+启动当前 Issue 的可见 tmux 弹窗时记录唯一精确 session 名，并在 Plan、开发、Review、返工和复验期间始终复用该 session 和仍打开的 Grok TUI。每轮交付文件末行完成标记有效后不得关闭；若需返工，直接在现有 TUI 输入框输入并提交 prompt。全程不管理 Grok session ID。
+
+关闭前先用 `tmux list-sessions` 只读确认精确名称仍存在，再对记录的每个 session 单独执行：
+
+```bash
+tmux kill-session -t "$EXACT_SESSION"
+```
+
+只有完整 diff Review 完成、P0-P2 清零且主 Agent 独立验证全部通过后，才执行关闭。关闭后再次只读确认该精确 session 已不存在。禁止使用 `tmux kill-server`、glob、前缀匹配、模糊匹配或未经记录的 session 名，不得影响用户的其他 tmux 会话。若 session 已自然退出，记录事实即可，不为清理而新建会话。
+
+`launch-visible-grok.zsh` 必须为本次启动显式创建新的 Terminal 窗口并记录其唯一 window id。精确 tmux session 退出后，wrapper 只在该 window id 仍存在且仍为单标签页时关闭它；若窗口已不存在或用户后来加入了其他标签页，则保留窗口，不得用 `front window`、窗口标题、进程名或模糊匹配强关。关闭结果不影响 tmux 与验收结论。
+
+## Git 与完成条件
+
+默认由主 Agent 在验收后执行 Git 交付；Grok 不负责最终 commit、push、PR 或合并，除非用户或项目规则明确改变权限。
+
+发生 Git 操作时，独立核对本地 HEAD、远端 SHA、PR 基线与完整 diff、可合并状态和目标分支。CI 是否为门禁、是否直接合并，以当前项目 `AGENTS.md` 和用户指令为准，不在技能中硬编码。
+
+只有同时满足以下条件才声称完成：
+
+- 用户需求和决策逐条有真实业务证据；
+- 交付文件完成标记有效；
+- 主 Agent 已读完整 diff 和所有变更文件；
+- P0-P2 清零；
+- 主 Agent 独立验证通过；
+- 未验证项和风险已披露；
+- Git、PR 或合并状态已按实际远端核实。

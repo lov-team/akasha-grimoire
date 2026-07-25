@@ -1,0 +1,4 @@
+interface:
+  display_name: "游戏资产锻造"
+  short_description: "制定资产合同，生成、清理并验收可直接导入引擎的游戏资产"
+  default_prompt: "使用 $game-asset-forge 制定资产合同，先 smoke 后生成，并完成真实文件与引擎验收。"

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Grok 可见 TUI 开发与视觉生成"
+  short_description: "同一可见 TUI 完成代码开发、图像视频生成与独立验收"
+  default_prompt: "使用 $grok-cli-development 在同一个可见 macOS Terminal + tmux TUI 中驱动 Grok：先给中文计划并自检，再完成开发或图像/视频生成，最后由主 Agent 独立验收。"

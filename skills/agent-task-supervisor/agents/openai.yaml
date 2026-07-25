@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agent 任务轻量监工"
+  short_description: "用紧凑任务板跟进多个任务，仅按风险下钻并执行独立验收"
+  default_prompt: "使用 $agent-task-supervisor 轻量监工这些任务，维护紧凑任务板，只在风险触发时下钻并独立验收。"
