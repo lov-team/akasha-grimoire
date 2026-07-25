@@ -15,18 +15,17 @@ description: 通过 OpenAI-compatible GPT Image 端点生成或编辑图像，�
 
 ## 生成图像
 
-优先请求 `b64_json` 并直接写入仓库外 staging：
+生成与编辑请求固定使用 `response_format=b64_json`，并直接写入仓库外 staging。脚本不提供 URL 模式，避免临时下载地址过期、重定向或返回空载荷：
 
 ```bash
 python3 skills/gpt-image-generation/scripts/generate_openai_image.py \
   --base-url https://example.invalid \
   --prompt "A tiny red square app icon, clean vector style, no text" \
   --size 1024x1024 \
-  --response-format b64_json \
   --output /tmp/image-smoke.png
 ```
 
-脚本拒绝静默覆盖已存在文件；明确需要覆盖时才传 `--overwrite`。响应为 URL 时，脚本只报告 host 和长度，不打印可能含临时签名的完整 URL；提供 `--output` 时会下载结果并原子落盘。
+脚本拒绝静默覆盖已存在文件；明确需要覆盖时才传 `--overwrite`。成功响应必须在首个 `data` 项中包含非空 `b64_json`；如果代理忽略请求并返回 `url`，脚本将其判为协议不兼容，不会下载或误报成功。提供 `--output` 时，脚本解码 base64 并原子落盘。
 
 ## 编辑参考图
 
@@ -61,7 +60,7 @@ python3 skills/gpt-image-generation/scripts/generate_openai_image.py \
 - `302`、`307` 或 `/login?...`：请求在到达图像路由前被认证层截获，不能当成功。
 - `502`：已到达后端，但上游图像 provider 失败。
 - `504`：provider 轮询超时；生产 smoke 可提高 `--timeout`。
-- 成功必须是 2xx JSON，含 `created` 与非空 `data`，首项含 `url` 或 `b64_json`。
+- 成功必须是 2xx JSON，含 `created` 与非空 `data`，首项含非空 `b64_json`。
 - 声称生成完成前，读取落盘文件的真实签名、像素、alpha 和内容；API 200 或脚本 `OK` 只证明协议成功。
 
 不要在诊断时输出完整 provider 响应、base64 正文、临时授权 URL 或凭证。真实生图可能计费；未经用户授权时只做 `--help`、语法和本地无网络验证。

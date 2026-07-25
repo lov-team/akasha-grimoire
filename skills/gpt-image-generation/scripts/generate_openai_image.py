@@ -22,20 +22,12 @@ DEFAULT_PROMPT = (
     "A tiny red square app icon on a clean white background, "
     "simple vector style, no text."
 )
+RESPONSE_FORMAT = "b64_json"
 
 
 class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):  # type: ignore[no-untyped-def]
         return None
-
-
-class HttpOnlyRedirectHandler(urllib.request.HTTPRedirectHandler):
-    def redirect_request(self, req, fp, code, msg, headers, newurl):  # type: ignore[no-untyped-def]
-        try:
-            _validated_result_url(newurl)
-        except SystemExit:
-            return None
-        return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
 def _api_key() -> str:
@@ -95,17 +87,13 @@ def _url(base_url: str, endpoint: str) -> str:
     return urllib.parse.urlunsplit((parsed.scheme.lower(), parsed.netloc, result_path, "", ""))
 
 
-def _validated_result_url(value: str) -> urllib.parse.SplitResult:
-    return _parsed_http_url(value, "result URL", allow_query=True)
-
-
 def _json_body(args: argparse.Namespace) -> bytes:
     payload = {
         "model": args.model,
         "prompt": args.prompt,
         "n": 1,
         "size": args.size,
-        "response_format": args.response_format,
+        "response_format": RESPONSE_FORMAT,
     }
     return json.dumps(payload).encode("utf-8")
 
@@ -121,7 +109,7 @@ def _multipart_body(args: argparse.Namespace) -> tuple[bytes, str]:
         "model": args.model,
         "prompt": args.prompt,
         "size": args.size,
-        "response_format": args.response_format,
+        "response_format": RESPONSE_FORMAT,
     }
     chunks: list[bytes] = []
     for name, value in fields.items():
@@ -189,19 +177,13 @@ def _summarize_success(data: dict[str, Any], elapsed: float) -> dict[str, Any]:
     if not isinstance(first, dict):
         raise SystemExit("first data item is not an object")
 
-    if "url" in first:
-        raw_url = first["url"]
-        if not isinstance(raw_url, str) or not raw_url:
-            raise SystemExit("result URL is empty")
-        parsed_url = _validated_result_url(raw_url)
-        result_summary = f"first_url_host={parsed_url.hostname} first_url_length={len(raw_url)}"
-    elif "b64_json" in first:
-        value = first["b64_json"]
-        if not isinstance(value, str) or not value:
-            raise SystemExit("b64_json image data is empty")
-        result_summary = f"first_b64_length={len(value)}"
-    else:
-        raise SystemExit("first data item has neither url nor b64_json")
+    value = first.get("b64_json")
+    if not isinstance(value, str) or not value:
+        raise SystemExit(
+            "provider did not honor requested b64_json response format; "
+            f"data_fields={sorted(first.keys())}"
+        )
+    result_summary = f"first_b64_length={len(value)}"
 
     print(f"OK status=200 elapsed={elapsed:.1f}s items={len(items)}")
     print(f"created={data.get('created')}")
@@ -209,25 +191,15 @@ def _summarize_success(data: dict[str, Any], elapsed: float) -> dict[str, Any]:
     return first
 
 
-def _save_result(first: dict[str, Any], output_value: str, timeout: float, overwrite: bool) -> None:
+def _save_result(first: dict[str, Any], output_value: str, overwrite: bool) -> None:
     output_path = Path(output_value).expanduser().resolve()
     if output_path.exists() and not overwrite:
         raise SystemExit(f"output already exists; pass --overwrite to replace it: {output_path}")
 
-    if "b64_json" in first:
-        try:
-            image_bytes = base64.b64decode(str(first["b64_json"]), validate=True)
-        except Exception as exc:
-            raise SystemExit(f"invalid b64_json image data: {exc}") from exc
-    else:
-        result_url = first.get("url")
-        if not isinstance(result_url, str) or not result_url:
-            raise SystemExit("missing result URL")
-        _validated_result_url(result_url)
-        request = urllib.request.Request(result_url, headers={"User-Agent": "gpt-image-generation/1.0"})
-        download_opener = urllib.request.build_opener(HttpOnlyRedirectHandler)
-        with download_opener.open(request, timeout=timeout) as response:
-            image_bytes = response.read()
+    try:
+        image_bytes = base64.b64decode(str(first["b64_json"]), validate=True)
+    except Exception as exc:
+        raise SystemExit(f"invalid b64_json image data: {exc}") from exc
 
     if not image_bytes:
         raise SystemExit("generated image payload is empty")
@@ -272,7 +244,6 @@ def main() -> int:
     parser.add_argument("--model", default="gpt-image-2")
     parser.add_argument("--prompt", default=DEFAULT_PROMPT)
     parser.add_argument("--size", default="1024x1024", choices=["auto", "1024x1024", "1536x1024", "1024x1536"])
-    parser.add_argument("--response-format", default="b64_json", choices=["url", "b64_json"])
     parser.add_argument("--image", help="Optional reference image path. When set, calls /v1/images/edits.")
     parser.add_argument("--output", help="Optional path for the generated image. Existing files are preserved by default.")
     parser.add_argument("--overwrite", action="store_true", help="Allow replacing an existing --output file.")
@@ -299,7 +270,7 @@ def main() -> int:
                 return 1
             first = _summarize_success(payload, elapsed)
             if args.output:
-                _save_result(first, args.output, args.timeout, args.overwrite)
+                _save_result(first, args.output, args.overwrite)
             return 0
     except urllib.error.HTTPError as exc:
         elapsed = time.monotonic() - started
