@@ -1,4 +1,4 @@
 interface:
   display_name: "Agent 任务轻量监工"
-  short_description: "用四分钟低噪声等待跟进多个任务，按风险下钻并独立验收"
-  default_prompt: "使用 $agent-task-supervisor 以 240 秒低噪声长等待监工这些任务，只在完成、超时或风险触发时处理并独立验收。"
+  short_description: "区分 Codex App 120 秒与外部 Agent 240 秒等待并独立验收"
+  default_prompt: "使用 $agent-task-supervisor 监工这些任务：Codex App 按 120 秒上限等待，外部 Agent 用 240 秒静默脚本，并在交付后独立验收。"
