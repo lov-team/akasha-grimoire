@@ -29,6 +29,15 @@ class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
         return None
 
 
+class HttpOnlyRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # type: ignore[no-untyped-def]
+        try:
+            _validated_result_url(newurl)
+        except SystemExit:
+            return None
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
 def _api_key() -> str:
     return os.environ.get("IMAGE_PROXY_API_KEY") or os.environ.get("OPENAI_API_KEY") or ""
 
@@ -53,11 +62,41 @@ def _load_env_file(path_value: str | None) -> None:
             os.environ[key] = value
 
 
+def _parsed_http_url(value: str, label: str, allow_query: bool) -> urllib.parse.SplitResult:
+    try:
+        parsed = urllib.parse.urlsplit(value)
+        hostname = parsed.hostname
+        _ = parsed.port
+    except (TypeError, ValueError) as exc:
+        raise SystemExit(f"invalid {label}: require an absolute HTTP(S) URL") from exc
+    if parsed.scheme.lower() not in {"http", "https"} or not hostname:
+        raise SystemExit(f"invalid {label}: require an absolute HTTP(S) URL")
+    if parsed.username is not None or parsed.password is not None:
+        raise SystemExit(f"invalid {label}: userinfo is not allowed")
+    if parsed.fragment:
+        raise SystemExit(f"invalid {label}: fragment is not allowed")
+    if parsed.query and not allow_query:
+        raise SystemExit(f"invalid {label}: query is not allowed")
+    return parsed
+
+
 def _url(base_url: str, endpoint: str) -> str:
-    base = base_url.rstrip("/")
-    if endpoint == "edits":
-        return f"{base}/v1/images/edits"
-    return f"{base}/v1/images/generations"
+    if endpoint not in {"edits", "generations"}:
+        raise SystemExit("invalid image endpoint")
+    parsed = _parsed_http_url(base_url, "base URL", allow_query=False)
+    base_path = parsed.path.rstrip("/")
+    if not base_path:
+        api_path = "/v1"
+    elif base_path.rsplit("/", 1)[-1] == "v1":
+        api_path = base_path
+    else:
+        api_path = f"{base_path}/v1"
+    result_path = f"{api_path}/images/{endpoint}"
+    return urllib.parse.urlunsplit((parsed.scheme.lower(), parsed.netloc, result_path, "", ""))
+
+
+def _validated_result_url(value: str) -> urllib.parse.SplitResult:
+    return _parsed_http_url(value, "result URL", allow_query=True)
 
 
 def _json_body(args: argparse.Namespace) -> bytes:
@@ -150,21 +189,23 @@ def _summarize_success(data: dict[str, Any], elapsed: float) -> dict[str, Any]:
     if not isinstance(first, dict):
         raise SystemExit("first data item is not an object")
 
-    print(f"OK status=200 elapsed={elapsed:.1f}s items={len(items)}")
-    print(f"created={data.get('created')}")
     if "url" in first:
-        url = str(first["url"])
-        if not url:
+        raw_url = first["url"]
+        if not isinstance(raw_url, str) or not raw_url:
             raise SystemExit("result URL is empty")
-        parsed = urllib.parse.urlparse(url)
-        print(f"first_url_host={parsed.netloc or '<relative>'} first_url_length={len(url)}")
+        parsed_url = _validated_result_url(raw_url)
+        result_summary = f"first_url_host={parsed_url.hostname} first_url_length={len(raw_url)}"
     elif "b64_json" in first:
-        value = str(first["b64_json"])
-        if not value:
+        value = first["b64_json"]
+        if not isinstance(value, str) or not value:
             raise SystemExit("b64_json image data is empty")
-        print(f"first_b64_length={len(value)}")
+        result_summary = f"first_b64_length={len(value)}"
     else:
         raise SystemExit("first data item has neither url nor b64_json")
+
+    print(f"OK status=200 elapsed={elapsed:.1f}s items={len(items)}")
+    print(f"created={data.get('created')}")
+    print(result_summary)
     return first
 
 
@@ -179,11 +220,13 @@ def _save_result(first: dict[str, Any], output_value: str, timeout: float, overw
         except Exception as exc:
             raise SystemExit(f"invalid b64_json image data: {exc}") from exc
     else:
-        result_url = str(first.get("url", ""))
-        if not result_url:
+        result_url = first.get("url")
+        if not isinstance(result_url, str) or not result_url:
             raise SystemExit("missing result URL")
+        _validated_result_url(result_url)
         request = urllib.request.Request(result_url, headers={"User-Agent": "gpt-image-generation/1.0"})
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        download_opener = urllib.request.build_opener(HttpOnlyRedirectHandler)
+        with download_opener.open(request, timeout=timeout) as response:
             image_bytes = response.read()
 
     if not image_bytes:

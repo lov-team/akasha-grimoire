@@ -9,7 +9,7 @@ description: 通过 OpenAI-compatible GPT Image 端点生成或编辑图像，�
 
 ## 准备合同
 
-明确 base URL、模型、prompt、尺寸、参考图、输出格式、仓库外 staging 路径和验收标准。base URL 必须由 `--base-url` 或 `IMAGE_PROXY_BASE_URL` 明确提供；不要假定供应商或硬编码项目地址。
+明确 base URL、模型、prompt、尺寸、参考图、输出格式、仓库外 staging 路径和验收标准。base URL 必须由 `--base-url` 或 `IMAGE_PROXY_BASE_URL` 明确提供；不要假定供应商或硬编码项目地址。可传 host 根、以 `/v1` 结尾的 API 根或自定义前缀，脚本只在末段不是 `v1` 时补 `/v1`。base URL 不允许 query、fragment 或 userinfo。
 
 凭证只从 `IMAGE_PROXY_API_KEY` 或 `OPENAI_API_KEY` 读取。不要打印 key、复制 `.env` 内容，或把凭证写进 prompt、命令参数、日志和仓库。
 
