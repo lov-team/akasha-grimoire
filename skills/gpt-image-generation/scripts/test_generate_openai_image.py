@@ -22,6 +22,7 @@ class RequestFormatTest(unittest.TestCase):
         args = argparse.Namespace(
             model="gpt-image-2",
             prompt="test",
+            n=2,
             size="1024x1024",
             response_format="url",
         )
@@ -29,6 +30,7 @@ class RequestFormatTest(unittest.TestCase):
         payload = json.loads(MODULE._json_body(args))
 
         self.assertEqual(payload["response_format"], "b64_json")
+        self.assertEqual(payload["n"], 2)
 
     def test_edit_request_is_always_b64_json(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -88,7 +90,34 @@ class RequestFormatTest(unittest.TestCase):
         }
 
         with self.assertRaisesRegex(SystemExit, "requested b64_json"):
-            MODULE._summarize_success(payload, 0.1)
+            MODULE._summarize_success(payload, 0.1, expected_items=1)
+
+    def test_generation_rejects_fewer_items_than_requested(self) -> None:
+        payload = {
+            "created": 1,
+            "data": [{"b64_json": "aW1hZ2U="}],
+        }
+
+        with self.assertRaisesRegex(SystemExit, r"requested 2 image\(s\), received 1"):
+            MODULE._summarize_success(payload, 0.1, expected_items=2)
+
+    def test_multiple_results_are_saved_with_numbered_names(self) -> None:
+        payload = [
+            {"b64_json": "Zmlyc3Q="},
+            {"b64_json": "c2Vjb25k"},
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "result.png"
+
+            saved = MODULE._save_results(payload, str(output), overwrite=False)
+
+            resolved_directory = Path(directory).resolve()
+            self.assertEqual(
+                saved,
+                [resolved_directory / "result-1.png", resolved_directory / "result-2.png"],
+            )
+            self.assertEqual(saved[0].read_bytes(), b"first")
+            self.assertEqual(saved[1].read_bytes(), b"second")
 
 
 if __name__ == "__main__":

@@ -24,6 +24,7 @@ DEFAULT_PROMPT = (
 )
 RESPONSE_FORMAT = "b64_json"
 MAX_EDIT_IMAGES = 5
+MAX_GENERATION_IMAGES = 10
 
 
 class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
@@ -92,7 +93,7 @@ def _json_body(args: argparse.Namespace) -> bytes:
     payload = {
         "model": args.model,
         "prompt": args.prompt,
-        "n": 1,
+        "n": args.n,
         "size": args.size,
         "response_format": RESPONSE_FORMAT,
     }
@@ -176,53 +177,83 @@ def _read_json(response_body: bytes) -> dict[str, Any]:
     return parsed
 
 
-def _summarize_success(data: dict[str, Any], elapsed: float) -> dict[str, Any]:
+def _summarize_success(
+    data: dict[str, Any], elapsed: float, expected_items: int
+) -> list[dict[str, Any]]:
     if "created" not in data:
         raise SystemExit(f"missing created field; response_keys={sorted(data.keys())}")
     items = data.get("data")
     if not isinstance(items, list) or not items:
         raise SystemExit(f"missing non-empty data array; response_keys={sorted(data.keys())}")
+    if len(items) != expected_items:
+        raise SystemExit(f"requested {expected_items} image(s), received {len(items)}")
 
-    first = items[0]
-    if not isinstance(first, dict):
-        raise SystemExit("first data item is not an object")
-
-    value = first.get("b64_json")
-    if not isinstance(value, str) or not value:
-        raise SystemExit(
-            "provider did not honor requested b64_json response format; "
-            f"data_fields={sorted(first.keys())}"
-        )
-    result_summary = f"first_b64_length={len(value)}"
+    results: list[dict[str, Any]] = []
+    encoded_lengths: list[int] = []
+    for index, item in enumerate(items, start=1):
+        if not isinstance(item, dict):
+            raise SystemExit(f"data item {index} is not an object")
+        value = item.get("b64_json")
+        if not isinstance(value, str) or not value:
+            raise SystemExit(
+                "provider did not honor requested b64_json response format; "
+                f"item={index} data_fields={sorted(item.keys())}"
+            )
+        results.append(item)
+        encoded_lengths.append(len(value))
 
     print(f"OK status=200 elapsed={elapsed:.1f}s items={len(items)}")
     print(f"created={data.get('created')}")
-    print(result_summary)
-    return first
+    print(f"b64_lengths={','.join(str(length) for length in encoded_lengths)}")
+    return results
 
 
-def _save_result(first: dict[str, Any], output_value: str, overwrite: bool) -> None:
+def _save_results(
+    results: list[dict[str, Any]], output_value: str, overwrite: bool
+) -> list[Path]:
     output_path = Path(output_value).expanduser().resolve()
-    if output_path.exists() and not overwrite:
-        raise SystemExit(f"output already exists; pass --overwrite to replace it: {output_path}")
+    if len(results) == 1:
+        output_paths = [output_path]
+    else:
+        output_paths = [
+            output_path.with_name(f"{output_path.stem}-{index}{output_path.suffix}")
+            for index in range(1, len(results) + 1)
+        ]
 
+    existing_paths = [path for path in output_paths if path.exists()]
+    if existing_paths and not overwrite:
+        raise SystemExit(
+            "output already exists; pass --overwrite to replace it: "
+            + ", ".join(str(path) for path in existing_paths)
+        )
+
+    decoded_results: list[bytes] = []
+    for index, result in enumerate(results, start=1):
+        try:
+            image_bytes = base64.b64decode(str(result["b64_json"]), validate=True)
+        except Exception as exc:
+            raise SystemExit(f"invalid b64_json image data at item {index}: {exc}") from exc
+        if not image_bytes:
+            raise SystemExit(f"generated image payload is empty at item {index}")
+        decoded_results.append(image_bytes)
+
+    temporary_paths: list[Path] = []
     try:
-        image_bytes = base64.b64decode(str(first["b64_json"]), validate=True)
-    except Exception as exc:
-        raise SystemExit(f"invalid b64_json image data: {exc}") from exc
-
-    if not image_bytes:
-        raise SystemExit("generated image payload is empty")
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    temporary_path = output_path.with_name(f".{output_path.name}.{uuid.uuid4().hex}.tmp")
-    try:
-        temporary_path.write_bytes(image_bytes)
-        temporary_path.replace(output_path)
+        for output_path, image_bytes in zip(output_paths, decoded_results):
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            temporary_path = output_path.with_name(f".{output_path.name}.{uuid.uuid4().hex}.tmp")
+            temporary_path.write_bytes(image_bytes)
+            temporary_paths.append(temporary_path)
+        for temporary_path, output_path in zip(temporary_paths, output_paths):
+            temporary_path.replace(output_path)
     finally:
-        if temporary_path.exists():
-            temporary_path.unlink()
-    print(f"saved_output={output_path} bytes={len(image_bytes)}")
+        for temporary_path in temporary_paths:
+            if temporary_path.exists():
+                temporary_path.unlink()
+
+    for output_path, image_bytes in zip(output_paths, decoded_results):
+        print(f"saved_output={output_path} bytes={len(image_bytes)}")
+    return output_paths
 
 
 def _one_line(value: Any, limit: int = 300) -> str:
@@ -253,6 +284,13 @@ def main() -> int:
     parser.add_argument("--base-url", default=os.environ.get("IMAGE_PROXY_BASE_URL"))
     parser.add_argument("--model", default="gpt-image-2")
     parser.add_argument("--prompt", default=DEFAULT_PROMPT)
+    parser.add_argument(
+        "--n",
+        type=int,
+        default=1,
+        choices=range(1, MAX_GENERATION_IMAGES + 1),
+        help=f"Number of generated images (1-{MAX_GENERATION_IMAGES}); edits require 1.",
+    )
     parser.add_argument("--size", default="1024x1024", choices=["auto", "1024x1024", "1536x1024", "1024x1536"])
     parser.add_argument(
         "--image",
@@ -268,6 +306,8 @@ def main() -> int:
 
     if not args.base_url:
         parser.error("provide --base-url or set IMAGE_PROXY_BASE_URL")
+    if args.image and args.n != 1:
+        parser.error("--n greater than 1 is only supported for image generations")
 
     _load_env_file(args.env_file)
     request = _build_request(args)
@@ -283,9 +323,9 @@ def main() -> int:
                 print(f"FAIL status={response.status} elapsed={elapsed:.1f}s")
                 print(_summarize_error_body(body))
                 return 1
-            first = _summarize_success(payload, elapsed)
+            results = _summarize_success(payload, elapsed, expected_items=args.n)
             if args.output:
-                _save_result(first, args.output, args.overwrite)
+                _save_results(results, args.output, args.overwrite)
             return 0
     except urllib.error.HTTPError as exc:
         elapsed = time.monotonic() - started

@@ -1,4 +1,4 @@
 interface:
   display_name: "GPT Image 生图与诊断"
   short_description: "通过 GPT Image 生图、改图、多图合成并安全落盘"
-  default_prompt: "使用 $gpt-image-generation 先 smoke 验证指定 GPT Image 端点，再生成、编辑或用多张参考图合成图像并核验落盘文件。"
+  default_prompt: "使用 $gpt-image-generation 先 smoke 验证指定 GPT Image 端点，再生成单张或多张输出、编辑或用多张参考图合成图像，并核验落盘文件。"
