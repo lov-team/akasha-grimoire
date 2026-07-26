@@ -4,7 +4,7 @@
 
 **Turn successful Agent collaboration into reusable team capabilities.**
 
-[![Agent Skills](https://img.shields.io/badge/Agent_Skills-9-6C5CE7?style=flat-square)](#capability-catalog)
+[![Agent Skills](https://img.shields.io/badge/Agent_Skills-10-6C5CE7?style=flat-square)](#capability-catalog)
 [![Languages](https://img.shields.io/badge/Languages-中文_·_English_·_日本語-2D9CDB?style=flat-square)](#)
 [![Source of Truth](https://img.shields.io/badge/Source_of_Truth-Git-2EA44F?style=flat-square)](#design-principles)
 
@@ -38,6 +38,7 @@ Akasha Grimoire is a shared collection of Agent Skills. It packages task boundar
 | --- | --- | --- |
 | [`game-asset-forge`](skills/game-asset-forge/) | Characters, scenes, UI, icons, tilesets, VFX, sprites, and animation frames | Asset contracts, smoke-before-batch, alpha/halo QA, character consistency, animation loops, 2×2 tile checks, engine import, and screenshot acceptance |
 | [`gpt-image-generation`](skills/gpt-image-generation/) | GPT Image generation, reference-image editing, and endpoint diagnosis | OpenAI-compatible generations/edits, base URL normalization, safe result storage, protocol restrictions, and failure diagnosis |
+| [`grok-media-generation`](skills/grok-media-generation/) | Grok image/video generation and editing | Call media endpoints through new-api, continue generated results with the current CPA `video.file_id` resolver, poll silently, and download real files safely |
 | [`suno-music-generation`](skills/suno-music-generation/) | Creating music from a song description or custom lyrics | Submit asynchronous Suno jobs, check silently every five seconds, download every audio candidate plus covers and optional videos, then verify each result |
 | [`fish-audio-speech`](skills/fish-audio-speech/) | Fish Audio voiceover, voice references, and transcription | new-api-backed TTS/STT with reference IDs, local reference audio, language and timestamp controls, and safe output handling |
 
@@ -96,6 +97,8 @@ Use $agent-task-supervisor to monitor these tasks lightly and independently acce
 
 Use $game-asset-forge to create transparent character animation frames for a 2D game, starting with a smoke batch.
 
+Use $grok-media-generation to generate or edit this image/video through new-api and verify the downloaded media file.
+
 Use $suno-music-generation to create music from this song description and download every candidate.
 
 Use $fish-audio-speech to synthesize this narration and verify the beginning, middle, and end.
@@ -106,6 +109,7 @@ Use $fish-audio-speech to synthesize this narration and verify the beginning, mi
 | Capability | Configuration | Contract |
 | --- | --- | --- |
 | GPT Image | `IMAGE_PROXY_BASE_URL`, `IMAGE_PROXY_API_KEY`, or compatible OpenAI environment variables | Never place keys in command arguments, prompts, logs, or the repository |
+| Grok media | `GROK_MEDIA_BASE_URL`, `GROK_MEDIA_API_KEY`, or compatible OpenAI environment variables | Real requests incur cost; start with one smoke task before scaling up |
 | Suno / Fish Audio | `NEW_API_BASE_URL`, `NEW_API_API_KEY`, or compatible OpenAI environment variables | Real requests consume quota; base tests never call external generation services |
 | CLI workers | The corresponding local CLI, macOS Terminal, and tmux | Re-check `--version` and `--help` on first use and after upgrades |
 
