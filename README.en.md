@@ -5,6 +5,7 @@
 **Turn successful Agent collaboration into reusable team capabilities.**
 
 [![Agent Skills](https://img.shields.io/badge/Agent_Skills-10-6C5CE7?style=flat-square)](#capability-catalog)
+[![Best on Codex App](https://img.shields.io/badge/Best_on-Codex_App-111827?style=flat-square)](#graph-engineering)
 [![Languages](https://img.shields.io/badge/Languages-中文_·_English_·_日本語-2D9CDB?style=flat-square)](#)
 [![Source of Truth](https://img.shields.io/badge/Source_of_Truth-Git-2EA44F?style=flat-square)](#design-principles)
 [![License: GPL v3](https://img.shields.io/badge/License-GPL_v3-blue?style=flat-square)](LICENSE)
@@ -15,7 +16,7 @@
 
 ---
 
-Akasha Grimoire is a shared collection of Agent Skills. It packages task boundaries, verified tool contracts, deterministic scripts, low-noise waiting, and independent acceptance into installable capabilities—so Agents guess less, poll less, and complete real work with evidence.
+Akasha Grimoire is a shared collection of Agent Skills, designed to work best in **Codex App**. It packages task boundaries, verified tool contracts, deterministic scripts, low-noise waiting, and independent acceptance into installable capabilities—so Agents guess less, poll less, and complete real work with evidence. Individual Skills remain portable to compatible Agents and CLIs.
 
 ## Design principles
 
@@ -25,13 +26,29 @@ Akasha Grimoire is a shared collection of Agent Skills. It packages task boundar
 - **Independent acceptance:** a worker's completion claim never replaces cumulative diff review, tests, artifact checks, or remote Git evidence.
 - **One source of truth:** this repository owns the shared Skills; local installations should link back to it.
 
+## Graph Engineering
+
+Graph Engineering models delivery as a traceable work graph instead of a sequence of temporary prompts:
+
+`Spec → Epic → Issue → Agent Task → Evidence`
+
+| Layer | Responsibility |
+| --- | --- |
+| **Spec** | Defines the outcome, boundaries, non-goals, key decisions, and final acceptance as the root contract |
+| **Epic** | Decomposes the Spec into a milestone subgraph with cross-Issue dependencies and roll-up acceptance |
+| **Issue** | The smallest executable node, with an owner, scope, dependencies, outputs, and validation |
+| **Agent Task** | A runtime instance of an Issue in Codex App or an external worker; it never replaces the Issue record |
+| **Evidence** | Closes Issues with diffs, tests, artifacts, Review, and remote SHAs, then rolls completion up to Epics and Specs |
+
+Every implementation and acceptance task is Issue-driven. Each task maps to an Issue; dependencies are explicit `depends_on`, `blocks`, `produces`, and `validates` edges; only ready nodes run in parallel. Direction changes update the Spec/Epic/Issue graph first, while Evidence rolls completion up from the leaves. Codex App is the preferred control plane because it exposes tasks, isolated worktrees, bounded long waits, and the acceptance loop.
+
 ## Capability catalog
 
 ### Coordination and governance
 
 | Skill | Best for | What it provides |
 | --- | --- | --- |
-| [`agent-task-supervisor`](skills/agent-task-supervisor/) | Supervising, coordinating, waiting for, and accepting multiple tasks | A compact task board; Codex App waits up to the current 120-second host limit, while external Agents use a 240-second silent script; drill-down only for blockers, drift, formal review, or P0–P2 risks |
+| [`agent-task-supervisor`](skills/agent-task-supervisor/) | Supervising, coordinating, and accepting tasks through a Spec/Epic/Issue graph | Graph nodes, relationship edges, and a compact task board; Codex App waits up to the current 120-second host limit, external Agents use a 240-second silent script, and drill-down occurs only for blockers, drift, formal review, or P0–P2 risks |
 
 ### Image, game, and audio production
 
@@ -95,6 +112,8 @@ Never force-overwrite an existing target. Audit differences first and preserve u
 
 ```text
 Use $agent-task-supervisor to monitor these tasks lightly and independently accept their deliveries.
+
+Use $agent-task-supervisor to turn this Spec into an Epic/Issue dependency graph, start only ready Issues in Codex App, and close the graph bottom-up with evidence.
 
 Use $game-asset-forge to create transparent character animation frames for a 2D game, starting with a smoke batch.
 

@@ -5,6 +5,7 @@
 **把一次成功的 Agent 协作，沉淀成团队可以反复调用的能力。**
 
 [![Agent Skills](https://img.shields.io/badge/Agent_Skills-10-6C5CE7?style=flat-square)](#能力目录)
+[![Best on Codex App](https://img.shields.io/badge/Best_on-Codex_App-111827?style=flat-square)](#graph-engineering)
 [![Languages](https://img.shields.io/badge/Languages-中文_·_English_·_日本語-2D9CDB?style=flat-square)](#)
 [![Source of Truth](https://img.shields.io/badge/Source_of_Truth-Git-2EA44F?style=flat-square)](#设计原则)
 [![License: GPL v3](https://img.shields.io/badge/License-GPL_v3-blue?style=flat-square)](LICENSE)
@@ -15,7 +16,7 @@
 
 ---
 
-Akasha Grimoire 是团队共享的 Agent Skill 合集。它把任务边界、工具事实、执行脚本、低噪声等待和独立验收组织成可安装的能力包，让 Agent 在真实项目中少猜、少重复轮询，并用证据完成交付。
+Akasha Grimoire 是团队共享的 Agent Skill 合集，最佳使用环境是 **Codex App**。它把任务边界、工具事实、执行脚本、低噪声等待和独立验收组织成可安装的能力包，让 Agent 在真实项目中少猜、少重复轮询，并用证据完成交付。其他兼容 Agent 与 CLI 仍可使用其中的独立 Skill。
 
 ## 为什么使用
 
@@ -25,13 +26,29 @@ Akasha Grimoire 是团队共享的 Agent Skill 合集。它把任务边界、工
 - **独立验收**：worker 自述不能替代累计 diff、测试、产物和远端事实核查。
 - **唯一事实源**：仓库是通用 Skill 的唯一来源，本地通过符号链接安装。
 
+## Graph Engineering
+
+Graph Engineering 把交付建模为一张可追踪的工作图，而不是一串临时 prompt：
+
+`Spec → Epic → Issue → Agent Task → Evidence`
+
+| 层级 | 职责 |
+| --- | --- |
+| **Spec** | 定义目标、边界、非目标、关键决策和最终验收，作为根合同 |
+| **Epic** | 把 Spec 拆成里程碑子图，组织跨 Issue 依赖和汇总验收 |
+| **Issue** | 最小可执行节点，包含 owner、范围、依赖、输出与验证 |
+| **Agent Task** | Issue 在 Codex App 或外部 worker 中的运行实例，不替代 Issue 事实 |
+| **Evidence** | 用 diff、测试、产物、Review 与远端 SHA 关闭 Issue，并向上关闭 Epic 和 Spec |
+
+所有需要实施和验收的工作都由 Issue 驱动。任务必须映射到 Issue；依赖以 `depends_on`、`blocks`、`produces`、`validates` 关系边表达；只有依赖已满足的节点才能并行。方向变化先更新 Spec/Epic/Issue，完成状态则按 Evidence 自底向上汇总。Codex App 负责展示任务、承载隔离 worktree、长等待与验收闭环，因此是这套方法的首选控制平面。
+
 ## 能力目录
 
 ### 协作与治理
 
 | Skill | 适用场景 | 核心能力 |
 | --- | --- | --- |
-| [`agent-task-supervisor`](skills/agent-task-supervisor/) | 监工、协调、等待和验收多个任务 | 维护紧凑任务板；Codex App 按当前 120 秒上限等待，外部 Agent 用 240 秒静默脚本；只在阻塞、偏航、正式 Review 或 P0–P2 时下钻 |
+| [`agent-task-supervisor`](skills/agent-task-supervisor/) | 用 Spec/Epic/Issue 图谱监工、协调和验收多个任务 | 维护节点、关系边与紧凑任务板；Codex App 按当前 120 秒上限等待，外部 Agent 用 240 秒静默脚本；只在阻塞、偏航、正式 Review 或 P0–P2 时下钻 |
 
 ### 图像、游戏与音频
 
@@ -97,6 +114,8 @@ done
 
 ```text
 使用 $agent-task-supervisor 轻量监工这些任务，并在交付后独立验收。
+
+使用 $agent-task-supervisor 把这份 Spec 拆成 Epic/Issue 依赖图，在 Codex App 中只启动已就绪的 Issue，并用证据自底向上关闭整张图。
 
 使用 $game-asset-forge 为 2D 游戏制作一套透明背景角色动画帧，先 smoke 再批量。
 

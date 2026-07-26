@@ -5,6 +5,7 @@
 **一度きりの成功した Agent 協働を、チームが繰り返し使える能力へ。**
 
 [![Agent Skills](https://img.shields.io/badge/Agent_Skills-10-6C5CE7?style=flat-square)](#スキル一覧)
+[![Best on Codex App](https://img.shields.io/badge/Best_on-Codex_App-111827?style=flat-square)](#graph-engineering)
 [![Languages](https://img.shields.io/badge/Languages-中文_·_English_·_日本語-2D9CDB?style=flat-square)](#)
 [![Source of Truth](https://img.shields.io/badge/Source_of_Truth-Git-2EA44F?style=flat-square)](#設計原則)
 [![License: GPL v3](https://img.shields.io/badge/License-GPL_v3-blue?style=flat-square)](LICENSE)
@@ -15,7 +16,7 @@
 
 ---
 
-Akasha Grimoire は、チームで共有する Agent Skill コレクションです。タスク境界、検証済みのツール契約、決定的なスクリプト、低ノイズな待機、独立した受け入れ確認をインストール可能な能力としてまとめます。Agent の推測と無駄なポーリングを減らし、証拠に基づいて実務を完了させることが目的です。
+Akasha Grimoire は、**Codex App** での利用に最適化された、チーム共有の Agent Skill コレクションです。タスク境界、検証済みのツール契約、決定的なスクリプト、低ノイズな待機、独立した受け入れ確認をインストール可能な能力としてまとめます。Agent の推測と無駄なポーリングを減らし、証拠に基づいて実務を完了させます。個別の Skill は互換 Agent や CLI でも利用できます。
 
 ## 設計原則
 
@@ -25,13 +26,29 @@ Akasha Grimoire は、チームで共有する Agent Skill コレクションで
 - **独立した受け入れ確認**：worker の完了報告だけではなく、累積 diff、テスト、成果物、リモート Git の証拠を確認します。
 - **唯一の情報源**：共有 Skill の正本はこのリポジトリです。ローカルにはシンボリックリンクで導入します。
 
+## Graph Engineering
+
+Graph Engineering は、納品作業を一時的な prompt の列ではなく、追跡可能な作業グラフとしてモデル化します。
+
+`Spec → Epic → Issue → Agent Task → Evidence`
+
+| 階層 | 責務 |
+| --- | --- |
+| **Spec** | 目標、境界、非対象、重要な判断、最終受け入れ条件を定義するルート契約 |
+| **Epic** | Spec をマイルストーンのサブグラフに分解し、Issue 間依存と集約受け入れを管理 |
+| **Issue** | owner、範囲、依存、出力、検証を持つ最小実行ノード |
+| **Agent Task** | Codex App または外部 worker における Issue の実行インスタンス。Issue の記録を置き換えない |
+| **Evidence** | diff、test、成果物、Review、remote SHA で Issue を閉じ、Epic と Spec へ完了を集約 |
+
+実装と受け入れ確認を必要とする作業はすべて Issue 駆動にします。各 task を Issue に対応付け、依存関係を `depends_on`、`blocks`、`produces`、`validates` の edge で表し、準備済みの node だけを並列実行します。方向変更では先に Spec/Epic/Issue グラフを更新し、完了は Evidence で末端から上位へ集約します。Codex App は task、分離 worktree、長時間の境界付き待機、受け入れループを扱えるため、推奨 control plane です。
+
 ## スキル一覧
 
 ### 協働とガバナンス
 
 | Skill | 主な用途 | 提供する能力 |
 | --- | --- | --- |
-| [`agent-task-supervisor`](skills/agent-task-supervisor/) | 複数タスクの監督、調整、待機、受け入れ確認 | コンパクトなタスクボード。Codex App は現在の上限である 120 秒単位、外部 Agent は 240 秒の無出力待機スクリプトを使い、ブロック、逸脱、正式 Review、P0–P2 の場合だけ詳細を確認 |
+| [`agent-task-supervisor`](skills/agent-task-supervisor/) | Spec/Epic/Issue グラフによる複数 task の監督、調整、受け入れ確認 | node、関係 edge、コンパクトなタスクボード。Codex App は現在の上限である 120 秒単位、外部 Agent は 240 秒の無出力待機スクリプトを使い、ブロック、逸脱、正式 Review、P0–P2 の場合だけ詳細を確認 |
 
 ### 画像・ゲーム・音声制作
 
@@ -95,6 +112,8 @@ done
 
 ```text
 $agent-task-supervisor を使ってタスクを低ノイズで監督し、納品後に独立した受け入れ確認を行ってください。
+
+$agent-task-supervisor を使ってこの Spec を Epic/Issue の依存グラフに分解し、Codex App では準備済み Issue だけを開始し、Evidence で末端からグラフ全体を閉じてください。
 
 $game-asset-forge を使って 2D ゲーム用の透明背景キャラクターアニメーションを作り、smoke 後に一括生成してください。
 
