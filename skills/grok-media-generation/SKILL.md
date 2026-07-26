@@ -9,7 +9,16 @@ description: 通过 new-api 的 OpenAI-compatible Grok 端点生成或编辑图�
 
 ## 准备
 
-通过 `--base-url`、`GROK_MEDIA_BASE_URL` 或 `OPENAI_BASE_URL` 提供 new-api 地址；通过 `GROK_MEDIA_API_KEY` 或 `OPENAI_API_KEY` 提供 Bearer token。不要打印 key、完整响应、base64 正文或临时媒体 URL。
+默认连接团队中转站 `https://llmapi.lovbrowser.com/v1`。只配置 Bearer token 即可开始：优先读取 `GROK_MEDIA_API_KEY`，没有时读取 `OPENAI_API_KEY`。通过受控的环境注入或凭证管理器提供 key；不要把 key 写进参数、prompt、日志、代码或仓库。
+
+需要切换端点时，按以下优先级覆盖：
+
+1. `--base-url`
+2. `GROK_MEDIA_BASE_URL`
+3. `OPENAI_BASE_URL`
+4. 团队默认中转站
+
+base URL 可传 host 根或以 `/v1` 结尾的 API 根；自定义前缀会在末尾补 `/v1`。拒绝 userinfo、query 和 fragment。覆盖配置只影响当前进程或受控运行环境，不要把团队密钥提交到配置文件。
 
 输出必须写到仓库外 staging。脚本拒绝静默覆盖已有文件；只有用户明确要求时才传 `--overwrite`。
 
@@ -17,7 +26,6 @@ description: 通过 new-api 的 OpenAI-compatible Grok 端点生成或编辑图�
 
 ```bash
 python3 skills/grok-media-generation/scripts/grok_media.py image-generate \
-  --base-url https://example.invalid/v1 \
   --prompt "A red panda astronaut on the moon, no text" \
   --output /tmp/grok-image.jpg
 ```
@@ -30,7 +38,6 @@ python3 skills/grok-media-generation/scripts/grok_media.py image-generate \
 
 ```bash
 python3 skills/grok-media-generation/scripts/grok_media.py image-edit \
-  --base-url https://example.invalid/v1 \
   --image /absolute/path/reference.jpg \
   --prompt "Keep the composition; change only the umbrella to green" \
   --output /tmp/grok-image-edited.jpg
@@ -42,7 +49,6 @@ python3 skills/grok-media-generation/scripts/grok_media.py image-edit \
 
 ```bash
 python3 skills/grok-media-generation/scripts/grok_media.py video-generate \
-  --base-url https://example.invalid/v1 \
   --prompt "The astronaut waves, stable camera" \
   --duration 4 \
   --output /tmp/grok-video.mp4
@@ -56,7 +62,6 @@ python3 skills/grok-media-generation/scripts/grok_media.py video-generate \
 
 ```bash
 python3 skills/grok-media-generation/scripts/grok_media.py video-edit \
-  --base-url https://example.invalid/v1 \
   --video-file-id <generation-request-id> \
   --prompt "Make the scene nighttime while preserving motion" \
   --output /tmp/grok-video-edited.mp4
@@ -68,7 +73,6 @@ python3 skills/grok-media-generation/scripts/grok_media.py video-edit \
 
 ```bash
 python3 skills/grok-media-generation/scripts/grok_media.py video-edit \
-  --base-url https://example.invalid/v1 \
   --video-url https://media.example.invalid/source.mp4 \
   --prompt "Make the scene nighttime while preserving motion" \
   --output /tmp/grok-video-edited.mp4

@@ -111,7 +111,7 @@ done
 | 能力 | 配置来源 | 约定 |
 | --- | --- | --- |
 | GPT Image | `IMAGE_PROXY_BASE_URL`、`IMAGE_PROXY_API_KEY`，或兼容的 OpenAI 环境变量 | 不把 key 写进命令参数、prompt、日志或仓库 |
-| Grok 媒体 | `GROK_MEDIA_BASE_URL`、`GROK_MEDIA_API_KEY`，或兼容的 OpenAI 环境变量 | 真实调用会计费；先做单个 smoke，再扩大任务规模 |
+| Grok 媒体 | 默认 `https://llmapi.lovbrowser.com/v1`；key 使用 `GROK_MEDIA_API_KEY` 或 `OPENAI_API_KEY`，端点可用 `--base-url`、`GROK_MEDIA_BASE_URL`、`OPENAI_BASE_URL` 依次覆盖 | 不内置 key；真实调用会计费，先做单个 smoke，再扩大任务规模 |
 | Suno / Fish Audio | `NEW_API_BASE_URL`、`NEW_API_API_KEY`，或兼容的 OpenAI 环境变量 | 真实调用会消耗额度；基础测试不调用外部服务 |
 | CLI worker | 本机已安装的对应 CLI、macOS Terminal、tmux | 首次使用或版本变化时重新核对 `--version` 与 `--help` |
 

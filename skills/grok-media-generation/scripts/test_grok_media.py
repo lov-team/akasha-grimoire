@@ -3,17 +3,27 @@
 from __future__ import annotations
 
 import base64
+import importlib.util
 import json
+import os
 import subprocess
+import sys
 import tempfile
 import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from unittest.mock import patch
 
 SCRIPT = Path(__file__).with_name("grok_media.py")
 PNG = b"\x89PNG\r\n\x1a\nfixture"
 MP4 = b"\x00\x00\x00\x18ftypisomfixture"
+
+sys.dont_write_bytecode = True
+SPEC = importlib.util.spec_from_file_location("grok_media_under_test", SCRIPT)
+assert SPEC and SPEC.loader
+GROK_MEDIA = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(GROK_MEDIA)
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -82,6 +92,29 @@ class GrokMediaScriptTest(unittest.TestCase):
             capture_output=True,
             check=False,
         )
+
+    def test_base_url_default_and_override_precedence(self) -> None:
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(
+                GROK_MEDIA.resolve_base_url(None),
+                "https://llmapi.lovbrowser.com/v1",
+            )
+        with patch.dict(
+            os.environ,
+            {
+                "OPENAI_BASE_URL": "https://openai.example/api",
+                "GROK_MEDIA_BASE_URL": "https://grok.example/proxy/v1",
+            },
+            clear=True,
+        ):
+            self.assertEqual(
+                GROK_MEDIA.resolve_base_url(None),
+                "https://grok.example/proxy/v1",
+            )
+            self.assertEqual(
+                GROK_MEDIA.resolve_base_url("https://cli.example/custom"),
+                "https://cli.example/custom/v1",
+            )
 
     def test_image_generate_and_multipart_edit(self) -> None:
         generated = self.directory / "generated.png"

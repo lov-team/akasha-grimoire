@@ -109,7 +109,7 @@ Use $fish-audio-speech to synthesize this narration and verify the beginning, mi
 | Capability | Configuration | Contract |
 | --- | --- | --- |
 | GPT Image | `IMAGE_PROXY_BASE_URL`, `IMAGE_PROXY_API_KEY`, or compatible OpenAI environment variables | Never place keys in command arguments, prompts, logs, or the repository |
-| Grok media | `GROK_MEDIA_BASE_URL`, `GROK_MEDIA_API_KEY`, or compatible OpenAI environment variables | Real requests incur cost; start with one smoke task before scaling up |
+| Grok media | Defaults to `https://llmapi.lovbrowser.com/v1`; use `GROK_MEDIA_API_KEY` or `OPENAI_API_KEY`, and override the endpoint in order with `--base-url`, `GROK_MEDIA_BASE_URL`, or `OPENAI_BASE_URL` | No key is embedded; real requests incur cost, so start with one smoke task before scaling up |
 | Suno / Fish Audio | `NEW_API_BASE_URL`, `NEW_API_API_KEY`, or compatible OpenAI environment variables | Real requests consume quota; base tests never call external generation services |
 | CLI workers | The corresponding local CLI, macOS Terminal, and tmux | Re-check `--version` and `--help` on first use and after upgrades |
 

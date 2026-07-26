@@ -109,7 +109,7 @@ $fish-audio-speech を使ってナレーションを音声化し、冒頭・中�
 | 能力 | 設定 | 契約 |
 | --- | --- | --- |
 | GPT Image | `IMAGE_PROXY_BASE_URL`、`IMAGE_PROXY_API_KEY`、または互換 OpenAI 環境変数 | key をコマンド引数、prompt、ログ、リポジトリに保存しない |
-| Grok メディア | `GROK_MEDIA_BASE_URL`、`GROK_MEDIA_API_KEY`、または互換 OpenAI 環境変数 | 実リクエストは課金対象。規模を広げる前に 1 件の smoke を行う |
+| Grok メディア | 既定値は `https://llmapi.lovbrowser.com/v1`。key は `GROK_MEDIA_API_KEY` または `OPENAI_API_KEY` を使い、endpoint は `--base-url`、`GROK_MEDIA_BASE_URL`、`OPENAI_BASE_URL` の順で上書き可能 | key は内蔵しない。実リクエストは課金対象のため、規模を広げる前に 1 件の smoke を行う |
 | Suno / Fish Audio | `NEW_API_BASE_URL`、`NEW_API_API_KEY`、または互換 OpenAI 環境変数 | 実リクエストはクォータを消費。基本テストでは外部生成サービスを呼び出さない |
 | CLI worker | 対応するローカル CLI、macOS Terminal、tmux | 初回利用時と更新後に `--version` と `--help` を再確認 |
 

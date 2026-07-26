@@ -1,4 +1,4 @@
 interface:
   display_name: "Grok 媒体生成"
-  short_description: "通过 new-api 生成和编辑 Grok 图片与视频"
-  default_prompt: "使用 $grok-media-generation 生成或编辑一张 Grok 图片或视频，并验证最终文件。"
+  short_description: "通过团队中转站生成和编辑 Grok 图片与视频"
+  default_prompt: "使用 $grok-media-generation 通过团队中转站生成或编辑一张 Grok 图片或视频，并验证最终文件。"

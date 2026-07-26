@@ -18,6 +18,7 @@ import urllib.request
 from pathlib import Path
 
 MAX_DOWNLOAD_BYTES = 256 * 1024 * 1024
+DEFAULT_BASE_URL = "https://llmapi.lovbrowser.com/v1"
 TERMINAL_VIDEO_STATES = {"completed", "failed", "expired", "cancelled"}
 
 
@@ -36,6 +37,16 @@ def normalize_base_url(raw: str) -> str:
     if path.rsplit("/", 1)[-1] != "v1":
         path += "/v1"
     return urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, path, "", ""))
+
+
+def resolve_base_url(explicit: str | None) -> str:
+    raw = (
+        explicit
+        or os.environ.get("GROK_MEDIA_BASE_URL")
+        or os.environ.get("OPENAI_BASE_URL")
+        or DEFAULT_BASE_URL
+    )
+    return normalize_base_url(raw)
 
 
 def read_api_key() -> str:
@@ -195,7 +206,7 @@ def wait_for_video(base_url: str, api_key: str, task_id: str, request_timeout: f
 
 
 def run(args: argparse.Namespace) -> None:
-    base_url = normalize_base_url(args.base_url or os.environ.get("GROK_MEDIA_BASE_URL") or os.environ.get("OPENAI_BASE_URL") or "")
+    base_url = resolve_base_url(args.base_url)
     api_key = read_api_key()
     output = Path(args.output).expanduser().resolve()
 
@@ -240,7 +251,10 @@ def run(args: argparse.Namespace) -> None:
 
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(description=__doc__)
-    root.add_argument("--base-url", help="new-api host or /v1 API root")
+    root.add_argument(
+        "--base-url",
+        help=f"new-api host or /v1 API root (default: {DEFAULT_BASE_URL})",
+    )
     root.add_argument("--timeout", type=float, default=180, help="per-request timeout in seconds")
     subparsers = root.add_subparsers(dest="command", required=True)
 
