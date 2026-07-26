@@ -7,6 +7,7 @@
 [![Agent Skills](https://img.shields.io/badge/Agent_Skills-10-6C5CE7?style=flat-square)](#capability-catalog)
 [![Languages](https://img.shields.io/badge/Languages-中文_·_English_·_日本語-2D9CDB?style=flat-square)](#)
 [![Source of Truth](https://img.shields.io/badge/Source_of_Truth-Git-2EA44F?style=flat-square)](#design-principles)
+[![License: GPL v3](https://img.shields.io/badge/License-GPL_v3-blue?style=flat-square)](LICENSE)
 
 [简体中文](README.md) · **English** · [日本語](README.ja.md)
 
@@ -38,9 +39,9 @@ Akasha Grimoire is a shared collection of Agent Skills. It packages task boundar
 | --- | --- | --- |
 | [`game-asset-forge`](skills/game-asset-forge/) | Characters, scenes, UI, icons, tilesets, VFX, sprites, and animation frames | Asset contracts, smoke-before-batch, alpha/halo QA, character consistency, animation loops, 2×2 tile checks, engine import, and screenshot acceptance |
 | [`gpt-image-generation`](skills/gpt-image-generation/) | GPT Image generation, reference-image editing, and endpoint diagnosis | OpenAI-compatible generations/edits, base URL normalization, safe result storage, protocol restrictions, and failure diagnosis |
-| [`grok-media-generation`](skills/grok-media-generation/) | Grok image/video generation and editing | Call media endpoints through new-api, continue generated results with the current CPA `video.file_id` resolver, poll silently, and download real files safely |
+| [`grok-media-generation`](skills/grok-media-generation/) | Grok image/video generation and editing | Call OpenAI-compatible media endpoints, continue generated results with the current CPA `video.file_id` resolver, poll silently, and download real files safely |
 | [`suno-music-generation`](skills/suno-music-generation/) | Creating music from a song description or custom lyrics | Submit asynchronous Suno jobs, check silently every five seconds, download every audio candidate plus covers and optional videos, then verify each result |
-| [`fish-audio-speech`](skills/fish-audio-speech/) | Fish Audio voiceover, voice references, and transcription | new-api-backed TTS/STT with reference IDs, local reference audio, language and timestamp controls, and safe output handling |
+| [`fish-audio-speech`](skills/fish-audio-speech/) | Fish Audio voiceover, voice references, and transcription | OpenAI-compatible TTS/STT with reference IDs, local reference audio, language and timestamp controls, and safe output handling |
 
 ### CLI development workers
 
@@ -97,7 +98,7 @@ Use $agent-task-supervisor to monitor these tasks lightly and independently acce
 
 Use $game-asset-forge to create transparent character animation frames for a 2D game, starting with a smoke batch.
 
-Use $grok-media-generation to generate or edit this image/video through new-api and verify the downloaded media file.
+Use $grok-media-generation to generate or edit this image/video and verify the downloaded media file.
 
 Use $suno-music-generation to create music from this song description and download every candidate.
 
@@ -109,8 +110,8 @@ Use $fish-audio-speech to synthesize this narration and verify the beginning, mi
 | Capability | Configuration | Contract |
 | --- | --- | --- |
 | GPT Image | `IMAGE_PROXY_BASE_URL`, `IMAGE_PROXY_API_KEY`, or compatible OpenAI environment variables | Never place keys in command arguments, prompts, logs, or the repository |
-| Grok media | Defaults to `https://llmapi.lovbrowser.com/v1`; use `GROK_MEDIA_API_KEY` or `OPENAI_API_KEY`, and override the endpoint in order with `--base-url`, `GROK_MEDIA_BASE_URL`, or `OPENAI_BASE_URL` | No key is embedded; real requests incur cost, so start with one smoke task before scaling up |
-| Suno / Fish Audio | `NEW_API_BASE_URL`, `NEW_API_API_KEY`, or compatible OpenAI environment variables | Real requests consume quota; base tests never call external generation services |
+| Grok media | Use `GROK_MEDIA_API_KEY` or `OPENAI_API_KEY`; for a custom endpoint, use `--base-url`, `GROK_MEDIA_BASE_URL`, or `OPENAI_BASE_URL` | No key is embedded; real requests incur cost, so start with one smoke task before scaling up |
+| Suno / Fish Audio | Use endpoint and key environment variables for a compatible relay; see each Skill for exact fields | Real requests consume quota; base tests never call external generation services |
 | CLI workers | The corresponding local CLI, macOS Terminal, and tmux | Re-check `--version` and `--help` on first use and after upgrades |
 
 ## Validation
@@ -143,6 +144,10 @@ skills/<skill-name>/
 - Re-verify real versions, help output, schemas, and reliable implementations whenever a CLI/API contract changes.
 - Before release, review the cumulative diff and scan for TODOs, credentials, local absolute paths, caches, and generated artifacts.
 - After push, verify the local SHA, remote SHA, and critical file contents.
+
+## License
+
+This project is open source under the [GNU General Public License v3.0](LICENSE).
 
 ---
 

@@ -134,6 +134,27 @@ class GrokMediaScriptTest(unittest.TestCase):
         self.assertIn(b"grok-imagine-image", body)
         self.assertIn(PNG, body)
 
+    def test_missing_key_recommends_lovbrowser_without_request(self) -> None:
+        output = self.directory / "missing-key.png"
+        result = subprocess.run(
+            [
+                "python3",
+                str(SCRIPT),
+                "image-generate",
+                "--prompt",
+                "test",
+                "--output",
+                str(output),
+            ],
+            env={},
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("https://lovbrowser.com", result.stderr)
+        self.assertFalse(output.exists())
+
     def test_video_generate_and_edit_download_content(self) -> None:
         generated = self.directory / "generated.mp4"
         result = self.invoke("video-generate", "--prompt", "wave", "--duration", "4", "--poll-interval", "0.01", "--output", str(generated))

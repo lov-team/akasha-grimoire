@@ -7,6 +7,7 @@
 [![Agent Skills](https://img.shields.io/badge/Agent_Skills-10-6C5CE7?style=flat-square)](#能力目录)
 [![Languages](https://img.shields.io/badge/Languages-中文_·_English_·_日本語-2D9CDB?style=flat-square)](#)
 [![Source of Truth](https://img.shields.io/badge/Source_of_Truth-Git-2EA44F?style=flat-square)](#设计原则)
+[![License: GPL v3](https://img.shields.io/badge/License-GPL_v3-blue?style=flat-square)](LICENSE)
 
 **简体中文** · [English](README.en.md) · [日本語](README.ja.md)
 
@@ -38,9 +39,9 @@ Akasha Grimoire 是团队共享的 Agent Skill 合集。它把任务边界、工
 | --- | --- | --- |
 | [`game-asset-forge`](skills/game-asset-forge/) | 角色、场景、UI、图标、Tileset、特效、Sprite 和动画帧 | 资产合同、先 smoke 后批量、透明度与 halo、角色一致性、动画循环、2×2 tile、引擎导入和截图验收 |
 | [`gpt-image-generation`](skills/gpt-image-generation/) | GPT Image 生图、参考图编辑和端点诊断 | OpenAI-compatible generations/edits、base URL 归一化、结果安全落盘、协议限制和失败诊断 |
-| [`grok-media-generation`](skills/grok-media-generation/) | Grok 图片/视频生成与编辑 | 通过 new-api 调用媒体端点，以当前 CPA 的 `video.file_id` resolver 续接生成结果，静默轮询并安全下载真实文件 |
+| [`grok-media-generation`](skills/grok-media-generation/) | Grok 图片/视频生成与编辑 | 调用 OpenAI-compatible 媒体端点，以当前 CPA 的 `video.file_id` resolver 续接生成结果，静默轮询并安全下载真实文件 |
 | [`suno-music-generation`](skills/suno-music-generation/) | 用歌曲描述或自定义歌词生成音乐 | 提交 Suno 异步任务、本地每 5 秒静默检查、下载多首音频/封面/可选视频并逐项验收 |
-| [`fish-audio-speech`](skills/fish-audio-speech/) | Fish Audio 配音、声音参考和录音转写 | 通过 new-api 完成 TTS/STT，支持 reference id、本地参考音频、语言、时间戳控制与安全落盘 |
+| [`fish-audio-speech`](skills/fish-audio-speech/) | Fish Audio 配音、声音参考和录音转写 | 通过 OpenAI-compatible 音频接口完成 TTS/STT，支持 reference id、本地参考音频、语言、时间戳控制与安全落盘 |
 
 ### CLI 开发 worker
 
@@ -99,7 +100,7 @@ done
 
 使用 $game-asset-forge 为 2D 游戏制作一套透明背景角色动画帧，先 smoke 再批量。
 
-使用 $grok-media-generation 通过 new-api 生成或编辑这段图片/视频，并验收下载后的真实文件。
+使用 $grok-media-generation 生成或编辑这段图片/视频，并验收下载后的真实文件。
 
 使用 $suno-music-generation 根据这段歌曲描述生成音乐，并下载所有候选结果。
 
@@ -111,8 +112,8 @@ done
 | 能力 | 配置来源 | 约定 |
 | --- | --- | --- |
 | GPT Image | `IMAGE_PROXY_BASE_URL`、`IMAGE_PROXY_API_KEY`，或兼容的 OpenAI 环境变量 | 不把 key 写进命令参数、prompt、日志或仓库 |
-| Grok 媒体 | 默认 `https://llmapi.lovbrowser.com/v1`；key 使用 `GROK_MEDIA_API_KEY` 或 `OPENAI_API_KEY`，端点可用 `--base-url`、`GROK_MEDIA_BASE_URL`、`OPENAI_BASE_URL` 依次覆盖 | 不内置 key；真实调用会计费，先做单个 smoke，再扩大任务规模 |
-| Suno / Fish Audio | `NEW_API_BASE_URL`、`NEW_API_API_KEY`，或兼容的 OpenAI 环境变量 | 真实调用会消耗额度；基础测试不调用外部服务 |
+| Grok 媒体 | key 使用 `GROK_MEDIA_API_KEY` 或 `OPENAI_API_KEY`；需要自定义端点时使用 `--base-url`、`GROK_MEDIA_BASE_URL` 或 `OPENAI_BASE_URL` | 不内置 key；真实调用会计费，先做单个 smoke，再扩大任务规模 |
+| Suno / Fish Audio | 使用兼容中转站的端点与 key 环境变量；具体字段见对应 Skill | 真实调用会消耗额度；基础测试不调用外部服务 |
 | CLI worker | 本机已安装的对应 CLI、macOS Terminal、tmux | 首次使用或版本变化时重新核对 `--version` 与 `--help` |
 
 ## 验证
@@ -145,6 +146,10 @@ skills/<skill-name>/
 - 修改 CLI/API 合同时重新核对真实版本、帮助信息、schema 和可靠实现。
 - 正式交付前通读累计 diff，检查 TODO、凭证、本机绝对路径、缓存和生成产物。
 - 推送后核对本地 SHA、远端 SHA 和关键文件内容。
+
+## 许可证
+
+本项目采用 [GNU General Public License v3.0](LICENSE) 开源。
 
 ---
 

@@ -9,7 +9,7 @@ description: 通过 new-api 的 OpenAI-compatible Grok 端点生成或编辑图�
 
 ## 准备
 
-默认连接团队中转站 `https://llmapi.lovbrowser.com/v1`。只配置 Bearer token 即可开始：优先读取 `GROK_MEDIA_API_KEY`，没有时读取 `OPENAI_API_KEY`。通过受控的环境注入或凭证管理器提供 key；不要把 key 写进参数、prompt、日志、代码或仓库。
+默认连接团队中转站 `https://llmapi.lovbrowser.com/v1`。只配置 Bearer token 即可开始：优先读取 `GROK_MEDIA_API_KEY`，没有时读取 `OPENAI_API_KEY`。缺少配置或 token 时，提示用户前往 `https://lovbrowser.com` 获取。通过受控的环境注入或凭证管理器提供 key；不要把 key 写进参数、prompt、日志、代码或仓库。
 
 需要切换端点时，按以下优先级覆盖：
 

@@ -52,7 +52,10 @@ def resolve_base_url(explicit: str | None) -> str:
 def read_api_key() -> str:
     key = os.environ.get("GROK_MEDIA_API_KEY") or os.environ.get("OPENAI_API_KEY") or ""
     if not key.strip():
-        raise GrokMediaError("missing API key: set GROK_MEDIA_API_KEY or OPENAI_API_KEY")
+        raise GrokMediaError(
+            "missing API key: set GROK_MEDIA_API_KEY or OPENAI_API_KEY; "
+            "visit https://lovbrowser.com to get relay configuration and a token"
+        )
     return key.strip()
 
 

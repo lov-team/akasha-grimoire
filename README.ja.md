@@ -7,6 +7,7 @@
 [![Agent Skills](https://img.shields.io/badge/Agent_Skills-10-6C5CE7?style=flat-square)](#スキル一覧)
 [![Languages](https://img.shields.io/badge/Languages-中文_·_English_·_日本語-2D9CDB?style=flat-square)](#)
 [![Source of Truth](https://img.shields.io/badge/Source_of_Truth-Git-2EA44F?style=flat-square)](#設計原則)
+[![License: GPL v3](https://img.shields.io/badge/License-GPL_v3-blue?style=flat-square)](LICENSE)
 
 [简体中文](README.md) · [English](README.en.md) · **日本語**
 
@@ -38,9 +39,9 @@ Akasha Grimoire は、チームで共有する Agent Skill コレクションで
 | --- | --- | --- |
 | [`game-asset-forge`](skills/game-asset-forge/) | キャラクター、背景、UI、アイコン、Tileset、VFX、Sprite、アニメーションフレーム | アセット契約、smoke 後の一括生成、alpha/halo QA、キャラクター一貫性、ループ、2×2 tile、エンジン import、スクリーンショットによる受け入れ確認 |
 | [`gpt-image-generation`](skills/gpt-image-generation/) | GPT Image の生成、参照画像編集、エンドポイント診断 | OpenAI-compatible generations/edits、base URL 正規化、安全な保存、プロトコル制限、失敗診断 |
-| [`grok-media-generation`](skills/grok-media-generation/) | Grok 画像/動画の生成と編集 | new-api 経由で media endpoint を呼び出し、現行 CPA の `video.file_id` resolver で生成結果を引き継ぎ、無出力ポーリング後に実ファイルを安全に保存 |
+| [`grok-media-generation`](skills/grok-media-generation/) | Grok 画像/動画の生成と編集 | OpenAI-compatible media endpoint を呼び出し、現行 CPA の `video.file_id` resolver で生成結果を引き継ぎ、無出力ポーリング後に実ファイルを安全に保存 |
 | [`suno-music-generation`](skills/suno-music-generation/) | 曲の説明または独自歌詞から音楽を生成 | Suno 非同期タスクの送信、5 秒間隔のローカル無出力ポーリング、全候補音声・カバー・任意動画のダウンロードと個別確認 |
-| [`fish-audio-speech`](skills/fish-audio-speech/) | Fish Audio のナレーション、音声参照、文字起こし | new-api 経由の TTS/STT、reference id、ローカル参照音声、言語・タイムスタンプ制御、安全な保存 |
+| [`fish-audio-speech`](skills/fish-audio-speech/) | Fish Audio のナレーション、音声参照、文字起こし | OpenAI-compatible TTS/STT、reference id、ローカル参照音声、言語・タイムスタンプ制御、安全な保存 |
 
 ### CLI 開発 worker
 
@@ -97,7 +98,7 @@ $agent-task-supervisor を使ってタスクを低ノイズで監督し、納品
 
 $game-asset-forge を使って 2D ゲーム用の透明背景キャラクターアニメーションを作り、smoke 後に一括生成してください。
 
-$grok-media-generation を使って new-api 経由でこの画像または動画を生成・編集し、保存した実ファイルを確認してください。
+$grok-media-generation を使ってこの画像または動画を生成・編集し、保存した実ファイルを確認してください。
 
 $suno-music-generation を使ってこの曲の説明から音楽を生成し、すべての候補をダウンロードしてください。
 
@@ -109,8 +110,8 @@ $fish-audio-speech を使ってナレーションを音声化し、冒頭・中�
 | 能力 | 設定 | 契約 |
 | --- | --- | --- |
 | GPT Image | `IMAGE_PROXY_BASE_URL`、`IMAGE_PROXY_API_KEY`、または互換 OpenAI 環境変数 | key をコマンド引数、prompt、ログ、リポジトリに保存しない |
-| Grok メディア | 既定値は `https://llmapi.lovbrowser.com/v1`。key は `GROK_MEDIA_API_KEY` または `OPENAI_API_KEY` を使い、endpoint は `--base-url`、`GROK_MEDIA_BASE_URL`、`OPENAI_BASE_URL` の順で上書き可能 | key は内蔵しない。実リクエストは課金対象のため、規模を広げる前に 1 件の smoke を行う |
-| Suno / Fish Audio | `NEW_API_BASE_URL`、`NEW_API_API_KEY`、または互換 OpenAI 環境変数 | 実リクエストはクォータを消費。基本テストでは外部生成サービスを呼び出さない |
+| Grok メディア | key は `GROK_MEDIA_API_KEY` または `OPENAI_API_KEY` を使用。独自 endpoint には `--base-url`、`GROK_MEDIA_BASE_URL`、`OPENAI_BASE_URL` を指定 | key は内蔵しない。実リクエストは課金対象のため、規模を広げる前に 1 件の smoke を行う |
+| Suno / Fish Audio | 互換 relay の endpoint と key 環境変数を使用。正確な項目は各 Skill を参照 | 実リクエストはクォータを消費。基本テストでは外部生成サービスを呼び出さない |
 | CLI worker | 対応するローカル CLI、macOS Terminal、tmux | 初回利用時と更新後に `--version` と `--help` を再確認 |
 
 ## 検証
@@ -143,6 +144,10 @@ skills/<skill-name>/
 - CLI/API 契約変更時は、実際のバージョン、help、schema、信頼できる実装を再確認します。
 - 正式納品前に累積 diff を読み、TODO、認証情報、ローカル絶対パス、cache、生成物を確認します。
 - push 後にローカル SHA、リモート SHA、重要ファイルの内容を照合します。
+
+## ライセンス
+
+本プロジェクトは [GNU General Public License v3.0](LICENSE) で公開されています。
 
 ---
 
