@@ -13,6 +13,10 @@ description: 通过 new-api 的异步视频任务端点调用火山方舟 Doubao
 
 输入参考素材必须是上游可访问的公共 HTTPS URL，不能依赖客户端 Authorization。输出写到仓库外 staging；脚本拒绝静默覆盖文件。
 
+## 项目级 AGENTS.md
+
+项目需要固化 Seedance 协作规则时，使用 [`assets/AGENTS.md`](assets/AGENTS.md) 作为可复制模板。项目已有 `AGENTS.md` 时只合并「Seedance 视频生成」章节，不覆盖原有规则；项目的更严格约束优先。
+
 ## 文生视频
 
 ```bash
