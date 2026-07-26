@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fish Audio 语音能力"
+  short_description: "通过 new-api 完成 Fish Audio 语音合成与转写"
+  default_prompt: "使用 $fish-audio-speech 通过 new-api 完成 Fish Audio TTS 或 STT，并安全保存和验收结果。"

@@ -7,6 +7,8 @@
 - `agent-task-supervisor`：轻量监工多个任务并独立验收。
 - `game-asset-forge`：生成并验收可直接导入引擎的游戏资产。
 - `gpt-image-generation`：通过 OpenAI-compatible GPT Image 端点生图、改图和诊断。
+- `suno-music-generation`：通过 new-api 生成歌曲，静默等待并下载验收结果。
+- `fish-audio-speech`：通过 new-api 完成 Fish Audio TTS 与 STT。
 - `grok-cli-development`：在可见 Terminal + tmux 中驱动 Grok CLI。
 - `gemini-cli-development`：在可见 Terminal + tmux 中驱动 Gemini CLI。
 - `claude-code-cli-development`：在可见 Terminal + tmux 中驱动 Claude Code。
