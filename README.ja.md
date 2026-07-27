@@ -57,6 +57,7 @@ Graph Engineering は、納品作業を一時的な prompt の列ではなく、
 | [`game-asset-forge`](skills/game-asset-forge/) | キャラクター、背景、UI、アイコン、Tileset、VFX、Sprite、アニメーションフレーム | アセット契約、smoke 後の一括生成、alpha/halo QA、キャラクター一貫性、ループ、2×2 tile、エンジン import、スクリーンショットによる受け入れ確認 |
 | [`gpt-image-generation`](skills/gpt-image-generation/) | GPT Image の生成、参照画像編集、エンドポイント診断 | OpenAI-compatible generations/edits、base URL 正規化、安全な保存、プロトコル制限、失敗診断 |
 | [`grok-media-generation`](skills/grok-media-generation/) | Grok 画像/動画の生成と編集 | OpenAI-compatible media endpoint を呼び出し、現行 CPA の `video.file_id` resolver で生成結果を引き継ぎ、無出力ポーリング後に実ファイルを安全に保存 |
+| [`article-to-short-video`](skills/article-to-short-video/) | 中国語の長文・人物記事・論説を 60〜120 秒の縦型動画へ変換 | 証拠境界、Fish 参照音声、Suno BGM、実音声ベースのタイミング、FFmpeg 合成、音量・黒フレーム・字幕の受け入れ確認 |
 | [`suno-music-generation`](skills/suno-music-generation/) | 曲の説明または独自歌詞から音楽を生成 | Suno 非同期タスクの送信、5 秒間隔のローカル無出力ポーリング、全候補音声・カバー・任意動画のダウンロードと個別確認 |
 | [`fish-audio-speech`](skills/fish-audio-speech/) | Fish Audio のナレーション、音声参照、文字起こし | OpenAI-compatible TTS/STT、reference id、ローカル参照音声、言語・タイムスタンプ制御、安全な保存 |
 

@@ -57,6 +57,7 @@ Graph Engineering 把交付建模为一张可追踪的工作图，而不是一�
 | [`game-asset-forge`](skills/game-asset-forge/) | 角色、场景、UI、图标、Tileset、特效、Sprite 和动画帧 | 资产合同、先 smoke 后批量、透明度与 halo、角色一致性、动画循环、2×2 tile、引擎导入和截图验收 |
 | [`gpt-image-generation`](skills/gpt-image-generation/) | GPT Image 生图、参考图编辑和端点诊断 | OpenAI-compatible generations/edits、base URL 归一化、结果安全落盘、协议限制和失败诊断 |
 | [`grok-media-generation`](skills/grok-media-generation/) | Grok 图片/视频生成与编辑 | 调用 OpenAI-compatible 媒体端点，以当前 CPA 的 `video.file_id` resolver 续接生成结果，静默轮询并安全下载真实文件 |
+| [`article-to-short-video`](skills/article-to-short-video/) | 把中文长文、人物故事或观点稿制作成 60—120 秒竖屏短视频 | 证据边界、Fish 参考音色、Suno 配乐、实际语音定时、FFmpeg 合成与响度/黑帧/字幕验收闭环 |
 | [`suno-music-generation`](skills/suno-music-generation/) | 用歌曲描述或自定义歌词生成音乐 | 提交 Suno 异步任务、本地每 5 秒静默检查、下载多首音频/封面/可选视频并逐项验收 |
 | [`fish-audio-speech`](skills/fish-audio-speech/) | Fish Audio 配音、声音参考和录音转写 | 通过 OpenAI-compatible 音频接口完成 TTS/STT，支持 reference id、本地参考音频、语言、时间戳控制与安全落盘 |
 

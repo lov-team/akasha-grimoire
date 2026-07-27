@@ -127,6 +127,70 @@ class FishAudioTests(unittest.TestCase):
             self.assertEqual(references[0]["text"], "参考语音")
             self.assertNotIn("reference-wave", stdout.getvalue())
 
+    def test_public_voice_search_filters_and_prints_reference_id_without_api_key(self) -> None:
+        response = {
+            "items": [
+                {
+                    "_id": "voice-good",
+                    "type": "tts",
+                    "title": "温暖旁白",
+                    "description": "克制的人文纪录片男声",
+                    "state": "trained",
+                    "visibility": "public",
+                    "dmca_taken_down": False,
+                    "languages": ["zh"],
+                    "tags": ["warm", "narration"],
+                    "task_count": 4321,
+                    "like_count": 88,
+                },
+                {
+                    "_id": "voice-private",
+                    "type": "tts",
+                    "title": "不可用",
+                    "state": "trained",
+                    "visibility": "private",
+                    "languages": ["zh"],
+                    "tags": ["warm"],
+                    "task_count": 9999,
+                },
+            ]
+        }
+        stdout = io.StringIO()
+        with mock.patch.dict(os.environ, {}, clear=True), mock.patch.object(
+            fish_audio, "_open_public_json", return_value=response
+        ), contextlib.redirect_stdout(stdout):
+            rc = fish_audio.main(
+                ["voices", "--query", "旁白", "--tag", "warm", "--min-uses", "100"]
+            )
+        self.assertEqual(rc, 0)
+        self.assertIn("reference_id=voice-good", stdout.getvalue())
+        self.assertNotIn("voice-private", stdout.getvalue())
+
+    def test_tts_with_public_reference_id_sends_voice_field(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir, mock.patch.dict(
+            os.environ, {"NEW_API_API_KEY": "local-test-key"}, clear=False
+        ):
+            output = Path(temp_dir, "smoke.wav")
+            rc = fish_audio.main(
+                [
+                    "--base-url",
+                    self.base_url,
+                    "tts",
+                    "--text",
+                    "菲尔兹奖与脑类器官",
+                    "--voice",
+                    "public-reference-id",
+                    "--format",
+                    "wav",
+                    "--output",
+                    str(output),
+                ]
+            )
+        self.assertEqual(rc, 0)
+        assert _FishHandler.tts_payload is not None
+        self.assertEqual(_FishHandler.tts_payload["voice"], "public-reference-id")
+        self.assertNotIn("extra_body", _FishHandler.tts_payload)
+
     def test_stt_uploads_multipart_and_saves_text_and_json(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir, mock.patch.dict(
             os.environ, {"NEW_API_API_KEY": "local-test-key"}, clear=False

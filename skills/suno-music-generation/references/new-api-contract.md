@@ -26,10 +26,14 @@
 | `prompt` | 自定义歌词 |
 | `title` | 自定义歌词模式标题 |
 | `tags` | 风格、流派、人声等标签 |
-| `mv` | 可选上游模型；不明确时省略，由服务端处理 |
+| `mv` | 上游音乐模型；2026-07-27 Kie 文档列出的最新版本为 `V5_5` |
 | `make_instrumental` | 是否生成纯音乐 |
 
 描述与自定义歌词应二选一。当前 Kie adaptor 会把 title/tags 视为 custom mode 信号，因此脚本要求自定义歌词同时提供标题和风格，描述模式则不附加 title/tags。
+
+## 模型兼容基线
+
+2026-07-26 在当前目标 new-api/Kie 渠道实测：省略 `mv` 会因上游默认旧模型不兼容返回 HTTP 400，显式 `mv=V4_5` 可正常提交、轮询并返回两首结果。2026-07-27 复核 Kie [`Generate Music`](https://docs.kie.ai/suno-api/generate-music) 文档后，音乐模型已列出 `V5_5` 与 `V5`，其中 `duration` 仅对 `V5_5` 生效；本地 new-api 的 MUSIC 适配器会把 `mv` 原样映射为 Kie 的 `model` 字段。因此脚本默认值升级为 `V5_5`，同时保留 `--model server-default` 供其他部署明确选择服务端默认值。部署差异仍以目标环境的渠道模型和实时错误为准，不应无限重试 400。
 
 ## 等待与安全
 

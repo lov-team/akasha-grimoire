@@ -147,6 +147,7 @@ class SunoMusicTests(unittest.TestCase):
                     {
                         "make_instrumental": False,
                         "gpt_description_prompt": "warm acoustic city folk",
+                        "mv": "V5_5",
                     },
                 )
         finally:
@@ -163,6 +164,23 @@ class SunoMusicTests(unittest.TestCase):
             with contextlib.redirect_stdout(stdout), self.assertRaises(SystemExit):
                 suno_music._wait_for_result("task", "key", "https://example.com", 1, 0.01)
         self.assertNotIn("OK", stdout.getvalue())
+
+    def test_server_default_omits_mv(self) -> None:
+        args = mock.Mock(
+            instrumental=True,
+            description="minimal piano underscore",
+            lyrics_file=None,
+            model=None,
+        )
+        with mock.patch.object(
+            suno_music,
+            "_request_json",
+            return_value={"code": "success", "data": "task"},
+        ) as request:
+            task_id = suno_music._submit(args, "key", "https://example.com")
+        self.assertEqual(task_id, "task")
+        payload = request.call_args.args[3]
+        self.assertNotIn("mv", payload)
 
     def test_non_http_result_url_is_rejected_without_reading_it(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

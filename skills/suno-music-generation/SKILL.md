@@ -11,7 +11,7 @@ description: 通过 new-api 的 Suno 异步任务接口生成歌曲，在本地�
 
 1. 明确采用歌曲描述还是自定义歌词；二者只选一种。
 2. 自定义歌词模式必须同时提供标题和风格；描述模式不要伪装成歌词模式。
-3. 默认让 new-api 决定上游 Suno 版本；只有用户或项目合同明确模型时才传 `--model`。
+3. 当前 Kie 音乐生成文档的最新模型为 `V5_5`，脚本默认显式传入它；只有目标环境明确由服务端选择模型时才传 `--model server-default`。
 4. 确认输出目录和覆盖策略。不要把 API key 写入参数、日志、仓库或交付文件。
 5. 需要核对端点、字段或状态时，读取 [references/new-api-contract.md](references/new-api-contract.md)。
 
@@ -22,7 +22,9 @@ description: 通过 new-api 的 Suno 异步任务接口生成歌曲，在本地�
 ```bash
 # 描述模式
 python3 scripts/suno_music.py \
-  --description "一首温暖克制的中文城市民谣，女声，木吉他与轻鼓" \
+  --description "温暖克制的人文纪录片配乐，极简钢琴、柔和氛围弦乐、无鼓点高潮，留出清晰旁白空间" \
+  --instrumental \
+  --model V5_5 \
   --output-dir ./staging/suno
 
 # 自定义歌词模式
@@ -30,6 +32,7 @@ python3 scripts/suno_music.py \
   --lyrics-file ./lyrics.txt \
   --title "夜航" \
   --style "Mandopop, synthwave, female vocal" \
+  --model V5_5 \
   --output-dir ./staging/suno
 ```
 
@@ -38,7 +41,8 @@ python3 scripts/suno_music.py \
 按需使用：
 
 - `--instrumental`：生成纯音乐；
-- `--model <id>`：仅在已有事实合同指定模型时使用；
+- `--model <id>`：默认 `V5_5`；若接口返回 HTTP 400，先核对目标渠道实际支持的模型，而不是反复重试同一请求；
+- `--model server-default`：明确要求省略 `mv`，让目标 new-api 环境自行选择版本；
 - `--timeout-seconds`、`--poll-seconds`：调整本地等待窗口；
 - `--download-video`：结果提供视频时一并下载；
 - `--no-cover`：不下载封面；
@@ -54,4 +58,6 @@ python3 scripts/suno_music.py \
 4. 多结果任务逐个验收，不要只听第一首。
 5. 封面与视频属于辅助结果；音频可播放且符合合同才是歌曲交付成立的核心证据。
 
-任务失败、超时、结果缺少 `audio_url`、结果 URL 使用非 HTTP(S) 协议或下载内容为空时，不得宣称成功。保留 task id 供同一任务诊断，不回显签名 URL。
+用于视频配乐时，还要额外检查前 90 秒而不是只听整首开头：测量该区间响度与峰值，确认没有突然进入人声或高潮；混入成片时可先把音乐控制在约 -25～-22 LUFS，再用旁白做侧链压缩，最后试听“说话段”和“停顿段”的可听度，不能只凭“音轨存在”宣称配乐完成。
+
+任务失败、超时、结果缺少 `audio_url`、结果 URL 使用非 HTTP(S) 协议或下载内容为空时，不得宣称成功。HTTP 400 且省略 `mv` 时，优先显式重试当前文档最新的 `--model V5_5`；已显式使用 `V5_5` 仍失败则停止并核对渠道模型。保留 task id 供同一任务诊断，不回显签名 URL。

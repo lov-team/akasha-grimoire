@@ -21,6 +21,7 @@ from typing import Any
 TTS_MODELS = {"fish-s2-pro", "fish-s1"}
 STT_MODEL = "fish-transcribe-1"
 OUTPUT_FORMATS = {"mp3", "wav", "opus"}
+PUBLIC_MODELS_URL = "https://api.fish.audio/model"
 
 
 class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
@@ -110,6 +111,96 @@ def _open_api_request(request: urllib.request.Request, timeout: float) -> tuple[
         raise SystemExit(f"new-api request failed: HTTP {exc.code}; body_bytes={len(body)}") from exc
     except urllib.error.URLError as exc:
         raise SystemExit("new-api request failed: network error") from exc
+
+
+def _open_public_json(url: str, timeout: float) -> dict[str, Any]:
+    request = urllib.request.Request(
+        url,
+        headers={"Accept": "application/json", "User-Agent": "fish-audio-speech/1.1"},
+        method="GET",
+    )
+    opener = urllib.request.build_opener(NoRedirectHandler())
+    try:
+        with opener.open(request, timeout=timeout) as response:
+            raw = response.read()
+    except urllib.error.HTTPError as exc:
+        body = exc.read()
+        raise SystemExit(f"Fish public model search failed: HTTP {exc.code}; body_bytes={len(body)}") from exc
+    except urllib.error.URLError as exc:
+        raise SystemExit("Fish public model search failed: network error") from exc
+    try:
+        parsed = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise SystemExit(f"Fish public model search returned invalid JSON; body_bytes={len(raw)}") from exc
+    if not isinstance(parsed, dict):
+        raise SystemExit("Fish public model search response is not an object")
+    return parsed
+
+
+def _search_voices(args: argparse.Namespace) -> None:
+    fetch_size = min(max(args.limit * 5, 20), 100)
+    query = urllib.parse.urlencode({"page_size": fetch_size, "title": args.query})
+    response = _open_public_json(f"{PUBLIC_MODELS_URL}?{query}", args.timeout_seconds)
+    items = response.get("items")
+    if not isinstance(items, list):
+        raise SystemExit("Fish public model search response is missing an items array")
+
+    required_tags = {tag.casefold() for tag in args.tag}
+    selected: list[dict[str, Any]] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        tags = item.get("tags") if isinstance(item.get("tags"), list) else []
+        normalized_tags = {str(tag).casefold() for tag in tags}
+        languages = item.get("languages") if isinstance(item.get("languages"), list) else []
+        if item.get("type") != "tts" or item.get("state") != "trained":
+            continue
+        if item.get("visibility") != "public" or item.get("dmca_taken_down") is True:
+            continue
+        if args.language and args.language not in languages:
+            continue
+        if required_tags and not required_tags.issubset(normalized_tags):
+            continue
+        uses = item.get("task_count") if isinstance(item.get("task_count"), int) else 0
+        if uses < args.min_uses:
+            continue
+        selected.append(item)
+
+    sort_key = (
+        (lambda item: item.get("like_count") if isinstance(item.get("like_count"), int) else 0)
+        if args.sort == "likes"
+        else (lambda item: item.get("task_count") if isinstance(item.get("task_count"), int) else 0)
+    )
+    selected.sort(key=sort_key, reverse=True)
+    selected = selected[: args.limit]
+
+    compact = []
+    for item in selected:
+        compact.append(
+            {
+                "reference_id": item.get("_id"),
+                "title": item.get("title"),
+                "description": item.get("description"),
+                "languages": item.get("languages") or [],
+                "tags": item.get("tags") or [],
+                "uses": item.get("task_count") or 0,
+                "likes": item.get("like_count") or 0,
+            }
+        )
+    if args.json_output:
+        output = Path(args.json_output).expanduser().resolve()
+        encoded = (json.dumps(compact, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+        _atomic_write(output, encoded, args.overwrite)
+
+    print(f"OK mode=voices query={args.query!r} matches={len(compact)}")
+    for voice in compact:
+        title = str(voice["title"] or "").replace("\t", " ").replace("\n", " ")
+        languages = ",".join(str(value) for value in voice["languages"])
+        tags = ",".join(str(value) for value in voice["tags"][:8])
+        print(
+            f"reference_id={voice['reference_id']}\ttitle={title}\tuses={voice['uses']}\t"
+            f"likes={voice['likes']}\tlanguages={languages}\ttags={tags}"
+        )
 
 
 def _tts(args: argparse.Namespace, api_key: str, base_url: str) -> None:
@@ -267,6 +358,15 @@ def _parser() -> argparse.ArgumentParser:
     stt.add_argument("--ignore-timestamps", action="store_true")
     stt.add_argument("--output", required=True)
     stt.add_argument("--json-output")
+
+    voices = subparsers.add_parser("voices", help="search Fish Audio public reference voices")
+    voices.add_argument("--query", required=True, help="title keyword, for example 旁白")
+    voices.add_argument("--language", default="zh")
+    voices.add_argument("--tag", action="append", default=[], help="required tag; repeatable")
+    voices.add_argument("--min-uses", type=int, default=0)
+    voices.add_argument("--limit", type=int, default=10)
+    voices.add_argument("--sort", choices=("uses", "likes"), default="uses")
+    voices.add_argument("--json-output")
     return parser
 
 
@@ -274,6 +374,15 @@ def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     if args.timeout_seconds <= 0:
         raise SystemExit("timeout must be positive")
+    if args.command == "voices":
+        if not args.query.strip():
+            raise SystemExit("voice search query must not be empty")
+        if args.limit <= 0 or args.limit > 100:
+            raise SystemExit("voice search limit must be between 1 and 100")
+        if args.min_uses < 0:
+            raise SystemExit("voice search min-uses must not be negative")
+        _search_voices(args)
+        return 0
     api_key = _api_key()
     if not api_key:
         raise SystemExit("missing API key: set NEW_API_API_KEY or OPENAI_API_KEY")

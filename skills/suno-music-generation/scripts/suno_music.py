@@ -21,6 +21,7 @@ TERMINAL_SUCCESS = "SUCCESS"
 TERMINAL_FAILURE = "FAILURE"
 DEFAULT_TIMEOUT_SECONDS = 1200.0
 DEFAULT_POLL_SECONDS = 5.0
+DEFAULT_MODEL = "V5_5"
 
 
 class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
@@ -271,7 +272,11 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--title", help="title for custom lyrics mode")
     parser.add_argument("--style", help="style/tags for custom lyrics mode")
     parser.add_argument("--instrumental", action="store_true")
-    parser.add_argument("--model", help="explicit upstream Suno model id")
+    parser.add_argument(
+        "--model",
+        default=DEFAULT_MODEL,
+        help=f"explicit upstream Suno model id (default: {DEFAULT_MODEL}; use server-default to omit mv)",
+    )
     parser.add_argument("--base-url", help="new-api host root or a URL ending in /v1")
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--basename", default="suno-song")
@@ -293,6 +298,8 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit("custom lyrics mode requires both --title and --style")
     if args.timeout_seconds <= 0 or args.poll_seconds <= 0:
         raise SystemExit("timeout and poll interval must be positive")
+    if args.model == "server-default":
+        args.model = None
     api_key = _api_key()
     if not api_key:
         raise SystemExit("missing API key: set NEW_API_API_KEY or OPENAI_API_KEY")

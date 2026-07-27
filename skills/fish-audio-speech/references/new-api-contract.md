@@ -23,6 +23,18 @@ OpenAI-compatible JSON 字段：
 
 new-api 将其转换为 Fish Audio `/v1/tts`，并通过 `model` header 传 `s2-pro` 或 `s1`。成功响应是音频字节，不是 JSON。
 
+## 公开参考音色检索
+
+公开音色目录可通过 `GET https://api.fish.audio/model` 查询，不经过 new-api，也不需要 new-api token。当前脚本使用 `title` 和 `page_size` 查询，并在本地再次检查：
+
+- `type=tts`；
+- `state=trained`；
+- `visibility=public`；
+- `dmca_taken_down` 不为真；
+- 可选语言、标签和最低使用次数。
+
+响应 `items[*]._id` 就是 TTS 请求的 `voice/reference_id`。公开可检索只代表平台允许调用，不等于可以声称某位现实人物为项目背书；正式使用前仍需人工试听和内容适配。
+
 ## STT 客户端请求
 
 `multipart/form-data` 字段：
