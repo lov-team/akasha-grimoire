@@ -20,6 +20,9 @@ from typing import Any
 
 TTS_MODELS = {"fish-s2-pro", "fish-s1"}
 STT_MODEL = "fish-transcribe-1"
+VOICE_CLONE_MODEL = "fish-voice-clone-1"
+VOICE_MODEL_STATES = {"created", "training", "trained", "failed"}
+MAX_VOICE_SAMPLES = 10
 OUTPUT_FORMATS = {"mp3", "wav", "opus"}
 PUBLIC_MODELS_URL = "https://api.fish.audio/model"
 
@@ -113,6 +116,16 @@ def _open_api_request(request: urllib.request.Request, timeout: float) -> tuple[
         raise SystemExit("new-api request failed: network error") from exc
 
 
+def _decode_json_object(raw: bytes, operation: str) -> dict[str, Any]:
+    try:
+        parsed = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise SystemExit(f"{operation} response is not JSON; body_bytes={len(raw)}") from exc
+    if not isinstance(parsed, dict):
+        raise SystemExit(f"{operation} response is not an object")
+    return parsed
+
+
 def _open_public_json(url: str, timeout: float) -> dict[str, Any]:
     request = urllib.request.Request(
         url,
@@ -138,8 +151,9 @@ def _open_public_json(url: str, timeout: float) -> dict[str, Any]:
 
 
 def _search_voices(args: argparse.Namespace) -> None:
+    query_value = args.query or args.character
     fetch_size = min(max(args.limit * 5, 20), 100)
-    query = urllib.parse.urlencode({"page_size": fetch_size, "title": args.query})
+    query = urllib.parse.urlencode({"page_size": fetch_size, "title": query_value})
     response = _open_public_json(f"{PUBLIC_MODELS_URL}?{query}", args.timeout_seconds)
     items = response.get("items")
     if not isinstance(items, list):
@@ -149,6 +163,9 @@ def _search_voices(args: argparse.Namespace) -> None:
     selected: list[dict[str, Any]] = []
     for item in items:
         if not isinstance(item, dict):
+            continue
+        reference_id = item.get("_id")
+        if not isinstance(reference_id, str) or not reference_id.strip():
             continue
         tags = item.get("tags") if isinstance(item.get("tags"), list) else []
         normalized_tags = {str(tag).casefold() for tag in tags}
@@ -192,7 +209,7 @@ def _search_voices(args: argparse.Namespace) -> None:
         encoded = (json.dumps(compact, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
         _atomic_write(output, encoded, args.overwrite)
 
-    print(f"OK mode=voices query={args.query!r} matches={len(compact)}")
+    print(f"OK mode=voices query={query_value!r} matches={len(compact)}")
     for voice in compact:
         title = str(voice["title"] or "").replace("\t", " ").replace("\n", " ")
         languages = ",".join(str(value) for value in voice["languages"])
@@ -204,22 +221,33 @@ def _search_voices(args: argparse.Namespace) -> None:
 
 
 def _tts(args: argparse.Namespace, api_key: str, base_url: str) -> None:
-    if args.model not in TTS_MODELS:
+    if args.model is not None and args.model not in TTS_MODELS:
         raise SystemExit(f"unsupported Fish Audio TTS model: {args.model}")
+    model = args.model or "fish-s2-pro"
     if args.format not in OUTPUT_FORMATS:
         raise SystemExit(f"unsupported TTS format: {args.format}")
-    if not args.voice and not args.reference_audio:
-        raise SystemExit("provide --voice or --reference-audio with --reference-text")
+    voice = args.voice
+    if args.character:
+        registry = _load_voice_registry(_voice_registry_path(args.registry))
+        binding = registry.get("characters", {}).get(args.character)
+        if not isinstance(binding, dict) or not isinstance(binding.get("reference_id"), str):
+            raise SystemExit(f"character is not bound to a Fish Audio voice: {args.character}")
+        voice = binding["reference_id"]
+        bound_model = binding.get("model")
+        if args.model is None and isinstance(bound_model, str) and bound_model in TTS_MODELS:
+            model = bound_model
+    if not voice and not args.reference_audio:
+        raise SystemExit("provide --voice, --character, or --reference-audio with --reference-text")
     if bool(args.reference_audio) != bool(args.reference_text):
         raise SystemExit("--reference-audio and --reference-text must be provided together")
 
     payload: dict[str, Any] = {
-        "model": args.model,
+        "model": model,
         "input": _read_text(args),
         "response_format": args.format,
     }
-    if args.voice:
-        payload["voice"] = args.voice
+    if voice:
+        payload["voice"] = voice
     if args.reference_audio:
         audio_path = Path(args.reference_audio).expanduser().resolve()
         if not audio_path.is_file():
@@ -252,10 +280,16 @@ def _tts(args: argparse.Namespace, api_key: str, base_url: str) -> None:
         raise SystemExit("Fish Audio TTS returned an empty body")
     if content_type.lower().split(";", 1)[0].strip() in {"application/json", "text/json"}:
         raise SystemExit(f"Fish Audio TTS returned JSON instead of audio; body_bytes={len(body)}")
+    try:
+        json.loads(body.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        pass
+    else:
+        raise SystemExit(f"Fish Audio TTS returned JSON instead of audio; body_bytes={len(body)}")
 
     output = Path(args.output).expanduser().resolve()
     _atomic_write(output, body, args.overwrite)
-    print(f"OK mode=tts model={args.model} output={output} bytes={len(body)}")
+    print(f"OK mode=tts model={model} output={output} bytes={len(body)}")
 
 
 def _multipart_stt_body(args: argparse.Namespace) -> tuple[bytes, str]:
@@ -293,6 +327,151 @@ def _multipart_stt_body(args: argparse.Namespace) -> tuple[bytes, str]:
     chunks.append(b"\r\n")
     chunks.append(f"--{boundary}--\r\n".encode())
     return b"".join(chunks), f"multipart/form-data; boundary={boundary}"
+
+
+def _voice_registry_path(value: str | None) -> Path:
+    configured = value or os.environ.get("FISH_AUDIO_VOICE_REGISTRY")
+    if not configured:
+        raise SystemExit("missing voice registry: pass --registry or set FISH_AUDIO_VOICE_REGISTRY")
+    return Path(configured).expanduser().resolve()
+
+
+def _load_voice_registry(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {"version": 1, "characters": {}}
+    try:
+        parsed = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise SystemExit(f"invalid voice registry: {path}") from exc
+    if not isinstance(parsed, dict) or not isinstance(parsed.get("characters"), dict):
+        raise SystemExit(f"invalid voice registry structure: {path}")
+    return parsed
+
+
+def _bind_character(args: argparse.Namespace) -> None:
+    registry_path = _voice_registry_path(args.registry)
+    registry = _load_voice_registry(registry_path)
+    registry["characters"][args.character] = {
+        "provider": "fish-audio",
+        "reference_id": args.voice,
+        "model": args.model,
+        "title": args.title or "",
+    }
+    encoded = (json.dumps(registry, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+    _atomic_write(registry_path, encoded, True)
+    print(f"OK mode=bind character={args.character!r} registry={registry_path}")
+
+
+def _multipart_clone_body(args: argparse.Namespace) -> tuple[bytes, str]:
+    if len(args.audio) > MAX_VOICE_SAMPLES:
+        raise SystemExit(f"Fish Audio voice clone accepts at most {MAX_VOICE_SAMPLES} samples")
+    if args.text and len(args.text) != len(args.audio):
+        raise SystemExit("repeat --text once per --audio, or omit all --text values")
+    boundary = f"----fish-audio-clone-{uuid.uuid4().hex}"
+    chunks: list[bytes] = []
+
+    def add_field(name: str, value: str) -> None:
+        chunks.append(f"--{boundary}\r\n".encode())
+        chunks.append(f'Content-Disposition: form-data; name="{name}"\r\n\r\n'.encode())
+        chunks.append(value.encode("utf-8"))
+        chunks.append(b"\r\n")
+
+    add_field("model", VOICE_CLONE_MODEL)
+    add_field("title", args.title)
+    add_field("visibility", "private")
+    add_field("enhance_audio_quality", "true" if args.enhance_audio_quality else "false")
+    add_field("generate_sample", "true" if args.generate_sample else "false")
+    for tag in args.tag:
+        add_field("tags", tag)
+    for text in args.text:
+        add_field("texts", text)
+    for audio_value in args.audio:
+        audio_path = Path(audio_value).expanduser().resolve()
+        if not audio_path.is_file():
+            raise SystemExit(f"voice sample does not exist: {audio_path}")
+        audio = audio_path.read_bytes()
+        if not audio:
+            raise SystemExit(f"voice sample is empty: {audio_path}")
+        suffix = audio_path.suffix.lower()
+        safe_suffix = suffix if suffix and suffix[1:].isalnum() and len(suffix) <= 10 else ""
+        safe_filename = f"voice{safe_suffix}"
+        content_type = mimetypes.guess_type(safe_filename)[0] or "application/octet-stream"
+        chunks.append(f"--{boundary}\r\n".encode())
+        chunks.append(
+            (
+                f'Content-Disposition: form-data; name="voices"; filename="{safe_filename}"\r\n'
+                f"Content-Type: {content_type}\r\n\r\n"
+            ).encode("utf-8")
+        )
+        chunks.append(audio)
+        chunks.append(b"\r\n")
+    chunks.append(f"--{boundary}--\r\n".encode())
+    return b"".join(chunks), f"multipart/form-data; boundary={boundary}"
+
+
+def _clone_voice(args: argparse.Namespace, api_key: str, base_url: str) -> None:
+    body, content_type = _multipart_clone_body(args)
+    request = urllib.request.Request(
+        _api_url(base_url, "/audio/voice-models"),
+        data=body,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Accept": "application/json",
+            "Content-Type": content_type,
+            "User-Agent": "fish-audio-speech/1.2",
+        },
+        method="POST",
+    )
+    raw, _ = _open_api_request(request, args.timeout_seconds)
+    response = _decode_json_object(raw, "Fish Audio voice clone")
+    reference_id = response.get("_id")
+    if not isinstance(reference_id, str) or not reference_id:
+        raise SystemExit("Fish Audio voice clone response is missing _id")
+    state = response.get("state")
+    if state not in VOICE_MODEL_STATES:
+        raise SystemExit("Fish Audio voice clone response has an invalid state")
+    if args.json_output:
+        output = Path(args.json_output).expanduser().resolve()
+        encoded = (json.dumps(response, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+        _atomic_write(output, encoded, args.overwrite)
+    if state == "failed":
+        raise SystemExit(f"Fish Audio voice clone failed; reference_id={reference_id}")
+    print(f"OK mode=clone reference_id={reference_id} state={state}")
+
+
+def _voice_model_status(args: argparse.Namespace, api_key: str, base_url: str) -> None:
+    endpoint = "/audio/voice-models/" + urllib.parse.quote(args.reference_id, safe="")
+    request = urllib.request.Request(
+        _api_url(base_url, endpoint),
+        headers={"Authorization": f"Bearer {api_key}", "Accept": "application/json"},
+        method="GET",
+    )
+    raw, _ = _open_api_request(request, args.timeout_seconds)
+    response = _decode_json_object(raw, "Fish Audio voice model status")
+    response_id = response.get("_id")
+    if response_id != args.reference_id:
+        raise SystemExit("Fish Audio voice model status response has an unexpected _id")
+    state = response.get("state")
+    if state not in VOICE_MODEL_STATES:
+        raise SystemExit("Fish Audio voice model status response has an invalid state")
+    if args.json_output:
+        output = Path(args.json_output).expanduser().resolve()
+        encoded = (json.dumps(response, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+        _atomic_write(output, encoded, args.overwrite)
+    print(f"STATUS mode=clone-status reference_id={args.reference_id} state={state}")
+
+
+def _delete_voice_model(args: argparse.Namespace, api_key: str, base_url: str) -> None:
+    if not args.confirm_delete:
+        raise SystemExit("refusing to delete voice model without --confirm-delete")
+    endpoint = "/audio/voice-models/" + urllib.parse.quote(args.reference_id, safe="")
+    request = urllib.request.Request(
+        _api_url(base_url, endpoint),
+        headers={"Authorization": f"Bearer {api_key}", "Accept": "application/json"},
+        method="DELETE",
+    )
+    _open_api_request(request, args.timeout_seconds)
+    print(f"OK mode=clone-delete reference_id={args.reference_id}")
 
 
 def _stt(args: argparse.Namespace, api_key: str, base_url: str) -> None:
@@ -344,10 +523,17 @@ def _parser() -> argparse.ArgumentParser:
     text_source = tts.add_mutually_exclusive_group(required=True)
     text_source.add_argument("--text")
     text_source.add_argument("--text-file")
-    tts.add_argument("--voice", help="Fish Audio reference_id")
+    saved_voice = tts.add_mutually_exclusive_group()
+    saved_voice.add_argument("--voice", help="Fish Audio reference_id")
+    saved_voice.add_argument("--character", help="character/person name bound in the voice registry")
+    tts.add_argument("--registry", help="character voice registry JSON path")
     tts.add_argument("--reference-audio", help="local authorized reference audio")
     tts.add_argument("--reference-text", help="exact transcript for the reference audio")
-    tts.add_argument("--model", default="fish-s2-pro")
+    tts.add_argument(
+        "--model",
+        choices=sorted(TTS_MODELS),
+        help="override the bound model; defaults to the registry model or fish-s2-pro",
+    )
     tts.add_argument("--format", default="mp3")
     tts.add_argument("--output", required=True)
 
@@ -360,13 +546,43 @@ def _parser() -> argparse.ArgumentParser:
     stt.add_argument("--json-output")
 
     voices = subparsers.add_parser("voices", help="search Fish Audio public reference voices")
-    voices.add_argument("--query", required=True, help="title keyword, for example 旁白")
+    voice_query = voices.add_mutually_exclusive_group(required=True)
+    voice_query.add_argument("--query", help="title keyword, for example 旁白")
+    voice_query.add_argument("--character", help="specific person or character name")
     voices.add_argument("--language", default="zh")
     voices.add_argument("--tag", action="append", default=[], help="required tag; repeatable")
     voices.add_argument("--min-uses", type=int, default=0)
     voices.add_argument("--limit", type=int, default=10)
     voices.add_argument("--sort", choices=("uses", "likes"), default="uses")
     voices.add_argument("--json-output")
+
+    bind = subparsers.add_parser("bind", help="bind a character/person name to a Fish voice")
+    bind.add_argument("--character", required=True)
+    bind.add_argument("--voice", required=True, help="Fish Audio reference_id")
+    bind.add_argument("--title")
+    bind.add_argument("--model", choices=sorted(TTS_MODELS), default="fish-s2-pro")
+    bind.add_argument("--registry", help="character voice registry JSON path")
+
+    clone = subparsers.add_parser("clone", help="create a reusable private Fish voice model")
+    clone.add_argument("--title", required=True)
+    clone.add_argument("--audio", action="append", required=True, help="authorized voice sample; repeatable")
+    clone.add_argument("--text", action="append", default=[], help="matching transcript; repeat once per audio")
+    clone.add_argument("--tag", action="append", default=[])
+    clone.add_argument("--enhance-audio-quality", action=argparse.BooleanOptionalAction, default=True)
+    clone.add_argument("--generate-sample", action="store_true")
+    clone.add_argument("--json-output")
+
+    clone_status = subparsers.add_parser("clone-status", help="get private Fish voice model state")
+    clone_status.add_argument("reference_id")
+    clone_status.add_argument("--json-output")
+
+    clone_delete = subparsers.add_parser("clone-delete", help="delete an owned private Fish voice model")
+    clone_delete.add_argument("reference_id")
+    clone_delete.add_argument(
+        "--confirm-delete",
+        action="store_true",
+        help="confirm irreversible deletion of this private voice model",
+    )
     return parser
 
 
@@ -375,13 +591,19 @@ def main(argv: list[str] | None = None) -> int:
     if args.timeout_seconds <= 0:
         raise SystemExit("timeout must be positive")
     if args.command == "voices":
-        if not args.query.strip():
+        query_value = args.query or args.character
+        if not query_value.strip():
             raise SystemExit("voice search query must not be empty")
         if args.limit <= 0 or args.limit > 100:
             raise SystemExit("voice search limit must be between 1 and 100")
         if args.min_uses < 0:
             raise SystemExit("voice search min-uses must not be negative")
         _search_voices(args)
+        return 0
+    if args.command == "bind":
+        if not args.character.strip() or not args.voice.strip():
+            raise SystemExit("character and voice must not be empty")
+        _bind_character(args)
         return 0
     api_key = _api_key()
     if not api_key:
@@ -391,8 +613,16 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit("missing base URL: set NEW_API_BASE_URL, OPENAI_BASE_URL, or --base-url")
     if args.command == "tts":
         _tts(args, api_key, base_url)
-    else:
+    elif args.command == "stt":
         _stt(args, api_key, base_url)
+    elif args.command == "clone":
+        if len(args.title) > 256:
+            raise SystemExit("voice model title must not exceed 256 characters")
+        _clone_voice(args, api_key, base_url)
+    elif args.command == "clone-status":
+        _voice_model_status(args, api_key, base_url)
+    else:
+        _delete_voice_model(args, api_key, base_url)
     return 0
 
 

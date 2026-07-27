@@ -29,6 +29,8 @@ class _FishHandler(BaseHTTPRequestHandler):
     tts_payload: dict[str, object] | None = None
     stt_body = b""
     stt_content_type = ""
+    clone_body = b""
+    clone_content_type = ""
 
     def log_message(self, format: str, *args: object) -> None:
         return
@@ -48,6 +50,13 @@ class _FishHandler(BaseHTTPRequestHandler):
             type(self).stt_content_type = self.headers.get("Content-Type", "")
             response = json.dumps({"text": "你好，世界。", "language": "zh"}).encode()
             content_type = "application/json"
+        elif self.path == "/gateway/v1/audio/voice-models":
+            type(self).clone_body = body
+            type(self).clone_content_type = self.headers.get("Content-Type", "")
+            response = json.dumps(
+                {"_id": "private-voice-id", "title": "角色声线", "state": "trained"}
+            ).encode()
+            content_type = "application/json"
         else:
             self.send_error(404)
             return
@@ -57,12 +66,38 @@ class _FishHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(response)
 
+    def do_GET(self) -> None:
+        if self.headers.get("Authorization") != "Bearer local-test-key":
+            self.send_error(401)
+            return
+        if self.path != "/gateway/v1/audio/voice-models/private-voice-id":
+            self.send_error(404)
+            return
+        response = json.dumps({"_id": "private-voice-id", "state": "trained"}).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(response)))
+        self.end_headers()
+        self.wfile.write(response)
+
+    def do_DELETE(self) -> None:
+        if self.headers.get("Authorization") != "Bearer local-test-key":
+            self.send_error(401)
+            return
+        if self.path != "/gateway/v1/audio/voice-models/private-voice-id":
+            self.send_error(404)
+            return
+        self.send_response(204)
+        self.end_headers()
+
 
 class FishAudioTests(unittest.TestCase):
     def setUp(self) -> None:
         _FishHandler.tts_payload = None
         _FishHandler.stt_body = b""
         _FishHandler.stt_content_type = ""
+        _FishHandler.clone_body = b""
+        _FishHandler.clone_content_type = ""
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), _FishHandler)
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
@@ -153,6 +188,16 @@ class FishAudioTests(unittest.TestCase):
                     "tags": ["warm"],
                     "task_count": 9999,
                 },
+                {
+                    "_id": "",
+                    "type": "tts",
+                    "title": "缺少标识",
+                    "state": "trained",
+                    "visibility": "public",
+                    "languages": ["zh"],
+                    "tags": ["warm"],
+                    "task_count": 9999,
+                },
             ]
         }
         stdout = io.StringIO()
@@ -165,6 +210,7 @@ class FishAudioTests(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertIn("reference_id=voice-good", stdout.getvalue())
         self.assertNotIn("voice-private", stdout.getvalue())
+        self.assertNotIn("缺少标识", stdout.getvalue())
 
     def test_tts_with_public_reference_id_sends_voice_field(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir, mock.patch.dict(
@@ -190,6 +236,157 @@ class FishAudioTests(unittest.TestCase):
         assert _FishHandler.tts_payload is not None
         self.assertEqual(_FishHandler.tts_payload["voice"], "public-reference-id")
         self.assertNotIn("extra_body", _FishHandler.tts_payload)
+
+    def test_character_binding_resolves_to_reference_id_for_tts(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir, mock.patch.dict(
+            os.environ, {"NEW_API_API_KEY": "local-test-key"}, clear=False
+        ):
+            registry = Path(temp_dir, "voices.json")
+            rc = fish_audio.main(
+                [
+                    "bind",
+                    "--character",
+                    "守夜人",
+                    "--voice",
+                    "bound-reference-id",
+                    "--registry",
+                    str(registry),
+                ]
+            )
+            self.assertEqual(rc, 0)
+            output = Path(temp_dir, "line.wav")
+            rc = fish_audio.main(
+                [
+                    "--base-url",
+                    self.base_url,
+                    "tts",
+                    "--text",
+                    "今夜由我守望。",
+                    "--character",
+                    "守夜人",
+                    "--registry",
+                    str(registry),
+                    "--format",
+                    "wav",
+                    "--output",
+                    str(output),
+                ]
+            )
+        self.assertEqual(rc, 0)
+        assert _FishHandler.tts_payload is not None
+        self.assertEqual(_FishHandler.tts_payload["voice"], "bound-reference-id")
+
+    def test_explicit_tts_model_overrides_character_binding_model(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir, mock.patch.dict(
+            os.environ, {"NEW_API_API_KEY": "local-test-key"}, clear=False
+        ):
+            registry = Path(temp_dir, "voices.json")
+            fish_audio.main(
+                [
+                    "bind",
+                    "--character",
+                    "守夜人",
+                    "--voice",
+                    "bound-reference-id",
+                    "--model",
+                    "fish-s2-pro",
+                    "--registry",
+                    str(registry),
+                ]
+            )
+            fish_audio.main(
+                [
+                    "--base-url",
+                    self.base_url,
+                    "tts",
+                    "--text",
+                    "今夜由我守望。",
+                    "--character",
+                    "守夜人",
+                    "--registry",
+                    str(registry),
+                    "--model",
+                    "fish-s1",
+                    "--output",
+                    str(Path(temp_dir, "line.mp3")),
+                ]
+            )
+        assert _FishHandler.tts_payload is not None
+        self.assertEqual(_FishHandler.tts_payload["model"], "fish-s1")
+
+    def test_character_search_uses_character_name_as_title_query(self) -> None:
+        with mock.patch.object(
+            fish_audio,
+            "_open_public_json",
+            return_value={"items": []},
+        ) as open_public:
+            rc = fish_audio.main(["voices", "--character", "守夜人", "--language", "zh"])
+        self.assertEqual(rc, 0)
+        requested_url = open_public.call_args.args[0]
+        self.assertIn("title=%E5%AE%88%E5%A4%9C%E4%BA%BA", requested_url)
+
+    def test_clone_status_and_delete_use_new_api_voice_model_routes(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir, mock.patch.dict(
+            os.environ, {"NEW_API_API_KEY": "local-test-key"}, clear=False
+        ):
+            sample = Path(temp_dir, "sample.wav")
+            sample.write_bytes(b"authorized-voice")
+            metadata = Path(temp_dir, "voice.json")
+            rc = fish_audio.main(
+                [
+                    "--base-url",
+                    self.base_url,
+                    "clone",
+                    "--title",
+                    "角色声线",
+                    "--audio",
+                    str(sample),
+                    "--text",
+                    "授权参考文本",
+                    "--json-output",
+                    str(metadata),
+                ]
+            )
+            self.assertEqual(rc, 0)
+            self.assertEqual(json.loads(metadata.read_text())["_id"], "private-voice-id")
+            self.assertIn(b'name="model"', _FishHandler.clone_body)
+            self.assertIn(b"fish-voice-clone-1", _FishHandler.clone_body)
+            self.assertIn(b'name="visibility"', _FishHandler.clone_body)
+            self.assertIn(b"private", _FishHandler.clone_body)
+            self.assertIn(b"authorized-voice", _FishHandler.clone_body)
+
+            rc = fish_audio.main(
+                ["--base-url", self.base_url, "clone-status", "private-voice-id"]
+            )
+            self.assertEqual(rc, 0)
+            rc = fish_audio.main(
+                [
+                    "--base-url",
+                    self.base_url,
+                    "clone-delete",
+                    "private-voice-id",
+                    "--confirm-delete",
+                ]
+            )
+            self.assertEqual(rc, 0)
+
+    def test_clone_delete_requires_explicit_confirmation(self) -> None:
+        args = mock.Mock(reference_id="private-voice-id", confirm_delete=False, timeout_seconds=1)
+        with mock.patch.object(fish_audio, "_open_api_request") as request, self.assertRaises(
+            SystemExit
+        ):
+            fish_audio._delete_voice_model(args, "key", "https://example.com")
+        request.assert_not_called()
+
+    def test_clone_status_rejects_unknown_state(self) -> None:
+        args = mock.Mock(
+            reference_id="private-voice-id", timeout_seconds=1, json_output=None, overwrite=False
+        )
+        response = b'{"_id":"private-voice-id","state":"unknown"}'
+        with mock.patch.object(
+            fish_audio, "_open_api_request", return_value=(response, "application/json")
+        ), self.assertRaises(SystemExit):
+            fish_audio._voice_model_status(args, "key", "https://example.com")
 
     def test_stt_uploads_multipart_and_saves_text_and_json(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir, mock.patch.dict(
@@ -231,6 +428,8 @@ class FishAudioTests(unittest.TestCase):
             model="fish-s2-pro",
             format="mp3",
             voice="voice-id",
+            character=None,
+            registry=None,
             reference_audio=None,
             reference_text=None,
             text="hello",
@@ -245,6 +444,28 @@ class FishAudioTests(unittest.TestCase):
         ), contextlib.redirect_stdout(stdout), self.assertRaises(SystemExit):
             fish_audio._tts(args, "key", "https://example.com")
         self.assertNotIn("OK", stdout.getvalue())
+
+    def test_tts_json_body_with_binary_content_type_is_rejected(self) -> None:
+        args = mock.Mock(
+            model="fish-s2-pro",
+            format="mp3",
+            voice="voice-id",
+            character=None,
+            registry=None,
+            reference_audio=None,
+            reference_text=None,
+            text="hello",
+            text_file=None,
+            timeout_seconds=1,
+            output="out.mp3",
+            overwrite=False,
+        )
+        with mock.patch.object(
+            fish_audio,
+            "_open_api_request",
+            return_value=(b'{"error":"bad"}', "application/octet-stream"),
+        ), self.assertRaises(SystemExit):
+            fish_audio._tts(args, "key", "https://example.com")
 
 
 if __name__ == "__main__":
