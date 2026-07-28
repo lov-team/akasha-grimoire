@@ -1,6 +1,6 @@
 # new-api Fish Audio 事实合同
 
-事实源：`new-api` 当前实现（审计提交 `189efe7e9`）的音频路由、Fish Audio adaptor、模型表与测试。
+事实源：`new-api` 当前实现（审计提交 `6a217fb31`）的音频路由、Fish Audio adaptor、模型表与测试。
 
 ## 客户端入口与模型
 
