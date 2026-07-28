@@ -33,6 +33,81 @@ class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
         return None
 
 
+def _load_akasha_recharge() -> Any:
+    """Process-level path-verified singleton for shared/akasha_recharge.py."""
+    import importlib.util
+
+    cache_attr = "_akasha_recharge_singleton"
+    cached = globals().get(cache_attr)
+    here = Path(__file__).resolve().parent
+    candidates = [
+        here / "akasha_recharge.py",
+        here.parents[3] / "shared" / "akasha_recharge.py",
+        here.parents[2] / "shared" / "akasha_recharge.py",
+    ]
+    path: Path | None = None
+    for candidate in candidates:
+        try:
+            if candidate.is_file():
+                path = candidate.resolve()
+                break
+        except OSError:
+            continue
+    if path is None:
+        raise SystemExit(
+            "shared akasha_recharge helper not found; install from monorepo so "
+            "shared/akasha_recharge.py resolves via symlink"
+        )
+
+    def _matches(module: Any) -> bool:
+        try:
+            file_value = getattr(module, "__file__", None)
+            return bool(file_value) and Path(file_value).resolve() == path
+        except (OSError, RuntimeError, TypeError, ValueError):
+            return False
+
+    if cached is not None and _matches(cached) and hasattr(cached, "RechargeController"):
+        return cached
+
+    for existing in list(sys.modules.values()):
+        if existing is None or not hasattr(existing, "RechargeController"):
+            continue
+        if _matches(existing):
+            globals()[cache_attr] = existing
+            return existing
+
+    for existing in list(sys.modules.values()):
+        loader = getattr(existing, "load_akasha_recharge_module", None)
+        if callable(loader) and _matches(existing):
+            module = loader(Path(__file__))
+            globals()[cache_attr] = module
+            return module
+
+    stable_name = "akasha_grimoire_shared_akasha_recharge"
+    stable = sys.modules.get(stable_name)
+    if stable is not None and _matches(stable):
+        globals()[cache_attr] = stable
+        return stable
+    module_name = stable_name
+    if stable is not None and not _matches(stable):
+        module_name = f"{stable_name}_{abs(hash(str(path))) & 0xFFFFFFFF:x}"
+
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    if spec is None or spec.loader is None:
+        raise SystemExit(
+            "shared akasha_recharge helper not found; install from monorepo so "
+            "shared/akasha_recharge.py resolves via symlink"
+        )
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    loader = getattr(module, "load_akasha_recharge_module", None)
+    if callable(loader):
+        module = loader(Path(__file__))
+    globals()[cache_attr] = module
+    return module
+
+
 def _api_key() -> str:
     return os.environ.get("NEW_API_API_KEY") or os.environ.get("OPENAI_API_KEY") or ""
 
@@ -121,16 +196,42 @@ def _atomic_write(path: Path, data: bytes, overwrite: bool) -> None:
             Path(temp_name).unlink(missing_ok=True)
 
 
-def _open_api_request(request: urllib.request.Request, timeout: float) -> tuple[bytes, str]:
+def _open_api_request(
+    request: urllib.request.Request,
+    timeout: float,
+    *,
+    base_url: str,
+    api_key: str,
+    controller: Any | None = None,
+) -> tuple[bytes, str]:
+    recharge = _load_akasha_recharge()
     opener = urllib.request.build_opener(NoRedirectHandler())
+
+    def once() -> tuple[bytes, str]:
+        try:
+            with opener.open(request, timeout=timeout) as response:
+                return response.read(), response.headers.get("Content-Type", "")
+        except urllib.error.HTTPError as exc:
+            body = exc.read()
+            try:
+                exc.close()
+            except Exception:
+                pass
+            recharge.raise_quota_if_applicable(exc.code, body, base_url=base_url)
+            raise SystemExit(f"new-api request failed: HTTP {exc.code}; body_bytes={len(body)}") from exc
+        except urllib.error.URLError as exc:
+            raise SystemExit("new-api request failed: network error") from exc
+
+    if controller is None:
+        controller = recharge.RechargeController(
+            api_key=api_key,
+            base_url=base_url,
+            request_timeout=timeout,
+        )
     try:
-        with opener.open(request, timeout=timeout) as response:
-            return response.read(), response.headers.get("Content-Type", "")
-    except urllib.error.HTTPError as exc:
-        body = exc.read()
-        raise SystemExit(f"new-api request failed: HTTP {exc.code}; body_bytes={len(body)}") from exc
-    except urllib.error.URLError as exc:
-        raise SystemExit("new-api request failed: network error") from exc
+        return controller.run(once)
+    except recharge.AkashaRechargeError as exc:
+        raise SystemExit(str(exc)) from exc
 
 
 def _decode_json_object(raw: bytes, operation: str) -> dict[str, Any]:
@@ -237,7 +338,12 @@ def _search_voices(args: argparse.Namespace) -> None:
         )
 
 
-def _tts(args: argparse.Namespace, api_key: str, base_url: str) -> None:
+def _tts(
+    args: argparse.Namespace,
+    api_key: str,
+    base_url: str,
+    controller: Any | None = None,
+) -> None:
     if args.model is not None and args.model not in TTS_MODELS:
         raise SystemExit(f"unsupported Fish Audio TTS model: {args.model}")
     model = args.model or "fish-s2-pro"
@@ -292,7 +398,13 @@ def _tts(args: argparse.Namespace, api_key: str, base_url: str) -> None:
         },
         method="POST",
     )
-    body, content_type = _open_api_request(request, args.timeout_seconds)
+    body, content_type = _open_api_request(
+        request,
+        args.timeout_seconds,
+        base_url=base_url,
+        api_key=api_key,
+        controller=controller,
+    )
     if not body:
         raise SystemExit("Fish Audio TTS returned an empty body")
     if content_type.lower().split(";", 1)[0].strip() in {"application/json", "text/json"}:
@@ -426,7 +538,12 @@ def _multipart_clone_body(args: argparse.Namespace) -> tuple[bytes, str]:
     return b"".join(chunks), f"multipart/form-data; boundary={boundary}"
 
 
-def _clone_voice(args: argparse.Namespace, api_key: str, base_url: str) -> None:
+def _clone_voice(
+    args: argparse.Namespace,
+    api_key: str,
+    base_url: str,
+    controller: Any | None = None,
+) -> None:
     body, content_type = _multipart_clone_body(args)
     request = urllib.request.Request(
         _api_url(base_url, "/audio/voice-models"),
@@ -439,7 +556,13 @@ def _clone_voice(args: argparse.Namespace, api_key: str, base_url: str) -> None:
         },
         method="POST",
     )
-    raw, _ = _open_api_request(request, args.timeout_seconds)
+    raw, _ = _open_api_request(
+        request,
+        args.timeout_seconds,
+        base_url=base_url,
+        api_key=api_key,
+        controller=controller,
+    )
     response = _decode_json_object(raw, "Fish Audio voice clone")
     reference_id = response.get("_id")
     if not isinstance(reference_id, str) or not reference_id:
@@ -456,14 +579,25 @@ def _clone_voice(args: argparse.Namespace, api_key: str, base_url: str) -> None:
     print(f"OK mode=clone reference_id={reference_id} state={state}")
 
 
-def _voice_model_status(args: argparse.Namespace, api_key: str, base_url: str) -> None:
+def _voice_model_status(
+    args: argparse.Namespace,
+    api_key: str,
+    base_url: str,
+    controller: Any | None = None,
+) -> None:
     endpoint = "/audio/voice-models/" + urllib.parse.quote(args.reference_id, safe="")
     request = urllib.request.Request(
         _api_url(base_url, endpoint),
         headers={"Authorization": f"Bearer {api_key}", "Accept": "application/json"},
         method="GET",
     )
-    raw, _ = _open_api_request(request, args.timeout_seconds)
+    raw, _ = _open_api_request(
+        request,
+        args.timeout_seconds,
+        base_url=base_url,
+        api_key=api_key,
+        controller=controller,
+    )
     response = _decode_json_object(raw, "Fish Audio voice model status")
     response_id = response.get("_id")
     if response_id != args.reference_id:
@@ -478,7 +612,12 @@ def _voice_model_status(args: argparse.Namespace, api_key: str, base_url: str) -
     print(f"STATUS mode=clone-status reference_id={args.reference_id} state={state}")
 
 
-def _delete_voice_model(args: argparse.Namespace, api_key: str, base_url: str) -> None:
+def _delete_voice_model(
+    args: argparse.Namespace,
+    api_key: str,
+    base_url: str,
+    controller: Any | None = None,
+) -> None:
     if not args.confirm_delete:
         raise SystemExit("refusing to delete voice model without --confirm-delete")
     endpoint = "/audio/voice-models/" + urllib.parse.quote(args.reference_id, safe="")
@@ -487,11 +626,22 @@ def _delete_voice_model(args: argparse.Namespace, api_key: str, base_url: str) -
         headers={"Authorization": f"Bearer {api_key}", "Accept": "application/json"},
         method="DELETE",
     )
-    _open_api_request(request, args.timeout_seconds)
+    _open_api_request(
+        request,
+        args.timeout_seconds,
+        base_url=base_url,
+        api_key=api_key,
+        controller=controller,
+    )
     print(f"OK mode=clone-delete reference_id={args.reference_id}")
 
 
-def _stt(args: argparse.Namespace, api_key: str, base_url: str) -> None:
+def _stt(
+    args: argparse.Namespace,
+    api_key: str,
+    base_url: str,
+    controller: Any | None = None,
+) -> None:
     if args.model != STT_MODEL:
         raise SystemExit(f"unsupported Fish Audio STT model: {args.model}")
     body, content_type = _multipart_stt_body(args)
@@ -506,7 +656,13 @@ def _stt(args: argparse.Namespace, api_key: str, base_url: str) -> None:
         },
         method="POST",
     )
-    raw, _ = _open_api_request(request, args.timeout_seconds)
+    raw, _ = _open_api_request(
+        request,
+        args.timeout_seconds,
+        base_url=base_url,
+        api_key=api_key,
+        controller=controller,
+    )
     try:
         response = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -530,6 +686,8 @@ def _stt(args: argparse.Namespace, api_key: str, base_url: str) -> None:
 
 
 def _parser() -> argparse.ArgumentParser:
+    recharge = _load_akasha_recharge()
+    recharge_parent = recharge.recharge_parent_parser()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--base-url",
@@ -537,9 +695,10 @@ def _parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--timeout-seconds", type=float, default=120.0)
     parser.add_argument("--overwrite", action="store_true")
+    recharge.add_recharge_argument(parser)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    tts = subparsers.add_parser("tts", help="synthesize speech")
+    tts = subparsers.add_parser("tts", parents=[recharge_parent], help="synthesize speech")
     text_source = tts.add_mutually_exclusive_group(required=True)
     text_source.add_argument("--text")
     text_source.add_argument("--text-file")
@@ -557,7 +716,7 @@ def _parser() -> argparse.ArgumentParser:
     tts.add_argument("--format", default="mp3")
     tts.add_argument("--output", required=True)
 
-    stt = subparsers.add_parser("stt", help="transcribe speech")
+    stt = subparsers.add_parser("stt", parents=[recharge_parent], help="transcribe speech")
     stt.add_argument("audio")
     stt.add_argument("--model", default=STT_MODEL)
     stt.add_argument("--language")
@@ -565,7 +724,7 @@ def _parser() -> argparse.ArgumentParser:
     stt.add_argument("--output", required=True)
     stt.add_argument("--json-output")
 
-    voices = subparsers.add_parser("voices", help="search Fish Audio public reference voices")
+    voices = subparsers.add_parser("voices", parents=[recharge_parent], help="search Fish Audio public reference voices")
     voice_query = voices.add_mutually_exclusive_group(required=True)
     voice_query.add_argument("--query", help="title keyword, for example 旁白")
     voice_query.add_argument("--character", help="specific person or character name")
@@ -576,14 +735,14 @@ def _parser() -> argparse.ArgumentParser:
     voices.add_argument("--sort", choices=("uses", "likes"), default="uses")
     voices.add_argument("--json-output")
 
-    bind = subparsers.add_parser("bind", help="bind a character/person name to a Fish voice")
+    bind = subparsers.add_parser("bind", parents=[recharge_parent], help="bind a character/person name to a Fish voice")
     bind.add_argument("--character", required=True)
     bind.add_argument("--voice", required=True, help="Fish Audio reference_id")
     bind.add_argument("--title")
     bind.add_argument("--model", choices=sorted(TTS_MODELS), default="fish-s2-pro")
     bind.add_argument("--registry", help="character voice registry JSON path")
 
-    clone = subparsers.add_parser("clone", help="create a reusable private Fish voice model")
+    clone = subparsers.add_parser("clone", parents=[recharge_parent], help="create a reusable private Fish voice model")
     clone.add_argument("--title", required=True)
     clone.add_argument("--audio", action="append", required=True, help="authorized voice sample; repeatable")
     clone.add_argument("--text", action="append", default=[], help="matching transcript; repeat once per audio")
@@ -592,11 +751,11 @@ def _parser() -> argparse.ArgumentParser:
     clone.add_argument("--generate-sample", action="store_true")
     clone.add_argument("--json-output")
 
-    clone_status = subparsers.add_parser("clone-status", help="get private Fish voice model state")
+    clone_status = subparsers.add_parser("clone-status", parents=[recharge_parent], help="get private Fish voice model state")
     clone_status.add_argument("reference_id")
     clone_status.add_argument("--json-output")
 
-    clone_delete = subparsers.add_parser("clone-delete", help="delete an owned private Fish voice model")
+    clone_delete = subparsers.add_parser("clone-delete", parents=[recharge_parent], help="delete an owned private Fish voice model")
     clone_delete.add_argument("reference_id")
     clone_delete.add_argument(
         "--confirm-delete",
@@ -629,18 +788,29 @@ def main(argv: list[str] | None = None) -> int:
     if not api_key:
         raise SystemExit(_missing_key_message())
     base_url = _base_url(args.base_url)
+    recharge = _load_akasha_recharge()
+    try:
+        recharge.validate_cli_recharge_usd(getattr(args, "recharge_usd", None))
+    except recharge.AkashaRechargeError as exc:
+        raise SystemExit(str(exc)) from exc
+    controller = recharge.RechargeController(
+        api_key=api_key,
+        base_url=base_url,
+        cli_recharge_usd=getattr(args, "recharge_usd", None),
+        request_timeout=args.timeout_seconds,
+    )
     if args.command == "tts":
-        _tts(args, api_key, base_url)
+        _tts(args, api_key, base_url, controller)
     elif args.command == "stt":
-        _stt(args, api_key, base_url)
+        _stt(args, api_key, base_url, controller)
     elif args.command == "clone":
         if len(args.title) > 256:
             raise SystemExit("voice model title must not exceed 256 characters")
-        _clone_voice(args, api_key, base_url)
+        _clone_voice(args, api_key, base_url, controller)
     elif args.command == "clone-status":
-        _voice_model_status(args, api_key, base_url)
+        _voice_model_status(args, api_key, base_url, controller)
     else:
-        _delete_voice_model(args, api_key, base_url)
+        _delete_voice_model(args, api_key, base_url, controller)
     return 0
 
 

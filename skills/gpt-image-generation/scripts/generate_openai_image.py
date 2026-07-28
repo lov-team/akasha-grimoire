@@ -25,6 +25,81 @@ DEFAULT_PROMPT = (
 DEFAULT_BASE_URL = "https://newapi.1234bot.com/v1"
 
 
+def _load_akasha_recharge() -> Any:
+    """Process-level path-verified singleton for shared/akasha_recharge.py."""
+    import importlib.util
+
+    cache_attr = "_akasha_recharge_singleton"
+    cached = globals().get(cache_attr)
+    here = Path(__file__).resolve().parent
+    candidates = [
+        here / "akasha_recharge.py",
+        here.parents[3] / "shared" / "akasha_recharge.py",
+        here.parents[2] / "shared" / "akasha_recharge.py",
+    ]
+    path: Path | None = None
+    for candidate in candidates:
+        try:
+            if candidate.is_file():
+                path = candidate.resolve()
+                break
+        except OSError:
+            continue
+    if path is None:
+        raise SystemExit(
+            "shared akasha_recharge helper not found; install from monorepo so "
+            "shared/akasha_recharge.py resolves via symlink"
+        )
+
+    def _matches(module: Any) -> bool:
+        try:
+            file_value = getattr(module, "__file__", None)
+            return bool(file_value) and Path(file_value).resolve() == path
+        except (OSError, RuntimeError, TypeError, ValueError):
+            return False
+
+    if cached is not None and _matches(cached) and hasattr(cached, "RechargeController"):
+        return cached
+
+    for existing in list(sys.modules.values()):
+        if existing is None or not hasattr(existing, "RechargeController"):
+            continue
+        if _matches(existing):
+            globals()[cache_attr] = existing
+            return existing
+
+    for existing in list(sys.modules.values()):
+        loader = getattr(existing, "load_akasha_recharge_module", None)
+        if callable(loader) and _matches(existing):
+            module = loader(Path(__file__))
+            globals()[cache_attr] = module
+            return module
+
+    stable_name = "akasha_grimoire_shared_akasha_recharge"
+    stable = sys.modules.get(stable_name)
+    if stable is not None and _matches(stable):
+        globals()[cache_attr] = stable
+        return stable
+    module_name = stable_name
+    if stable is not None and not _matches(stable):
+        module_name = f"{stable_name}_{abs(hash(str(path))) & 0xFFFFFFFF:x}"
+
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    if spec is None or spec.loader is None:
+        raise SystemExit(
+            "shared akasha_recharge helper not found; install from monorepo so "
+            "shared/akasha_recharge.py resolves via symlink"
+        )
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    loader = getattr(module, "load_akasha_recharge_module", None)
+    if callable(loader):
+        module = loader(Path(__file__))
+    globals()[cache_attr] = module
+    return module
+
+
 class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):  # type: ignore[no-untyped-def]
         return None
@@ -307,44 +382,73 @@ def main() -> int:
     parser.add_argument("--overwrite", action="store_true", help="Allow replacing an existing --output file.")
     parser.add_argument("--env-file", default=os.environ.get("IMAGE_PROXY_ENV_FILE"), help="Optional .env file to load API keys from.")
     parser.add_argument("--timeout", type=float, default=300.0)
+    recharge_mod = _load_akasha_recharge()
+    recharge_mod.add_recharge_argument(parser)
     args = parser.parse_args()
 
     _load_env_file(args.env_file)
     args.base_url = args.base_url or _base_url()
-    request = _build_request(args)
-    opener = urllib.request.build_opener(NoRedirectHandler)
-    started = time.monotonic()
-    print(f"POST {request.full_url}")
     try:
-        with opener.open(request, timeout=args.timeout) as response:
-            elapsed = time.monotonic() - started
-            body = response.read()
-            payload = _read_json(body)
-            if response.status < 200 or response.status >= 300:
-                print(f"FAIL status={response.status} elapsed={elapsed:.1f}s")
-                print(_summarize_error_body(body))
-                return 1
-            first = _summarize_success(payload, elapsed)
-            if args.output:
-                _save_result(first, args.output, args.timeout, args.overwrite)
-            return 0
-    except urllib.error.HTTPError as exc:
-        elapsed = time.monotonic() - started
-        location = exc.headers.get("Location", "")
-        body = exc.read(4096)
-        print(f"FAIL status={exc.code} elapsed={elapsed:.1f}s")
-        if location:
-            parsed_location = urllib.parse.urlparse(location)
-            print(
-                f"redirect_host={parsed_location.netloc or '<relative>'} "
-                f"redirect_path={parsed_location.path or '/'}"
-            )
-        if body:
-            print(_summarize_error_body(body))
+        # Explicit CLI amount only; env is resolved lazily if/when recharge triggers.
+        recharge_mod.validate_cli_recharge_usd(getattr(args, "recharge_usd", None))
+    except recharge_mod.AkashaRechargeError as exc:
+        print(f"FAIL error=AkashaRechargeError message={_one_line(exc)}")
         return 1
-    except Exception as exc:
-        elapsed = time.monotonic() - started
-        print(f"FAIL error={type(exc).__name__} elapsed={elapsed:.1f}s")
+
+    request = _build_request(args)
+    api_key = _api_key()
+    opener = urllib.request.build_opener(NoRedirectHandler)
+    print(f"POST {request.full_url}")
+    controller = recharge_mod.RechargeController(
+        api_key=api_key,
+        base_url=args.base_url,
+        cli_recharge_usd=getattr(args, "recharge_usd", None),
+        request_timeout=args.timeout,
+    )
+
+    def once() -> int:
+        started = time.monotonic()
+        try:
+            with opener.open(request, timeout=args.timeout) as response:
+                elapsed = time.monotonic() - started
+                body = response.read()
+                payload = _read_json(body)
+                if response.status < 200 or response.status >= 300:
+                    print(f"FAIL status={response.status} elapsed={elapsed:.1f}s")
+                    print(_summarize_error_body(body))
+                    return 1
+                first = _summarize_success(payload, elapsed)
+                if args.output:
+                    _save_result(first, args.output, args.timeout, args.overwrite)
+                return 0
+        except urllib.error.HTTPError as exc:
+            elapsed = time.monotonic() - started
+            location = exc.headers.get("Location", "")
+            body = exc.read(65536)
+            try:
+                exc.close()
+            except Exception:
+                pass
+            recharge_mod.raise_quota_if_applicable(exc.code, body, base_url=args.base_url)
+            print(f"FAIL status={exc.code} elapsed={elapsed:.1f}s")
+            if location:
+                parsed_location = urllib.parse.urlparse(location)
+                print(
+                    f"redirect_host={parsed_location.netloc or '<relative>'} "
+                    f"redirect_path={parsed_location.path or '/'}"
+                )
+            if body:
+                print(_summarize_error_body(body))
+            return 1
+        except Exception as exc:
+            elapsed = time.monotonic() - started
+            print(f"FAIL error={type(exc).__name__} elapsed={elapsed:.1f}s")
+            return 1
+
+    try:
+        return controller.run(once)
+    except recharge_mod.AkashaRechargeError as exc:
+        print(f"FAIL error=AkashaRechargeError message={_one_line(exc)}")
         return 1
 
 

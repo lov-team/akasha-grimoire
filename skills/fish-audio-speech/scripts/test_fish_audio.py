@@ -490,6 +490,189 @@ class FishAudioTests(unittest.TestCase):
         ), self.assertRaises(SystemExit):
             fish_audio._tts(args, "key", "https://example.com")
 
+    def test_loader_identity_and_controller_catches_quota_from_real_loader(self) -> None:
+        a = fish_audio._load_akasha_recharge()
+        b = fish_audio._load_akasha_recharge()
+        self.assertIs(a, b)
+        self.assertIs(a.InsufficientUserQuotaError, b.InsufficientUserQuotaError)
+        body = (
+            b'{"error":{"code":"insufficient_user_quota","metadata":'
+            b'{"recharge":{"supported":true,"ticket_endpoint":"/v1/tooling/recharge-ticket"}}}}'
+        )
+        performed: list[int] = []
+
+        def fake_perform(**kwargs: object) -> object:
+            performed.append(1)
+            return a.RechargeSessionView(
+                public_id="f1",
+                status="SUCCEEDED",
+                face_value_usd_cent=1000,
+                currency="USD",
+                expire_time=0,
+                public_page_url="https://lovbrowser.example/pay/f1",
+                status_url="https://lovbrowser.example/status/f1",
+            )
+
+        controller = a.RechargeController(
+            api_key="k",
+            base_url="https://newapi.1234bot.com/v1",
+            allow_http_endpoints=True,
+        )
+        n = {"v": 0}
+
+        def op() -> str:
+            n["v"] += 1
+            if n["v"] == 1:
+                fish_audio._load_akasha_recharge().raise_quota_if_applicable(
+                    403, body, base_url="https://newapi.1234bot.com/v1"
+                )
+            return "ok"
+
+        with mock.patch.object(a, "perform_recharge", side_effect=fake_perform):
+            self.assertEqual(controller.run(op), "ok")
+        self.assertEqual(performed, [1])
+        self.assertTrue(controller._recharge_attempted)
+
+    def test_recharge_usd_accepted_before_and_after_subcommand(self) -> None:
+        parser = fish_audio._parser()
+        a = parser.parse_args(
+            ["--recharge-usd", "8", "tts", "--text", "hi", "--voice", "v1", "--output", "/tmp/a.wav"]
+        )
+        self.assertEqual(a.recharge_usd, "8")
+        b = parser.parse_args(
+            ["tts", "--recharge-usd", "9", "--text", "hi", "--voice", "v1", "--output", "/tmp/a.wav"]
+        )
+        self.assertEqual(b.recharge_usd, "9")
+
+    def test_private_base_keeps_original_error_with_bad_recharge_env(self) -> None:
+        with mock.patch.dict(os.environ, {"AKASHA_RECHARGE_USD": "bad-env", "NEW_API_API_KEY": "k"}, clear=False):
+            # voices path does not use new-api; success path unaffected by bad env
+            with mock.patch.object(
+                fish_audio,
+                "_open_public_json",
+                return_value={"items": []},
+            ):
+                rc = fish_audio.main(["voices", "--query", "x", "--limit", "1"])
+            self.assertEqual(rc, 0)
+        # Authenticated request on private base: ordinary 403 stays ordinary
+        class H(BaseHTTPRequestHandler):
+            def log_message(self, *a):  # noqa: ANN002
+                return
+
+            def do_POST(self):  # noqa: N802
+                n = int(self.headers.get("Content-Length", "0"))
+                self.rfile.read(n)
+                body = b'{"error":{"code":"rate_limit"}}'
+                self.send_response(403)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), H)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(
+                os.environ,
+                {"NEW_API_API_KEY": "k", "AKASHA_RECHARGE_USD": "not-a-number"},
+                clear=False,
+            ):
+                with self.assertRaises(SystemExit) as caught:
+                    fish_audio.main(
+                        [
+                            "--base-url",
+                            f"http://127.0.0.1:{server.server_port}/v1",
+                            "tts",
+                            "--text",
+                            "hi",
+                            "--voice",
+                            "v1",
+                            "--output",
+                            f"{tmp}/o.wav",
+                        ]
+                    )
+                self.assertIn("HTTP 403", str(caught.exception))
+                self.assertNotIn("not-a-number", str(caught.exception))
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+
+
+    def test_real_open_api_request_catches_quota_via_same_controller(self) -> None:
+        from email.message import Message
+        from io import BytesIO
+        from urllib.error import HTTPError
+        import urllib.request
+
+        recharge = fish_audio._load_akasha_recharge()
+        controller = recharge.RechargeController(
+            api_key="k",
+            base_url="https://newapi.1234bot.com/v1",
+            allow_http_endpoints=True,
+            request_timeout=5,
+        )
+        quota = json.dumps(
+            {
+                "error": {
+                    "code": "insufficient_user_quota",
+                    "metadata": {
+                        "recharge": {
+                            "supported": True,
+                            "ticket_endpoint": "/v1/tooling/recharge-ticket",
+                        }
+                    },
+                }
+            }
+        ).encode()
+        ok = b"audio-bytes"
+        state = {"n": 0}
+
+        class FakeOpener:
+            def open(self, req: object, timeout: float = 0) -> object:
+                state["n"] += 1
+                if state["n"] == 1:
+                    raise HTTPError("https://newapi.1234bot.com/v1/x", 403, "Forbidden", Message(), BytesIO(quota))
+                class Resp:
+                    def __enter__(self):
+                        return self
+                    def __exit__(self, *args: object) -> bool:
+                        return False
+                    def read(self) -> bytes:
+                        return ok
+                    headers = {"Content-Type": "audio/wav"}
+                return Resp()
+
+        performed: list[int] = []
+
+        def fake_perform(**kwargs: object) -> object:
+            performed.append(1)
+            return recharge.RechargeSessionView(
+                public_id="w1",
+                status="SUCCEEDED",
+                face_value_usd_cent=1000,
+                currency="USD",
+                expire_time=0,
+                public_page_url="https://lovbrowser.example/pay/w1",
+                status_url="https://lovbrowser.example/status/w1",
+            )
+
+        req = urllib.request.Request(
+            "https://newapi.1234bot.com/v1/audio/speech",
+            data=b"{}",
+            headers={"Authorization": "Bearer k", "Content-Type": "application/json"},
+            method="POST",
+        )
+        with mock.patch.object(recharge, "perform_recharge", side_effect=fake_perform):
+            with mock.patch.object(urllib.request, "build_opener", return_value=FakeOpener()):
+                body, ct = fish_audio._open_api_request(
+                    req, 5, base_url="https://newapi.1234bot.com/v1", api_key="k", controller=controller
+                )
+        self.assertEqual(body, ok)
+        self.assertEqual(performed, [1])
+        self.assertTrue(controller._recharge_attempted)
+
 
 if __name__ == "__main__":
     unittest.main()

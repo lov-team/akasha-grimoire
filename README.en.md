@@ -166,6 +166,7 @@ Use $fish-audio-speech to synthesize this narration and verify the beginning, mi
 | GPT Image | `IMAGE_PROXY_API_KEY`, `NEW_API_API_KEY`, or `OPENAI_API_KEY` | Never place keys in command arguments, prompts, logs, or the repository |
 | Grok / Seedance | A capability-specific key, `NEW_API_API_KEY`, or `OPENAI_API_KEY` | Real requests incur cost, so start with one smoke task before scaling up |
 | Suno / Fish Audio | `NEW_API_API_KEY` or `OPENAI_API_KEY` | Real requests consume quota; base tests never call external generation services |
+| Official balance recharge | `AKASHA_RECHARGE_USD` or each script's `--recharge-usd` (default 10 USD) | Official new-api only; at most one QR recharge per command, then one retry; Agent must render `qrPngPath` and offer `publicPageUrl`; never leak keys/tickets |
 | CLI workers | The corresponding local CLI, macOS Terminal, and tmux | Re-check `--version` and `--help` on first use and after upgrades |
 
 ## Validation

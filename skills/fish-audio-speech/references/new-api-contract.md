@@ -64,6 +64,10 @@ new-api 保存用户、`reference_id`、渠道和多 Key 索引的归属关系�
 
 new-api 转换后请求 Fish Audio `/v1/asr`，上游文件字段名为 `audio`。客户端成功响应遵循 OpenAI 转写 JSON，至少应有字符串 `text`。
 
+## 余额不足充值
+
+官方 new-api 的鉴权请求走共享契约 [`../../../shared/recharge-contract.md`](../../../shared/recharge-contract.md)。公开音色搜索不经过 new-api，不触发充值。
+
 ## 边界
 
 - `fish-voice-design-1` 虽存在于当前渠道模型表，但不属于本 Skill 合同。
