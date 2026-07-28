@@ -168,6 +168,7 @@ done
 | GPT Image | `IMAGE_PROXY_API_KEY`、`NEW_API_API_KEY` 或 `OPENAI_API_KEY` | 不把 key 写进命令参数、prompt、日志或仓库 |
 | Grok / Seedance | 专用 key、`NEW_API_API_KEY` 或 `OPENAI_API_KEY` | 真实调用会计费，先做单个 smoke，再扩大任务规模 |
 | Suno / Fish Audio | `NEW_API_API_KEY` 或 `OPENAI_API_KEY` | 真实调用会消耗额度；基础测试不调用外部服务 |
+| 官方余额不足充值 | `AKASHA_RECHARGE_USD` 或各脚本 `--recharge-usd`（默认 10 USD） | 仅官方 new-api；整次命令最多一次二维码充值，成功后只续跑失败请求一次；Agent 须渲染 `qrPngPath` 并给出 `publicPageUrl`；不泄露 Key/票据 |
 | CLI worker | 本机已安装的对应 CLI、macOS Terminal、tmux | 首次使用或版本变化时重新核对 `--version` 与 `--help` |
 
 ## 验证

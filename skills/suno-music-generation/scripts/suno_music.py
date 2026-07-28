@@ -30,6 +30,81 @@ class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
         return None
 
 
+def _load_akasha_recharge() -> Any:
+    """Process-level path-verified singleton for shared/akasha_recharge.py."""
+    import importlib.util
+
+    cache_attr = "_akasha_recharge_singleton"
+    cached = globals().get(cache_attr)
+    here = Path(__file__).resolve().parent
+    candidates = [
+        here / "akasha_recharge.py",
+        here.parents[3] / "shared" / "akasha_recharge.py",
+        here.parents[2] / "shared" / "akasha_recharge.py",
+    ]
+    path: Path | None = None
+    for candidate in candidates:
+        try:
+            if candidate.is_file():
+                path = candidate.resolve()
+                break
+        except OSError:
+            continue
+    if path is None:
+        raise SystemExit(
+            "shared akasha_recharge helper not found; install from monorepo so "
+            "shared/akasha_recharge.py resolves via symlink"
+        )
+
+    def _matches(module: Any) -> bool:
+        try:
+            file_value = getattr(module, "__file__", None)
+            return bool(file_value) and Path(file_value).resolve() == path
+        except (OSError, RuntimeError, TypeError, ValueError):
+            return False
+
+    if cached is not None and _matches(cached) and hasattr(cached, "RechargeController"):
+        return cached
+
+    for existing in list(sys.modules.values()):
+        if existing is None or not hasattr(existing, "RechargeController"):
+            continue
+        if _matches(existing):
+            globals()[cache_attr] = existing
+            return existing
+
+    for existing in list(sys.modules.values()):
+        loader = getattr(existing, "load_akasha_recharge_module", None)
+        if callable(loader) and _matches(existing):
+            module = loader(Path(__file__))
+            globals()[cache_attr] = module
+            return module
+
+    stable_name = "akasha_grimoire_shared_akasha_recharge"
+    stable = sys.modules.get(stable_name)
+    if stable is not None and _matches(stable):
+        globals()[cache_attr] = stable
+        return stable
+    module_name = stable_name
+    if stable is not None and not _matches(stable):
+        module_name = f"{stable_name}_{abs(hash(str(path))) & 0xFFFFFFFF:x}"
+
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    if spec is None or spec.loader is None:
+        raise SystemExit(
+            "shared akasha_recharge helper not found; install from monorepo so "
+            "shared/akasha_recharge.py resolves via symlink"
+        )
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    loader = getattr(module, "load_akasha_recharge_module", None)
+    if callable(loader):
+        module = loader(Path(__file__))
+    globals()[cache_attr] = module
+    return module
+
+
 def _api_key() -> str:
     return os.environ.get("NEW_API_API_KEY") or os.environ.get("OPENAI_API_KEY") or ""
 
@@ -88,7 +163,11 @@ def _request_json(
     payload: dict[str, Any] | None = None,
     *,
     timeout: float = 60.0,
+    base_url: str | None = None,
+    controller: Any | None = None,
 ) -> dict[str, Any]:
+    recharge = _load_akasha_recharge()
+    effective_base = base_url or DEFAULT_BASE_URL
     body = None if payload is None else json.dumps(payload, ensure_ascii=False).encode("utf-8")
     request = urllib.request.Request(
         url,
@@ -102,21 +181,39 @@ def _request_json(
         method=method,
     )
     opener = urllib.request.build_opener(NoRedirectHandler())
+
+    def once() -> dict[str, Any]:
+        try:
+            with opener.open(request, timeout=timeout) as response:
+                raw = response.read()
+        except urllib.error.HTTPError as exc:
+            raw = exc.read()
+            try:
+                exc.close()
+            except Exception:
+                pass
+            recharge.raise_quota_if_applicable(exc.code, raw, base_url=effective_base)
+            raise SystemExit(f"new-api request failed: HTTP {exc.code}; body_bytes={len(raw)}") from exc
+        except urllib.error.URLError as exc:
+            raise SystemExit("new-api request failed: network error") from exc
+        try:
+            parsed = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise SystemExit(f"new-api response is not JSON; body_bytes={len(raw)}") from exc
+        if not isinstance(parsed, dict):
+            raise SystemExit(f"new-api response JSON is not an object: {type(parsed).__name__}")
+        return parsed
+
+    if controller is None:
+        controller = recharge.RechargeController(
+            api_key=api_key,
+            base_url=effective_base,
+            request_timeout=timeout,
+        )
     try:
-        with opener.open(request, timeout=timeout) as response:
-            raw = response.read()
-    except urllib.error.HTTPError as exc:
-        raw = exc.read()
-        raise SystemExit(f"new-api request failed: HTTP {exc.code}; body_bytes={len(raw)}") from exc
-    except urllib.error.URLError as exc:
-        raise SystemExit("new-api request failed: network error") from exc
-    try:
-        parsed = json.loads(raw.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise SystemExit(f"new-api response is not JSON; body_bytes={len(raw)}") from exc
-    if not isinstance(parsed, dict):
-        raise SystemExit(f"new-api response JSON is not an object: {type(parsed).__name__}")
-    return parsed
+        return controller.run(once)
+    except recharge.AkashaRechargeError as exc:
+        raise SystemExit(str(exc)) from exc
 
 
 def _require_success_response(data: dict[str, Any], context: str) -> Any:
@@ -133,7 +230,12 @@ def _safe_message(value: Any) -> str:
     return re.sub(r"https?://\S+", "<url>", message)
 
 
-def _submit(args: argparse.Namespace, api_key: str, base_url: str) -> str:
+def _submit(
+    args: argparse.Namespace,
+    api_key: str,
+    base_url: str,
+    controller: Any | None = None,
+) -> str:
     payload: dict[str, Any] = {"make_instrumental": args.instrumental}
     if args.description:
         payload["gpt_description_prompt"] = args.description
@@ -153,7 +255,12 @@ def _submit(args: argparse.Namespace, api_key: str, base_url: str) -> str:
         payload["mv"] = args.model
 
     response = _request_json(
-        "POST", _api_url(base_url, "/suno/submit/MUSIC"), api_key, payload
+        "POST",
+        _api_url(base_url, "/suno/submit/MUSIC"),
+        api_key,
+        payload,
+        base_url=base_url,
+        controller=controller,
     )
     task_id = _require_success_response(response, "Suno submit")
     if not isinstance(task_id, str) or not task_id.strip():
@@ -170,6 +277,7 @@ def _wait_for_result(
     base_url: str,
     timeout_seconds: float,
     poll_seconds: float,
+    controller: Any | None = None,
 ) -> list[dict[str, Any]]:
     deadline = time.monotonic() + timeout_seconds
     last_status = "UNKNOWN"
@@ -178,6 +286,8 @@ def _wait_for_result(
             "GET",
             _api_url(base_url, f"/suno/fetch/{urllib.parse.quote(task_id, safe='')}"),
             api_key,
+            base_url=base_url,
+            controller=controller,
         )
         task = _require_success_response(response, "Suno fetch")
         if not isinstance(task, dict):
@@ -283,6 +393,7 @@ def _save_results(args: argparse.Namespace, task_id: str, songs: list[dict[str, 
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
+    _load_akasha_recharge().add_recharge_argument(parser)
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--description", help="natural-language song description")
     source.add_argument("--lyrics-file", help="UTF-8 custom lyrics file")
@@ -324,9 +435,25 @@ def main(argv: list[str] | None = None) -> int:
     if not api_key:
         raise SystemExit(_missing_key_message())
     base_url = _base_url(args.base_url)
-    task_id = _submit(args, api_key, base_url)
+    recharge = _load_akasha_recharge()
+    try:
+        recharge.validate_cli_recharge_usd(getattr(args, "recharge_usd", None))
+    except recharge.AkashaRechargeError as exc:
+        raise SystemExit(str(exc)) from exc
+    controller = recharge.RechargeController(
+        api_key=api_key,
+        base_url=base_url,
+        cli_recharge_usd=getattr(args, "recharge_usd", None),
+        request_timeout=60.0,
+    )
+    task_id = _submit(args, api_key, base_url, controller)
     songs = _wait_for_result(
-        task_id, api_key, base_url, args.timeout_seconds, args.poll_seconds
+        task_id,
+        api_key,
+        base_url,
+        args.timeout_seconds,
+        args.poll_seconds,
+        controller,
     )
     _save_results(args, task_id, songs)
     return 0

@@ -214,6 +214,292 @@ class SunoMusicTests(unittest.TestCase):
                 suno_music._download(source.as_uri(), destination, False)
             self.assertFalse(destination.exists())
 
+    def test_loader_identity_and_controller_catches_quota_from_real_loader(self) -> None:
+        a = suno_music._load_akasha_recharge()
+        b = suno_music._load_akasha_recharge()
+        self.assertIs(a, b)
+        self.assertIs(a.InsufficientUserQuotaError, b.InsufficientUserQuotaError)
+        body = (
+            b'{"error":{"code":"insufficient_user_quota","metadata":'
+            b'{"recharge":{"supported":true,"ticket_endpoint":"/v1/tooling/recharge-ticket"}}}}'
+        )
+        performed: list[int] = []
+
+        def fake_perform(**kwargs: object) -> object:
+            performed.append(1)
+            return a.RechargeSessionView(
+                public_id="u1",
+                status="SUCCEEDED",
+                face_value_usd_cent=1000,
+                currency="USD",
+                expire_time=0,
+                public_page_url="https://lovbrowser.example/pay/u1",
+                status_url="https://lovbrowser.example/status/u1",
+            )
+
+        controller = a.RechargeController(
+            api_key="k",
+            base_url="https://newapi.1234bot.com/v1",
+            allow_http_endpoints=True,
+        )
+        n = {"v": 0}
+
+        def op() -> str:
+            n["v"] += 1
+            if n["v"] == 1:
+                suno_music._load_akasha_recharge().raise_quota_if_applicable(
+                    403, body, base_url="https://newapi.1234bot.com/v1"
+                )
+            return "ok"
+
+        with mock.patch.object(a, "perform_recharge", side_effect=fake_perform):
+            self.assertEqual(controller.run(op), "ok")
+        self.assertEqual(performed, [1])
+        self.assertTrue(controller._recharge_attempted)
+
+    def test_recharge_usd_cli_flag(self) -> None:
+        parser = suno_music._parser()
+        args = parser.parse_args(
+            ["--description", "x", "--output-dir", "/tmp/suno", "--recharge-usd", "30"]
+        )
+        self.assertEqual(args.recharge_usd, "30")
+
+    def test_fetch_quota_does_not_resubmit_with_shared_controller(self) -> None:
+        recharge = suno_music._load_akasha_recharge()
+        counts = {"submit": 0, "fetch": 0, "ticket": 0}
+        PNG = b"\x89PNG\r\n\x1a\nqr"
+
+        class Local(BaseHTTPRequestHandler):
+            def log_message(self, *a):  # noqa: ANN002
+                return
+
+            def do_POST(self):  # noqa: N802
+                n = int(self.headers.get("Content-Length", "0"))
+                self.rfile.read(n)
+                if self.path.endswith("/suno/submit/MUSIC"):
+                    counts["submit"] += 1
+                    body = json.dumps({"code": "success", "data": "task_suno"}).encode()
+                elif self.path.endswith("/recharge-ticket"):
+                    counts["ticket"] += 1
+                    host = f"http://127.0.0.1:{self.server.server_port}"
+                    body = json.dumps(
+                        {
+                            "ticket": "T",
+                            "lovbrowser_session_endpoint": f"{host}/sess",
+                            "face_value_usd_cent": 1000,
+                        }
+                    ).encode()
+                elif self.path == "/sess":
+                    host = f"http://127.0.0.1:{self.server.server_port}"
+                    body = json.dumps(
+                        {
+                            "publicId": "su1",
+                            "status": "SUCCEEDED",
+                            "faceValueUsdCent": 1000,
+                            "currency": "USD",
+                            "publicPageUrl": f"{host}/pay/su1",
+                            "qrPngUrl": f"{host}/qr.png",
+                        }
+                    ).encode()
+                else:
+                    self.send_error(404)
+                    return
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def do_GET(self):  # noqa: N802
+                if "/suno/fetch/task_suno" in self.path:
+                    counts["fetch"] += 1
+                    if counts["ticket"] == 0:
+                        body = json.dumps(
+                            {
+                                "error": {
+                                    "code": "insufficient_user_quota",
+                                    "metadata": {
+                                        "recharge": {
+                                            "supported": True,
+                                            "ticket_endpoint": "/v1/tooling/recharge-ticket",
+                                        }
+                                    },
+                                }
+                            }
+                        ).encode()
+                        self.send_response(403)
+                    else:
+                        body = json.dumps(
+                            {
+                                "code": "success",
+                                "data": {"status": "SUCCESS", "data": [{"audio_url": "http://x/a.mp3"}]},
+                            }
+                        ).encode()
+                        self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
+                if self.path.endswith("/qr.png"):
+                    self.send_response(200)
+                    self.send_header("Content-Type", "image/png")
+                    self.send_header("Content-Length", str(len(PNG)))
+                    self.end_headers()
+                    self.wfile.write(PNG)
+                    return
+                if self.path.endswith("/sess/su1"):
+                    body = json.dumps(
+                        {
+                            "publicId": "su1",
+                            "status": "SUCCEEDED",
+                            "faceValueUsdCent": 1000,
+                            "currency": "USD",
+                            "publicPageUrl": "http://127.0.0.1/pay/su1",
+                            "qrPngUrl": f"http://127.0.0.1:{self.server.server_port}/qr.png",
+                        }
+                    ).encode()
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
+                self.send_error(404)
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Local)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            base = f"http://127.0.0.1:{server.server_port}/gateway/v1"
+            with tempfile.TemporaryDirectory() as tmp:
+                ctrl = recharge.RechargeController(
+                    api_key="k",
+                    base_url="https://newapi.1234bot.com/v1",
+                    cli_recharge_usd="10",
+                    poll_interval=0.01,
+                    poll_timeout=2.0,
+                    sleep=lambda _s: None,
+                    ticket_base_url=f"http://127.0.0.1:{server.server_port}/v1",
+                    allow_http_endpoints=True,
+                    qr_parent_dir=tmp,
+                    request_timeout=5,
+                )
+                submitted = suno_music._request_json(
+                    "POST",
+                    suno_music._api_url(base, "/suno/submit/MUSIC"),
+                    "k",
+                    {"gpt_description_prompt": "x"},
+                    base_url=base,
+                    controller=ctrl,
+                )
+                self.assertEqual(submitted.get("data"), "task_suno")
+
+                def fetch() -> dict:
+                    import urllib.error
+                    import urllib.request
+
+                    req = urllib.request.Request(
+                        suno_music._api_url(base, "/suno/fetch/task_suno"),
+                        headers={"Authorization": "Bearer k"},
+                    )
+                    try:
+                        with urllib.request.urlopen(req, timeout=5) as resp:
+                            return json.loads(resp.read().decode())
+                    except urllib.error.HTTPError as exc:
+                        body = exc.read()
+                        try:
+                            exc.close()
+                        except Exception:
+                            pass
+                        recharge.raise_quota_if_applicable(
+                            exc.code, body, base_url="https://newapi.1234bot.com/v1"
+                        )
+                        raise
+
+                data = ctrl.run(fetch)
+                self.assertEqual(data["data"]["status"], "SUCCESS")
+            self.assertEqual(counts["submit"], 1)
+            self.assertEqual(counts["ticket"], 1)
+            self.assertGreaterEqual(counts["fetch"], 2)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+
+
+    def test_real_request_json_catches_quota_via_same_controller(self) -> None:
+        from email.message import Message
+        from io import BytesIO
+        from urllib.error import HTTPError
+        import urllib.request
+
+        recharge = suno_music._load_akasha_recharge()
+        controller = recharge.RechargeController(
+            api_key="k",
+            base_url="https://newapi.1234bot.com/v1",
+            allow_http_endpoints=True,
+            request_timeout=5,
+        )
+        quota = json.dumps(
+            {
+                "error": {
+                    "code": "insufficient_user_quota",
+                    "metadata": {
+                        "recharge": {
+                            "supported": True,
+                            "ticket_endpoint": "/v1/tooling/recharge-ticket",
+                        }
+                    },
+                }
+            }
+        ).encode()
+        ok = json.dumps({"code": "success", "data": "task-wrap"}).encode()
+        state = {"n": 0}
+
+        class FakeOpener:
+            def open(self, req: object, timeout: float = 0) -> object:
+                state["n"] += 1
+                if state["n"] == 1:
+                    raise HTTPError("https://newapi.1234bot.com/v1/x", 403, "Forbidden", Message(), BytesIO(quota))
+                class Resp:
+                    def __enter__(self):
+                        return self
+                    def __exit__(self, *args: object) -> bool:
+                        return False
+                    def read(self) -> bytes:
+                        return ok
+                    headers = {"Content-Type": "application/json"}
+                return Resp()
+
+        performed: list[int] = []
+
+        def fake_perform(**kwargs: object) -> object:
+            performed.append(1)
+            return recharge.RechargeSessionView(
+                public_id="w1",
+                status="SUCCEEDED",
+                face_value_usd_cent=1000,
+                currency="USD",
+                expire_time=0,
+                public_page_url="https://lovbrowser.example/pay/w1",
+                status_url="https://lovbrowser.example/status/w1",
+            )
+
+        with mock.patch.object(recharge, "perform_recharge", side_effect=fake_perform):
+            with mock.patch.object(urllib.request, "build_opener", return_value=FakeOpener()):
+                data = suno_music._request_json(
+                    "POST",
+                    "https://newapi.1234bot.com/v1/suno/submit/MUSIC",
+                    "k",
+                    {"gpt_description_prompt": "x"},
+                    base_url="https://newapi.1234bot.com/v1",
+                    controller=controller,
+                )
+        self.assertEqual(data.get("data"), "task-wrap")
+        self.assertEqual(performed, [1])
+        self.assertTrue(controller._recharge_attempted)
+
 
 if __name__ == "__main__":
     unittest.main()

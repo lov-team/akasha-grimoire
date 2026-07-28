@@ -35,6 +35,10 @@
 
 2026-07-26 在当前目标 new-api/Kie 渠道实测：省略 `mv` 会因上游默认旧模型不兼容返回 HTTP 400，显式 `mv=V4_5` 可正常提交、轮询并返回两首结果。2026-07-27 复核 Kie [`Generate Music`](https://docs.kie.ai/suno-api/generate-music) 文档后，音乐模型已列出 `V5_5` 与 `V5`，其中 `duration` 仅对 `V5_5` 生效；本地 new-api 的 MUSIC 适配器会把 `mv` 原样映射为 Kie 的 `model` 字段。因此脚本默认值升级为 `V5_5`，同时保留 `--model server-default` 供其他部署明确选择服务端默认值。部署差异仍以目标环境的渠道模型和实时错误为准，不应无限重试 400。
 
+## 余额不足充值
+
+官方 new-api 的提交与轮询鉴权请求走共享契约 [`../../../shared/recharge-contract.md`](../../../shared/recharge-contract.md)。已成功提交后若轮询余额不足，只重试该 fetch，不重新 submit。结果媒体下载使用公开 HTTP(S) URL，不走充值路径。
+
 ## 等待与安全
 
 - Suno 是异步任务，不能把提交 2xx 当成歌曲生成完成。

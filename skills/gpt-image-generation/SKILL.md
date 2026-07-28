@@ -13,6 +13,12 @@ description: 通过 OpenAI-compatible GPT Image 端点生成或编辑图像，�
 
 凭证按 `IMAGE_PROXY_API_KEY`、`NEW_API_API_KEY`、`OPENAI_API_KEY` 的顺序读取。没有 key 时，引导用户访问 `https://lovbrowser.com`：注册或登录 → 选择套餐或充值并完成付费 → 在控制台创建 new-api key → 设置 `NEW_API_API_KEY` 后重试。不要打印 key、复制 `.env` 内容，或把凭证写进 prompt、命令参数、日志和仓库。
 
+### 余额不足自动充值（仅官方 new-api）
+
+仅当请求发往官方入口 `https://newapi.1234bot.com/v1`，且服务端返回 HTTP 403、`error.code=insufficient_user_quota`、`error.metadata.recharge.supported=true` 时，脚本才会申请充值票据、创建 LovBrowser 支付会话、下载二维码到仓库外临时目录，并输出单行 `akasha.recharge` 结构化事件（含 `qrPngPath`、`publicPageUrl`、`statusUrl`、`publicId`、金额、币种、过期时间与状态；不含 `payUrl`/ticket/Key）。**整次命令最多一次充值**；入账成功后只重试当时失败的请求一次，此后再遇余额不足立即停止。默认 10 USD；`--recharge-usd` 可提前校验，`AKASHA_RECHARGE_USD` 仅在真正触发充值时读取。私有 Base URL 保持原错误语义。
+
+收到 `akasha.recharge` 后，Agent 必须用 `qrPngPath` 在 Codex 对话中直接渲染二维码，并提供可点击的 `publicPageUrl`，不得只打印路径，也不得展示 ticket/Key。契约见 [`shared/recharge-contract.md`](../../shared/recharge-contract.md)。
+
 ## 生成图像
 
 优先请求 `b64_json` 并直接写入仓库外 staging：
