@@ -18,6 +18,23 @@
 
 Akasha Grimoire は、**Codex App** での利用に最適化された、チーム共有の Agent Skill コレクションです。タスク境界、検証済みのツール契約、決定的なスクリプト、低ノイズな待機、独立した受け入れ確認をインストール可能な能力としてまとめます。Agent の推測と無駄なポーリングを減らし、証拠に基づいて実務を完了させます。個別の Skill は互換 Agent や CLI でも利用できます。
 
+> **画像・動画・音声・音楽の生成をすぐに試したい場合：** [LovBrowser](https://lovbrowser.com) でアカウントを登録し、クレジットを購入してください。Akasha Grimoire は既定で `https://newapi.1234bot.com/v1` に接続します。1 つの new-api key で GPT Image、Grok、Seedance、Fish Audio、Suno を利用でき、Skill ごとの Base URL 設定は不要です。
+
+## 1 分で利用開始
+
+1. [lovbrowser.com](https://lovbrowser.com) を開き、登録またはログインします。
+2. プランを選択するか残高をチャージし、サイトの案内に従って支払いを完了します。
+3. API Key 管理画面で new-api key を作成してコピーします。
+4. 環境変数または認証情報マネージャーで安全に設定します。
+
+   ```bash
+   export NEW_API_API_KEY="<your-new-api-key>"
+   ```
+
+5. Codex に GPT Image の画像生成、Grok/Seedance の動画生成、Fish Audio の音声合成、Suno の音楽生成を依頼します。対応する Skill が既定 endpoint を自動的に使用します。
+
+key を prompt、コマンド引数、ログ、リポジトリに保存しないでください。プライベート環境に接続する場合のみ `NEW_API_BASE_URL` または `--base-url` を使用します。
+
 ## 設計原則
 
 - **契約を先に定義**：トリガー、入力、出力、非対象、完了条件を実行前に明確にします。
@@ -71,6 +88,22 @@ Graph Engineering は、納品作業を一時的な prompt の列ではなく、
 | [`gemini-cli-development`](skills/gemini-cli-development/) | Gemini CLI | ローカルで検証した CLI 契約に基づく開発と納品 |
 | [`claude-code-cli-development`](skills/claude-code-cli-development/) | Claude Code | 権限モード、セッション継続、状態納品、独立した受け入れ確認 |
 | [`codex-cli-development`](skills/codex-cli-development/) | Codex CLI | 独立した対話 TUI で実装し、Codex App のタスク管理とは分離 |
+
+## 実例：Amazon 向けスリッパ商品メディア
+
+この実例では、架空のミストブルー人体工学 EVA スライドサンダルを題材に、商品ビジュアル一式を作成しました。色、ストラップの溝、ロッカーソールを固定し、Amazon 向け白背景メイン画像、浴室での着用画像、素材ディテール画像を生成。その後 Grok と Seedance でそれぞれ 5 秒の商品動画を作成し、デコード、メタデータ、代表フレームを検証しました。
+
+![Amazon スリッパのメイン画像](docs/assets/amazon-slippers-main.jpg)
+
+| 成果物 | 能力 | 検証結果 |
+| --- | --- | --- |
+| メイン、使用シーン、ディテール画像 | `gpt-image-generation` / `gpt-image-2` | 1536 px の商品画像。メイン画像の四隅は純白 |
+| スタジオ商品動画 | `grok-media-generation` / `grok-imagine-video` | 5.04 秒、848 × 480、24 fps |
+| 回転商品動画 | `seedance-video-generation` / `doubao-seedance-2-0-260128` | 5.04 秒、1280 × 720、24 fps |
+
+![上段は Grok、下段は Seedance の代表フレーム](docs/assets/amazon-slippers-video-comparison.jpg)
+
+この例は制作上の限界も示します。text-to-video は方向性の確認には速い一方、商品の色、溝、アウトソール形状が変化する場合があります。実際の商品ページでは承認済みの商品写真を image-to-video の参照に使い、防滑・防水・クッション性などの表現には実測や仕入先の証拠を用意してください。
 
 ## クイックインストール
 
@@ -129,9 +162,10 @@ $fish-audio-speech を使ってナレーションを音声化し、冒頭・中�
 
 | 能力 | 設定 | 契約 |
 | --- | --- | --- |
-| GPT Image | `IMAGE_PROXY_BASE_URL`、`IMAGE_PROXY_API_KEY`、または互換 OpenAI 環境変数 | key をコマンド引数、prompt、ログ、リポジトリに保存しない |
-| Grok メディア | key は `GROK_MEDIA_API_KEY` または `OPENAI_API_KEY` を使用。独自 endpoint には `--base-url`、`GROK_MEDIA_BASE_URL`、`OPENAI_BASE_URL` を指定 | key は内蔵しない。実リクエストは課金対象のため、規模を広げる前に 1 件の smoke を行う |
-| Suno / Fish Audio | 互換 relay の endpoint と key 環境変数を使用。正確な項目は各 Skill を参照 | 実リクエストはクォータを消費。基本テストでは外部生成サービスを呼び出さない |
+| 既定 new-api | `https://newapi.1234bot.com/v1` | Base URL 設定は不要。プライベート環境のみ `NEW_API_BASE_URL` または `--base-url` で上書き |
+| GPT Image | `IMAGE_PROXY_API_KEY`、`NEW_API_API_KEY`、`OPENAI_API_KEY` | key をコマンド引数、prompt、ログ、リポジトリに保存しない |
+| Grok / Seedance | 専用 key、`NEW_API_API_KEY`、`OPENAI_API_KEY` | 実リクエストは課金対象。規模を広げる前に 1 件の smoke を実行 |
+| Suno / Fish Audio | `NEW_API_API_KEY` または `OPENAI_API_KEY` | 実リクエストはクォータを消費。基本テストでは外部生成サービスを呼び出さない |
 | CLI worker | 対応するローカル CLI、macOS Terminal、tmux | 初回利用時と更新後に `--version` と `--help` を再確認 |
 
 ## 検証

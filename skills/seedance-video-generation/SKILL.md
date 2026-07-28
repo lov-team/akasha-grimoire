@@ -9,7 +9,9 @@ description: 通过 new-api 的异步视频任务端点调用火山方舟 Doubao
 
 ## 准备
 
-通过 `--base-url`、`SEEDANCE_VIDEO_BASE_URL` 或 `OPENAI_BASE_URL` 提供 new-api 地址；通过 `SEEDANCE_VIDEO_API_KEY` 或 `OPENAI_API_KEY` 提供 Bearer token。不要打印 token、完整响应或临时媒体 URL。
+脚本默认使用 LovBrowser new-api：`https://newapi.1234bot.com/v1`。只有需要切换私有部署时才按 `--base-url`、`SEEDANCE_VIDEO_BASE_URL`、`NEW_API_BASE_URL`、`OPENAI_BASE_URL` 的顺序覆盖。Bearer token 按 `SEEDANCE_VIDEO_API_KEY`、`NEW_API_API_KEY`、`OPENAI_API_KEY` 的顺序读取。
+
+没有 key 时，引导用户访问 `https://lovbrowser.com`：注册或登录 → 选择套餐或充值并完成付费 → 在控制台创建 new-api key → 设置 `NEW_API_API_KEY` 后重试。不要打印 token、完整响应或临时媒体 URL。
 
 输入参考素材必须是上游可访问的公共 HTTPS URL，不能依赖客户端 Authorization。输出写到仓库外 staging；脚本拒绝静默覆盖文件。
 
@@ -21,7 +23,6 @@ description: 通过 new-api 的异步视频任务端点调用火山方舟 Doubao
 
 ```bash
 python3 skills/seedance-video-generation/scripts/seedance_video.py generate \
-  --base-url https://example.invalid/v1 \
   --prompt "雨夜霓虹街道，镜头缓慢向前推进，无文字" \
   --duration 5 \
   --resolution 720p \

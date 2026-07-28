@@ -18,6 +18,23 @@
 
 Akasha Grimoire is a shared collection of Agent Skills, designed to work best in **Codex App**. It packages task boundaries, verified tool contracts, deterministic scripts, low-noise waiting, and independent acceptance into installable capabilities—so Agents guess less, poll less, and complete real work with evidence. Individual Skills remain portable to compatible Agents and CLIs.
 
+> **Want to generate images, video, speech, and music right away?** [Create a LovBrowser account](https://lovbrowser.com) and add credits. Akasha Grimoire defaults to `https://newapi.1234bot.com/v1`, so one new-api key can power GPT Image, Grok, Seedance, Fish Audio, and Suno without configuring a separate Base URL for every Skill.
+
+## Get started in one minute
+
+1. Open [lovbrowser.com](https://lovbrowser.com), then register or sign in.
+2. Choose a plan or top up your balance and complete payment as instructed on the site.
+3. Open API Key management, create a new-api key, and copy it.
+4. Store the key through an environment variable or credential manager:
+
+   ```bash
+   export NEW_API_API_KEY="<your-new-api-key>"
+   ```
+
+5. Ask Codex to generate an image with GPT Image, a video with Grok or Seedance, speech with Fish Audio, or music with Suno. The matching Skill uses the default endpoint automatically.
+
+Never put the key in prompts, command arguments, logs, or the repository. Set `NEW_API_BASE_URL` or pass `--base-url` only for a private deployment.
+
 ## Design principles
 
 - **Contract first:** define triggers, inputs, outputs, exclusions, and acceptance before execution.
@@ -71,6 +88,22 @@ All four CLI Skills follow the same loop: **the main Agent defines the contract 
 | [`gemini-cli-development`](skills/gemini-cli-development/) | Gemini CLI | Development and delivery based on the locally verified CLI contract |
 | [`claude-code-cli-development`](skills/claude-code-cli-development/) | Claude Code | Permission modes, session continuation, status delivery, and independent acceptance |
 | [`codex-cli-development`](skills/codex-cli-development/) | Codex CLI | Implementation in a separate interactive TUI, kept distinct from Codex App task management |
+
+## Real example: Amazon slipper product media
+
+This end-to-end example created a visual package for a fictional pair of mist-blue ergonomic EVA slides. The Agent locked the color, strap grooves, and rocker sole; generated an Amazon-style white-background hero image, a bathroom lifestyle image, and a material-detail image; then generated separate five-second product videos with Grok and Seedance and verified their decoding, metadata, and representative frames.
+
+![Amazon slipper hero image](docs/assets/amazon-slippers-main.jpg)
+
+| Deliverable | Capability | Verified result |
+| --- | --- | --- |
+| Hero, lifestyle, and detail images | `gpt-image-generation` / `gpt-image-2` | 1536 px product images; all hero-image corners are pure white |
+| Studio product video | `grok-media-generation` / `grok-imagine-video` | 5.04 seconds, 848 × 480, 24 fps |
+| Rotating product video | `seedance-video-generation` / `doubao-seedance-2-0-260128` | 5.04 seconds, 1280 × 720, 24 fps |
+
+![Grok frames above and Seedance frames below](docs/assets/amazon-slippers-video-comparison.jpg)
+
+The example also shows the production boundary: text-to-video is fast for direction finding, but product color, grooves, and outsole geometry may drift. For a real listing, use approved product photography as image-to-video references and substantiate claims such as slip resistance, water resistance, or cushioning with real evidence.
 
 ## Quick installation
 
@@ -129,9 +162,10 @@ Use $fish-audio-speech to synthesize this narration and verify the beginning, mi
 
 | Capability | Configuration | Contract |
 | --- | --- | --- |
-| GPT Image | `IMAGE_PROXY_BASE_URL`, `IMAGE_PROXY_API_KEY`, or compatible OpenAI environment variables | Never place keys in command arguments, prompts, logs, or the repository |
-| Grok media | Use `GROK_MEDIA_API_KEY` or `OPENAI_API_KEY`; for a custom endpoint, use `--base-url`, `GROK_MEDIA_BASE_URL`, or `OPENAI_BASE_URL` | No key is embedded; real requests incur cost, so start with one smoke task before scaling up |
-| Suno / Fish Audio | Use endpoint and key environment variables for a compatible relay; see each Skill for exact fields | Real requests consume quota; base tests never call external generation services |
+| Default new-api | `https://newapi.1234bot.com/v1` | No Base URL setup required; use `NEW_API_BASE_URL` or `--base-url` only for a private deployment |
+| GPT Image | `IMAGE_PROXY_API_KEY`, `NEW_API_API_KEY`, or `OPENAI_API_KEY` | Never place keys in command arguments, prompts, logs, or the repository |
+| Grok / Seedance | A capability-specific key, `NEW_API_API_KEY`, or `OPENAI_API_KEY` | Real requests incur cost, so start with one smoke task before scaling up |
+| Suno / Fish Audio | `NEW_API_API_KEY` or `OPENAI_API_KEY` | Real requests consume quota; base tests never call external generation services |
 | CLI workers | The corresponding local CLI, macOS Terminal, and tmux | Re-check `--version` and `--help` on first use and after upgrades |
 
 ## Validation

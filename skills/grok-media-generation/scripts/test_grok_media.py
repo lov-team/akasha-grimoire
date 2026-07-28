@@ -97,12 +97,25 @@ class GrokMediaScriptTest(unittest.TestCase):
         with patch.dict(os.environ, {}, clear=True):
             self.assertEqual(
                 GROK_MEDIA.resolve_base_url(None),
-                "https://llmapi.lovbrowser.com/v1",
+                "https://newapi.1234bot.com/v1",
             )
         with patch.dict(
             os.environ,
             {
                 "OPENAI_BASE_URL": "https://openai.example/api",
+                "NEW_API_BASE_URL": "https://new-api.example/v1",
+            },
+            clear=True,
+        ):
+            self.assertEqual(
+                GROK_MEDIA.resolve_base_url(None),
+                "https://new-api.example/v1",
+            )
+        with patch.dict(
+            os.environ,
+            {
+                "OPENAI_BASE_URL": "https://openai.example/api",
+                "NEW_API_BASE_URL": "https://new-api.example/v1",
                 "GROK_MEDIA_BASE_URL": "https://grok.example/proxy/v1",
             },
             clear=True,

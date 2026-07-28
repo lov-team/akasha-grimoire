@@ -125,6 +125,29 @@ class FishAudioTests(unittest.TestCase):
                 fish_audio._api_url(value, "/audio/speech")
             self.assertNotIn(secret, str(caught.exception))
 
+    def test_base_url_default_and_override_precedence(self) -> None:
+        with mock.patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(fish_audio._base_url(None), "https://newapi.1234bot.com/v1")
+        with mock.patch.dict(
+            os.environ,
+            {
+                "OPENAI_BASE_URL": "https://openai.example/v1",
+                "NEW_API_BASE_URL": "https://new-api.example/v1",
+            },
+            clear=True,
+        ):
+            self.assertEqual(fish_audio._base_url(None), "https://new-api.example/v1")
+            self.assertEqual(
+                fish_audio._base_url("https://cli.example/v1"),
+                "https://cli.example/v1",
+            )
+
+    def test_missing_key_message_links_lovbrowser_and_payment_flow(self) -> None:
+        message = fish_audio._missing_key_message()
+        self.assertIn("https://lovbrowser.com", message)
+        self.assertIn("payment", message)
+        self.assertIn("NEW_API_API_KEY", message)
+
     def test_tts_with_reference_audio_saves_binary(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir, mock.patch.dict(
             os.environ, {"NEW_API_API_KEY": "local-test-key"}, clear=False

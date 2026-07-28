@@ -18,6 +18,23 @@
 
 Akasha Grimoire 是团队共享的 Agent Skill 合集，最佳使用环境是 **Codex App**。它把任务边界、工具事实、执行脚本、低噪声等待和独立验收组织成可安装的能力包，让 Agent 在真实项目中少猜、少重复轮询，并用证据完成交付。其他兼容 Agent 与 CLI 仍可使用其中的独立 Skill。
 
+> **想直接体验图片、视频、语音和音乐生成？** 访问 [LovBrowser](https://lovbrowser.com) 注册账号并开通额度。阿卡夏秘典默认连接 `https://newapi.1234bot.com/v1`，拿到一把 new-api Key 后即可调用 GPT Image、Grok、Seedance、Fish Audio 与 Suno，无需逐项配置 Base URL。
+
+## 一分钟开通
+
+1. 打开 [lovbrowser.com](https://lovbrowser.com)，注册并登录账号。
+2. 在站内选择适合的套餐或充值额度，按页面提示完成付费。
+3. 进入 API Key 管理页面，创建并复制一把 new-api Key。
+4. 通过环境变量或凭证管理器安全配置 Key：
+
+   ```bash
+   export NEW_API_API_KEY="<your-new-api-key>"
+   ```
+
+5. 在 Codex 中直接说“用 GPT Image 生成图片”“用 Grok/Seedance 生成视频”“用 Fish Audio 配音”或“用 Suno 生成音乐”。对应 Skill 会自动使用默认入口。
+
+不要把 Key 写入 prompt、命令参数、日志或仓库。需要连接私有部署时，才设置 `NEW_API_BASE_URL` 或显式传 `--base-url`。
+
 ## 为什么使用
 
 - **合同优先**：先明确触发条件、输入输出、禁止项和完成标准。
@@ -71,6 +88,22 @@ Graph Engineering 把交付建模为一张可追踪的工作图，而不是一�
 | [`gemini-cli-development`](skills/gemini-cli-development/) | Gemini CLI | 依据本机真实 CLI 合同执行开发与交付闭环 |
 | [`claude-code-cli-development`](skills/claude-code-cli-development/) | Claude Code | 权限模式、会话续接、状态交付与独立验收 |
 | [`codex-cli-development`](skills/codex-cli-development/) | Codex CLI | 在独立交互 TUI 中实施，不与 Codex App 任务管理混用 |
+
+## 实战案例：为亚马逊拖鞋卖家制作商品视觉
+
+下面是一套在真实调用中完成的跨境电商样例。Agent 先锁定“雾蓝色人体工学 EVA 云朵拖鞋”的颜色、鞋面凹槽和厚底轮廓，再生成亚马逊白底主图、浴室上脚图与材质细节图，最后分别调用 Grok 和 Seedance 生成 5 秒商品视频并完成解码、参数与抽帧验收。
+
+![亚马逊拖鞋白底主图](docs/assets/amazon-slippers-main.jpg)
+
+| 交付物 | 使用能力 | 实际结果 |
+| --- | --- | --- |
+| 白底主图、场景图、细节图 | `gpt-image-generation` / `gpt-image-2` | 1536 px 商品图，白底主图四角为纯白 |
+| 商品棚拍视频 | `grok-media-generation` / `grok-imagine-video` | 5.04 秒，848 × 480，24 fps |
+| 商品旋转视频 | `seedance-video-generation` / `doubao-seedance-2-0-260128` | 5.04 秒，1280 × 720，24 fps |
+
+![Grok 与 Seedance 拖鞋视频抽帧对比：上方为 Grok，下方为 Seedance](docs/assets/amazon-slippers-video-comparison.jpg)
+
+这个案例也说明了生产边界：纯文生视频可以快速验证方向，但商品颜色、凹槽和鞋底结构仍可能漂移。正式上架时应提供真实样品图，通过图生视频锁定商品身份，并对“防滑”“防水”“缓震”等卖点准备真实测试或供应商证据。
 
 ## 快速安装
 
@@ -131,9 +164,10 @@ done
 
 | 能力 | 配置来源 | 约定 |
 | --- | --- | --- |
-| GPT Image | `IMAGE_PROXY_BASE_URL`、`IMAGE_PROXY_API_KEY`，或兼容的 OpenAI 环境变量 | 不把 key 写进命令参数、prompt、日志或仓库 |
-| Grok 媒体 | key 使用 `GROK_MEDIA_API_KEY` 或 `OPENAI_API_KEY`；需要自定义端点时使用 `--base-url`、`GROK_MEDIA_BASE_URL` 或 `OPENAI_BASE_URL` | 不内置 key；真实调用会计费，先做单个 smoke，再扩大任务规模 |
-| Suno / Fish Audio | 使用兼容中转站的端点与 key 环境变量；具体字段见对应 Skill | 真实调用会消耗额度；基础测试不调用外部服务 |
+| 默认 new-api | `https://newapi.1234bot.com/v1` | 无需配置 Base URL；私有部署才用 `NEW_API_BASE_URL` 或 `--base-url` 覆盖 |
+| GPT Image | `IMAGE_PROXY_API_KEY`、`NEW_API_API_KEY` 或 `OPENAI_API_KEY` | 不把 key 写进命令参数、prompt、日志或仓库 |
+| Grok / Seedance | 专用 key、`NEW_API_API_KEY` 或 `OPENAI_API_KEY` | 真实调用会计费，先做单个 smoke，再扩大任务规模 |
+| Suno / Fish Audio | `NEW_API_API_KEY` 或 `OPENAI_API_KEY` | 真实调用会消耗额度；基础测试不调用外部服务 |
 | CLI worker | 本机已安装的对应 CLI、macOS Terminal、tmux | 首次使用或版本变化时重新核对 `--version` 与 `--help` |
 
 ## 验证

@@ -18,7 +18,7 @@ import urllib.request
 from pathlib import Path
 
 MAX_DOWNLOAD_BYTES = 256 * 1024 * 1024
-DEFAULT_BASE_URL = "https://llmapi.lovbrowser.com/v1"
+DEFAULT_BASE_URL = "https://newapi.1234bot.com/v1"
 TERMINAL_VIDEO_STATES = {"completed", "failed", "expired", "cancelled"}
 
 
@@ -43,6 +43,7 @@ def resolve_base_url(explicit: str | None) -> str:
     raw = (
         explicit
         or os.environ.get("GROK_MEDIA_BASE_URL")
+        or os.environ.get("NEW_API_BASE_URL")
         or os.environ.get("OPENAI_BASE_URL")
         or DEFAULT_BASE_URL
     )
@@ -50,11 +51,20 @@ def resolve_base_url(explicit: str | None) -> str:
 
 
 def read_api_key() -> str:
-    key = os.environ.get("GROK_MEDIA_API_KEY") or os.environ.get("OPENAI_API_KEY") or ""
+    key = (
+        os.environ.get("GROK_MEDIA_API_KEY")
+        or os.environ.get("NEW_API_API_KEY")
+        or os.environ.get("OPENAI_API_KEY")
+        or ""
+    )
     if not key.strip():
         raise GrokMediaError(
-            "missing API key: set GROK_MEDIA_API_KEY or OPENAI_API_KEY; "
-            "visit https://lovbrowser.com to get relay configuration and a token"
+            "missing API key. Get started with LovBrowser:\n"
+            "1. Visit https://lovbrowser.com and register or sign in.\n"
+            "2. Choose a plan or top up your balance and complete payment.\n"
+            "3. Create a new-api key in the console.\n"
+            "4. Set NEW_API_API_KEY, then run this command again.\n"
+            "Default API: https://newapi.1234bot.com/v1. Never commit your key."
         )
     return key.strip()
 

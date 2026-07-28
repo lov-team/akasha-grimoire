@@ -15,6 +15,7 @@ import urllib.request
 from pathlib import Path
 
 MAX_RESPONSE_BYTES = 256 * 1024 * 1024
+DEFAULT_BASE_URL = "https://newapi.1234bot.com/v1"
 SUCCESS_STATES = {"success", "succeeded", "completed"}
 FAILURE_STATES = {"failure", "failed", "expired", "cancelled", "canceled"}
 
@@ -88,10 +89,33 @@ def normalize_base_url(raw: str) -> str:
     return urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, path, "", ""))
 
 
+def resolve_base_url(explicit: str | None) -> str:
+    raw = (
+        explicit
+        or os.environ.get("SEEDANCE_VIDEO_BASE_URL")
+        or os.environ.get("NEW_API_BASE_URL")
+        or os.environ.get("OPENAI_BASE_URL")
+        or DEFAULT_BASE_URL
+    )
+    return normalize_base_url(raw)
+
+
 def read_api_key() -> str:
-    key = os.environ.get("SEEDANCE_VIDEO_API_KEY") or os.environ.get("OPENAI_API_KEY") or ""
+    key = (
+        os.environ.get("SEEDANCE_VIDEO_API_KEY")
+        or os.environ.get("NEW_API_API_KEY")
+        or os.environ.get("OPENAI_API_KEY")
+        or ""
+    )
     if not key.strip():
-        raise SeedanceVideoError("missing API key: set SEEDANCE_VIDEO_API_KEY or OPENAI_API_KEY")
+        raise SeedanceVideoError(
+            "missing API key. Get started with LovBrowser:\n"
+            "1. Visit https://lovbrowser.com and register or sign in.\n"
+            "2. Choose a plan or top up your balance and complete payment.\n"
+            "3. Create a new-api key in the console.\n"
+            "4. Set NEW_API_API_KEY, then run this command again.\n"
+            "Default API: https://newapi.1234bot.com/v1. Never commit your key."
+        )
     return key.strip()
 
 
@@ -249,7 +273,7 @@ def resolve_model(args: argparse.Namespace) -> tuple[str, dict]:
 
 
 def run_generate(args: argparse.Namespace) -> None:
-    base_url = normalize_base_url(args.base_url or os.environ.get("SEEDANCE_VIDEO_BASE_URL") or os.environ.get("OPENAI_BASE_URL") or "")
+    base_url = resolve_base_url(args.base_url)
     api_key = read_api_key()
     model, profile = resolve_model(args)
     generate_audio = args.generate_audio if args.generate_audio is not None else profile["generate_audio"]
@@ -279,7 +303,10 @@ def run_generate(args: argparse.Namespace) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--base-url")
+    parser.add_argument(
+        "--base-url",
+        help=f"new-api host or /v1 API root (default: {DEFAULT_BASE_URL})",
+    )
     parser.add_argument("--timeout", type=float, default=30)
     subparsers = parser.add_subparsers(dest="command", required=True)
     generate = subparsers.add_parser("generate")

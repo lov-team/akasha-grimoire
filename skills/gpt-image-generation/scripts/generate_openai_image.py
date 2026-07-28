@@ -22,6 +22,7 @@ DEFAULT_PROMPT = (
     "A tiny red square app icon on a clean white background, "
     "simple vector style, no text."
 )
+DEFAULT_BASE_URL = "https://newapi.1234bot.com/v1"
 
 
 class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
@@ -39,7 +40,32 @@ class HttpOnlyRedirectHandler(urllib.request.HTTPRedirectHandler):
 
 
 def _api_key() -> str:
-    return os.environ.get("IMAGE_PROXY_API_KEY") or os.environ.get("OPENAI_API_KEY") or ""
+    return (
+        os.environ.get("IMAGE_PROXY_API_KEY")
+        or os.environ.get("NEW_API_API_KEY")
+        or os.environ.get("OPENAI_API_KEY")
+        or ""
+    )
+
+
+def _base_url() -> str:
+    return (
+        os.environ.get("IMAGE_PROXY_BASE_URL")
+        or os.environ.get("NEW_API_BASE_URL")
+        or os.environ.get("OPENAI_BASE_URL")
+        or DEFAULT_BASE_URL
+    )
+
+
+def _missing_key_message() -> str:
+    return (
+        "missing API key. Get started with LovBrowser:\n"
+        "1. Visit https://lovbrowser.com and register or sign in.\n"
+        "2. Choose a plan or top up your balance and complete payment.\n"
+        "3. Create a new-api key in the console.\n"
+        "4. Set NEW_API_API_KEY, then run this command again.\n"
+        "Default API: https://newapi.1234bot.com/v1. Never commit your key."
+    )
 
 
 def _load_env_file(path_value: str | None) -> None:
@@ -146,7 +172,7 @@ def _multipart_body(args: argparse.Namespace) -> tuple[bytes, str]:
 def _build_request(args: argparse.Namespace) -> urllib.request.Request:
     key = _api_key()
     if not key:
-        raise SystemExit("missing API key: set IMAGE_PROXY_API_KEY or OPENAI_API_KEY")
+        raise SystemExit(_missing_key_message())
 
     endpoint = "edits" if args.image else "generations"
     if args.image:
@@ -268,7 +294,10 @@ def _summarize_error_body(response_body: bytes) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--base-url", default=os.environ.get("IMAGE_PROXY_BASE_URL"))
+    parser.add_argument(
+        "--base-url",
+        help=f"new-api host or /v1 API root (default: {DEFAULT_BASE_URL})",
+    )
     parser.add_argument("--model", default="gpt-image-2")
     parser.add_argument("--prompt", default=DEFAULT_PROMPT)
     parser.add_argument("--size", default="1024x1024", choices=["auto", "1024x1024", "1536x1024", "1024x1536"])
@@ -280,10 +309,8 @@ def main() -> int:
     parser.add_argument("--timeout", type=float, default=300.0)
     args = parser.parse_args()
 
-    if not args.base_url:
-        parser.error("provide --base-url or set IMAGE_PROXY_BASE_URL")
-
     _load_env_file(args.env_file)
+    args.base_url = args.base_url or _base_url()
     request = _build_request(args)
     opener = urllib.request.build_opener(NoRedirectHandler)
     started = time.monotonic()

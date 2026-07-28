@@ -9,14 +9,17 @@ description: 通过 new-api 的 OpenAI-compatible Grok 端点生成或编辑图�
 
 ## 准备
 
-默认连接团队中转站 `https://llmapi.lovbrowser.com/v1`。只配置 Bearer token 即可开始：优先读取 `GROK_MEDIA_API_KEY`，没有时读取 `OPENAI_API_KEY`。缺少配置或 token 时，提示用户前往 `https://lovbrowser.com` 获取。通过受控的环境注入或凭证管理器提供 key；不要把 key 写进参数、prompt、日志、代码或仓库。
+默认连接 LovBrowser new-api：`https://newapi.1234bot.com/v1`。只配置 Bearer token 即可开始，按 `GROK_MEDIA_API_KEY`、`NEW_API_API_KEY`、`OPENAI_API_KEY` 的顺序读取。通过受控的环境注入或凭证管理器提供 key；不要把 key 写进参数、prompt、日志、代码或仓库。
+
+没有 key 时，引导用户访问 `https://lovbrowser.com`：注册或登录 → 选择套餐或充值并完成付费 → 在控制台创建 new-api key → 设置 `NEW_API_API_KEY` 后重试。
 
 需要切换端点时，按以下优先级覆盖：
 
 1. `--base-url`
 2. `GROK_MEDIA_BASE_URL`
-3. `OPENAI_BASE_URL`
-4. 团队默认中转站
+3. `NEW_API_BASE_URL`
+4. `OPENAI_BASE_URL`
+5. `https://newapi.1234bot.com/v1`
 
 base URL 可传 host 根或以 `/v1` 结尾的 API 根；自定义前缀会在末尾补 `/v1`。拒绝 userinfo、query 和 fragment。覆盖配置只影响当前进程或受控运行环境，不要把团队密钥提交到配置文件。
 

@@ -25,6 +25,7 @@ VOICE_MODEL_STATES = {"created", "training", "trained", "failed"}
 MAX_VOICE_SAMPLES = 10
 OUTPUT_FORMATS = {"mp3", "wav", "opus"}
 PUBLIC_MODELS_URL = "https://api.fish.audio/model"
+DEFAULT_BASE_URL = "https://newapi.1234bot.com/v1"
 
 
 class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
@@ -37,7 +38,23 @@ def _api_key() -> str:
 
 
 def _base_url(value: str | None) -> str:
-    return value or os.environ.get("NEW_API_BASE_URL") or os.environ.get("OPENAI_BASE_URL") or ""
+    return (
+        value
+        or os.environ.get("NEW_API_BASE_URL")
+        or os.environ.get("OPENAI_BASE_URL")
+        or DEFAULT_BASE_URL
+    )
+
+
+def _missing_key_message() -> str:
+    return (
+        "missing API key. Get started with LovBrowser:\n"
+        "1. Visit https://lovbrowser.com and register or sign in.\n"
+        "2. Choose a plan or top up your balance and complete payment.\n"
+        "3. Create a new-api key in the console.\n"
+        "4. Set NEW_API_API_KEY, then run this command again.\n"
+        "Default API: https://newapi.1234bot.com/v1. Never commit your key."
+    )
 
 
 def _parsed_base_url(value: str) -> urllib.parse.SplitResult:
@@ -514,7 +531,10 @@ def _stt(args: argparse.Namespace, api_key: str, base_url: str) -> None:
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--base-url", help="new-api host root or a URL ending in /v1")
+    parser.add_argument(
+        "--base-url",
+        help=f"new-api host root or /v1 API root (default: {DEFAULT_BASE_URL})",
+    )
     parser.add_argument("--timeout-seconds", type=float, default=120.0)
     parser.add_argument("--overwrite", action="store_true")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -607,10 +627,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     api_key = _api_key()
     if not api_key:
-        raise SystemExit("missing API key: set NEW_API_API_KEY or OPENAI_API_KEY")
+        raise SystemExit(_missing_key_message())
     base_url = _base_url(args.base_url)
-    if not base_url:
-        raise SystemExit("missing base URL: set NEW_API_BASE_URL, OPENAI_BASE_URL, or --base-url")
     if args.command == "tts":
         _tts(args, api_key, base_url)
     elif args.command == "stt":

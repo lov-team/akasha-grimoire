@@ -2,17 +2,26 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import subprocess
+import sys
 import tempfile
 import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from unittest.mock import patch
 
 SCRIPT = Path(__file__).with_name("seedance_video.py")
 MP4 = b"\x00\x00\x00\x18ftypisomfixture"
+
+sys.dont_write_bytecode = True
+SPEC = importlib.util.spec_from_file_location("seedance_video_under_test", SCRIPT)
+assert SPEC and SPEC.loader
+SEEDANCE_VIDEO = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(SEEDANCE_VIDEO)
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -50,6 +59,52 @@ class Handler(BaseHTTPRequestHandler):
 
 
 class SeedanceVideoScriptTest(unittest.TestCase):
+    def test_base_url_default_and_override_precedence(self) -> None:
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(
+                SEEDANCE_VIDEO.resolve_base_url(None),
+                "https://newapi.1234bot.com/v1",
+            )
+        with patch.dict(
+            os.environ,
+            {
+                "OPENAI_BASE_URL": "https://openai.example/v1",
+                "NEW_API_BASE_URL": "https://new-api.example/v1",
+            },
+            clear=True,
+        ):
+            self.assertEqual(
+                SEEDANCE_VIDEO.resolve_base_url(None),
+                "https://new-api.example/v1",
+            )
+        with patch.dict(
+            os.environ,
+            {
+                "OPENAI_BASE_URL": "https://openai.example/v1",
+                "NEW_API_BASE_URL": "https://new-api.example/v1",
+                "SEEDANCE_VIDEO_BASE_URL": "https://seedance.example/v1",
+            },
+            clear=True,
+        ):
+            self.assertEqual(
+                SEEDANCE_VIDEO.resolve_base_url(None),
+                "https://seedance.example/v1",
+            )
+            self.assertEqual(
+                SEEDANCE_VIDEO.resolve_base_url("https://cli.example/custom"),
+                "https://cli.example/custom/v1",
+            )
+
+    def test_missing_key_message_links_lovbrowser_and_payment_flow(self) -> None:
+        with patch.dict(os.environ, {}, clear=True), self.assertRaises(
+            SEEDANCE_VIDEO.SeedanceVideoError
+        ) as caught:
+            SEEDANCE_VIDEO.read_api_key()
+        message = str(caught.exception)
+        self.assertIn("https://lovbrowser.com", message)
+        self.assertIn("payment", message)
+        self.assertIn("NEW_API_API_KEY", message)
+
     @classmethod
     def setUpClass(cls) -> None:
         cls.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)

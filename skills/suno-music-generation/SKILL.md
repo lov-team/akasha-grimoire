@@ -15,9 +15,11 @@ description: 通过 new-api 的 Suno 异步任务接口生成歌曲，在本地�
 4. 确认输出目录和覆盖策略。不要把 API key 写入参数、日志、仓库或交付文件。
 5. 需要核对端点、字段或状态时，读取 [references/new-api-contract.md](references/new-api-contract.md)。
 
+脚本默认使用 `https://newapi.1234bot.com/v1`，通常只需设置 `NEW_API_API_KEY`。没有 key 时，引导用户访问 `https://lovbrowser.com`：注册或登录 → 选择套餐或充值并完成付费 → 在控制台创建 new-api key → 设置 `NEW_API_API_KEY` 后重试。只有私有部署才用 `--base-url`、`NEW_API_BASE_URL` 或 `OPENAI_BASE_URL` 覆盖默认入口。
+
 ## 运行闭环
 
-设置 `NEW_API_API_KEY`（也兼容 `OPENAI_API_KEY`）和 `NEW_API_BASE_URL`（也兼容 `OPENAI_BASE_URL`），然后运行：
+设置 `NEW_API_API_KEY`（也兼容 `OPENAI_API_KEY`），默认 Base URL 无需配置，然后运行：
 
 ```bash
 # 描述模式
