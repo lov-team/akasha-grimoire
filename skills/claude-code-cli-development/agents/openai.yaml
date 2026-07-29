@@ -1,4 +1,4 @@
 interface:
   display_name: "Claude Code 可见 TUI 开发"
-  short_description: "由独立 Issue 任务驱动 Claude Code worker 并验收"
-  default_prompt: "使用 $claude-code-cli-development 让当前 Issue 验收任务驱动 Claude Code 完成开发，再独立 Review 与验证。"
+  short_description: "由独立 Issue 任务自治驱动 Claude Code worker 并验收"
+  default_prompt: "使用 $claude-code-cli-development 让当前 Issue 验收任务驱动唯一活动的 Claude Code TUI 完成开发，再独立 Review 与验证；TUI 异常退出时由当前任务自主启动唯一替代 TUI，只在委托最终结束时通知父会话。"
