@@ -1,11 +1,11 @@
 ---
 name: codex-cli-development
-description: 使用可见 macOS Terminal + tmux 驱动 Codex CLI 在同一交互 TUI 中先给中文计划并自检，再开发、写状态/交付文件并接受主 Agent 独立 Review 与返工。用户要求用 Codex CLI worker、让另一个 Codex 编码、计划后实现、持续监工或复用同一 Codex 会话返工时使用。
+description: 使用可见 macOS Terminal + tmux 驱动 Codex CLI 在同一交互 TUI 中先给中文计划并自检，再开发、写状态/交付文件并接受主 Agent 独立 Review 与返工。仅在用户明确要求 Codex CLI、Terminal、tmux、交互 TUI 或复用现有 Codex CLI 会话时使用；一般“让另一个 Codex 编码”或“用 Codex App 子任务开发”改用 codex-app-development。
 ---
 
 # Codex CLI 开发与独立验收
 
-把 CLI 中的 Codex 当作实现 worker；当前主 Agent 仍负责需求解释、范围、用户决策、完整 diff Review、风险复测与 Git 结论。不要把 Codex App 任务管理和本 CLI 会话混为一谈。
+把 CLI 中的 Codex 当作实现 worker；当前主 Agent 仍负责需求解释、范围、用户决策、完整 diff Review、风险复测与 Git 结论。不要把 Codex App 任务管理和本 CLI 会话混为一谈。用户没有明确指定 CLI/TUI 时，优先使用 `codex-app-development` 的独立 App task/worktree 与双向通知机制。
 
 ## 读取规则并核对 CLI
 

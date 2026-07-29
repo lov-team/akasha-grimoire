@@ -65,7 +65,8 @@ Every implementation and acceptance task is Issue-driven. Each task maps to an I
 
 | Skill | Best for | What it provides |
 | --- | --- | --- |
-| [`agent-task-supervisor`](skills/agent-task-supervisor/) | Supervising, coordinating, and accepting tasks through a Spec/Epic/Issue graph | Keeps reasonable concurrency unrestricted, assigns one monitoring owner per worker, switches stable execution to a 10-minute heartbeat, stays silent on unchanged state, and drills down only for blockers, drift, formal review, or P0–P2 risks |
+| [`agent-task-supervisor`](skills/agent-task-supervisor/) | Supervising, coordinating, and accepting tasks through a Spec/Epic/Issue graph | Keeps reasonable concurrency unrestricted; children push state changes while the parent retains one 30-minute lost-contact watchdog; the same sol model uses low for status and high for formal review |
+| [`codex-app-development`](skills/codex-app-development/) | Delegating implementation to an isolated Codex App task and worktree | Minimal context contracts, bidirectional parent/child events, same-task rework, independent parent diff review, and risk-based retesting |
 
 ### Image, game, and audio production
 
@@ -78,12 +79,13 @@ Every implementation and acceptance task is Issue-driven. Each task maps to an I
 | [`suno-music-generation`](skills/suno-music-generation/) | Creating music from a song description or custom lyrics | Submit asynchronous Suno jobs, check silently every five seconds, download every audio candidate plus covers and optional videos, then verify each result |
 | [`fish-audio-speech`](skills/fish-audio-speech/) | Fish Audio voiceover, voice references, and transcription | OpenAI-compatible TTS/STT with reference IDs, local reference audio, language and timestamp controls, and safe output handling |
 
-### CLI development workers
+### App tasks and CLI development workers
 
-All four CLI Skills follow the same loop: **the main Agent defines the contract → implementation runs in visible Terminal + tmux → lightweight status and delivery files → independent review by the main Agent → rework in the same session**. They do not collect worker reasoning or outsource product judgment to the CLI.
+Codex development now prefers the App task loop: **the parent defines the contract → implementation runs in an isolated task/worktree → the child pushes state changes → the parent independently reviews → rework returns to the same child**. Use `codex-cli-development` only when the user explicitly requests CLI/TUI. The other three CLI Skills retain their visible Terminal + tmux, lightweight delivery-file, and same-session rework loop. No path collects worker reasoning or outsources product judgment.
 
 | Skill | Worker | Highlights |
 | --- | --- | --- |
+| [`codex-app-development`](skills/codex-app-development/) | Codex App task | Isolated worktree, bidirectional events, a low-frequency lost-contact watchdog, and independent parent acceptance |
 | [`grok-cli-development`](skills/grok-cli-development/) | Grok CLI | Development, image/video generation, Chinese planning, self-checks, and same-session rework |
 | [`gemini-cli-development`](skills/gemini-cli-development/) | Gemini CLI | Development and delivery based on the locally verified CLI contract |
 | [`claude-code-cli-development`](skills/claude-code-cli-development/) | Claude Code | Permission modes, session continuation, status delivery, and independent acceptance |
@@ -149,6 +151,8 @@ Use $agent-task-supervisor to monitor these tasks lightly and independently acce
 
 Use $agent-task-supervisor to turn this Spec into an Epic/Issue dependency graph, start only ready Issues in Codex App, and close the graph bottom-up with evidence.
 
+Use $codex-app-development to implement this requirement in an isolated Codex App task and worktree, push state changes to the parent, and have the parent independently review the delivery.
+
 Use $game-asset-forge to create transparent character animation frames for a 2D game, starting with a smoke batch.
 
 Use $grok-media-generation to generate or edit this image/video and verify the downloaded media file.
@@ -167,6 +171,7 @@ Use $fish-audio-speech to synthesize this narration and verify the beginning, mi
 | Grok / Seedance | A capability-specific key, `NEW_API_API_KEY`, or `OPENAI_API_KEY` | Real requests incur cost, so start with one smoke task before scaling up |
 | Suno / Fish Audio | `NEW_API_API_KEY` or `OPENAI_API_KEY` | Real requests consume quota; base tests never call external generation services |
 | Official balance recharge | `AKASHA_RECHARGE_USD` or each script's `--recharge-usd` (default 10 USD) | Official new-api only; at most one QR recharge per command, then one retry; Agent must render `qrPngPath` and offer `publicPageUrl`; never leak keys/tickets |
+| Codex App child tasks | A Codex App project, task, and isolated worktree | Children push state changes; the parent keeps a 30-minute lost-contact watchdog and independently reviews the full diff |
 | CLI workers | The corresponding local CLI, macOS Terminal, and tmux | Re-check `--version` and `--help` on first use and after upgrades |
 
 ## Validation

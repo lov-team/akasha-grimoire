@@ -65,7 +65,8 @@ Graph Engineering 把交付建模为一张可追踪的工作图，而不是一�
 
 | Skill | 适用场景 | 核心能力 |
 | --- | --- | --- |
-| [`agent-task-supervisor`](skills/agent-task-supervisor/) | 用 Spec/Epic/Issue 图谱监工、协调和验收多个任务 | 不限制合理并发；同一 worker 只保留一个监控所有者，启动确认后改用 10 分钟 heartbeat，状态不变保持静默，只在阻塞、偏航、正式 Review 或 P0–P2 时下钻 |
+| [`agent-task-supervisor`](skills/agent-task-supervisor/) | 用 Spec/Epic/Issue 图谱监工、协调和验收多个任务 | 不限制合理并发；子任务主动推送状态变化，父任务保留唯一的 30 分钟失联 watchdog；同一 sol 模型在状态监工用 low、正式 Review 用 high |
+| [`codex-app-development`](skills/codex-app-development/) | 把开发委派给独立 Codex App 子任务和隔离 worktree | 最小上下文合同、父子双向事件通知、原任务返工、父任务独立 diff Review 和风险复测 |
 
 ### 图像、游戏与音频
 
@@ -78,12 +79,13 @@ Graph Engineering 把交付建模为一张可追踪的工作图，而不是一�
 | [`suno-music-generation`](skills/suno-music-generation/) | 用歌曲描述或自定义歌词生成音乐 | 提交 Suno 异步任务、本地每 5 秒静默检查、下载多首音频/封面/可选视频并逐项验收 |
 | [`fish-audio-speech`](skills/fish-audio-speech/) | Fish Audio 配音、声音参考和录音转写 | 通过 OpenAI-compatible 音频接口完成 TTS/STT，支持 reference id、本地参考音频、语言、时间戳控制与安全落盘 |
 
-### CLI 开发 worker
+### App 子任务与 CLI 开发 worker
 
-四项 CLI Skill 采用同一个闭环：**主 Agent 定义合同 → 可见 Terminal + tmux 中实施 → 轻量状态/交付文件 → 主 Agent 独立 Review → 复用同一会话返工**。它们不会采集 worker 的思考过程，也不会把需求判断外包给 CLI。
+Codex 开发默认优先使用 App 子任务闭环：**主任务定义合同 → 独立 task/worktree 实施 → 子任务主动通知 → 主任务独立 Review → 原子任务返工**。只有用户明确要求 CLI/TUI 时才使用 `codex-cli-development`。其余三项 CLI Skill 继续通过可见 Terminal + tmux、轻量状态/交付文件和同会话返工完成闭环。所有路径都不采集 worker 的思考过程，也不把需求判断外包给 worker。
 
 | Skill | Worker | 特点 |
 | --- | --- | --- |
+| [`codex-app-development`](skills/codex-app-development/) | Codex App task | 独立 worktree、父子双向通信、低频失联 watchdog 和父任务独立验收 |
 | [`grok-cli-development`](skills/grok-cli-development/) | Grok CLI | 开发、图像/视频生成、中文计划、自检与同会话返工 |
 | [`gemini-cli-development`](skills/gemini-cli-development/) | Gemini CLI | 依据本机真实 CLI 合同执行开发与交付闭环 |
 | [`claude-code-cli-development`](skills/claude-code-cli-development/) | Claude Code | 权限模式、会话续接、状态交付与独立验收 |
@@ -151,6 +153,8 @@ done
 
 使用 $agent-task-supervisor 把这份 Spec 拆成 Epic/Issue 依赖图，在 Codex App 中只启动已就绪的 Issue，并用证据自底向上关闭整张图。
 
+使用 $codex-app-development 在独立 Codex App 子任务和 worktree 中实现这个需求，状态变化主动通知父任务，交付后由父任务独立 Review。
+
 使用 $game-asset-forge 为 2D 游戏制作一套透明背景角色动画帧，先 smoke 再批量。
 
 使用 $grok-media-generation 生成或编辑这段图片/视频，并验收下载后的真实文件。
@@ -169,6 +173,7 @@ done
 | Grok / Seedance | 专用 key、`NEW_API_API_KEY` 或 `OPENAI_API_KEY` | 真实调用会计费，先做单个 smoke，再扩大任务规模 |
 | Suno / Fish Audio | `NEW_API_API_KEY` 或 `OPENAI_API_KEY` | 真实调用会消耗额度；基础测试不调用外部服务 |
 | 官方余额不足充值 | `AKASHA_RECHARGE_USD` 或各脚本 `--recharge-usd`（默认 10 USD） | 仅官方 new-api；整次命令最多一次二维码充值，成功后只续跑失败请求一次；Agent 须渲染 `qrPngPath` 并给出 `publicPageUrl`；不泄露 Key/票据 |
+| Codex App 子任务 | Codex App 项目、task 与隔离 worktree | 子任务主动通知；父任务用 30 分钟 watchdog 防失联，并独立验收完整 diff |
 | CLI worker | 本机已安装的对应 CLI、macOS Terminal、tmux | 首次使用或版本变化时重新核对 `--version` 与 `--help` |
 
 ## 验证

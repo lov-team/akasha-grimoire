@@ -1,6 +1,6 @@
 ---
 name: agent-task-supervisor
-description: 在 Codex App 中以 Spec、Epic、Issue 和证据关系图轻量监工多个任务或外部 Agent，维护紧凑任务板；短期启动确认使用宿主最长等待，稳定执行阶段改用单一所有者的低频 heartbeat，仅在状态变化、阻塞、偏航、验收失败、证据冲突、正式 Review 或 P0-P2 风险时唤醒和逐层下钻。用户要求用 Graph Engineering 拆解、监工、协调、等待或验收多个任务，或持续推进 worker 但不代替其实现时使用。
+description: 在 Codex App 中以 Spec、Epic、Issue 和证据关系图轻量监工多个任务或外部 Agent，维护紧凑任务板；优先由子任务向父任务推送状态变化，父任务保留单一所有者的低频失联 watchdog，仅在阻塞、偏航、验收失败、证据冲突、正式 Review 或 P0-P2 风险时唤醒和逐层下钻。用户要求用 Graph Engineering 拆解、监工、协调、等待或验收多个任务，或持续推进 worker 但不代替其实现时使用。
 ---
 
 # Agent 任务监工
@@ -19,9 +19,10 @@ description: 在 Codex App 中以 Spec、Epic、Issue 和证据关系图轻量�
 | scope | Issue 交付合同、验收条件、禁止项 |
 | state | 当前阶段、最近一条简短进展、是否需关注 |
 | cursor | 最近已消费 cursor |
+| event | 最近已消费 `event_id`、最后更新时间与失联阈值 |
 | edges | `depends_on`、`blocks`、`produces`、`validates` |
 
-用户明确要求时才创建新任务。创建后保存返回的 task id 和 host id，并等待其实际进展；不要把子任务误建成用户侧新任务。
+用户明确要求新任务或 Codex App 子任务时才调用 `create_thread`；App 子任务开发按 `codex-app-development` 建立隔离 worktree 和父子合同。普通内部子任务使用宿主的多 Agent 能力，不误建成用户侧新任务。创建 App task 后保存返回的 task id 和 host id，并等待其实际进展。
 
 ## 用 Graph Engineering 驱动交付
 
@@ -43,19 +44,26 @@ description: 在 Codex App 中以 Spec、Epic、Issue 和证据关系图轻量�
 4. 先推动原任务解决问题；不要因为进展慢就接管代码或另开 worker。
 5. 问题关闭后立即恢复状态级监工。
 
+## 子任务主动通知
+
+- 创建或委派 child task 时传入父 `thread_id`、`host_id`、Issue、验收合同和通知合同。
+- child 只在 `MILESTONE_READY`、`BLOCKED_USER_DECISION`、`SCOPE_DRIFT`、`DELIVERY_READY`、`COMPLETE`、`ERROR` 或 `ABORTED` 等会解锁父任务动作的状态变化时调用 `send_message_to_thread`；不发送普通 `IMPLEMENTING` 或无变化状态。
+- 事件使用稳定的 `event_id=<issue>:<round>:<state>`；父任务保存 `last_event_id` 并丢弃重复消息。正文只含 child id、state、最小 evidence 和期望动作。
+- 推送是主路径但不是唯一活性证据。父任务必须保留低频 watchdog，防止 child 异常死亡、漏报或通知链路中断。
+
 ## 成本与并发边界
 
 - 不对用户可同时运行的任务数量设置硬上限；并发由依赖、写入冲突、资源和用户优先级决定。
 - 无论并发多少，每个外部 worker 只能有一个监控所有者。父任务、Issue task 和 CLI wrapper 不得同时为同一状态文件或同一 child task 建立持续轮询。
-- 启动、输入投递或异常恢复后的前两个等待窗用于确认链路稳定；进入明确的 `IMPLEMENTING` 或等价稳定状态后，结束当前持续等待 turn，改用默认 10 分钟 heartbeat。
-- heartbeat 只做一次即时状态读取或 `wait_threads timeoutMs: 0` 紧凑快照。状态不变时不发 commentary、不读取历史、不重新执行完整推理链；只有状态变化、完成、阻塞或异常才唤醒负责验收的 task。
+- 启动、输入投递或异常恢复后的前两个等待窗用于确认链路稳定；进入明确的 `IMPLEMENTING` 或等价稳定状态后，结束当前持续等待 turn，改用默认 30 分钟 watchdog heartbeat。
+- heartbeat 只做一次即时状态读取或 `wait_threads timeoutMs: 0` 紧凑快照，核对状态、最后更新时间、cursor 和失联阈值。状态不变时不发 commentary、不读取历史、不重新执行完整推理链；只有漏报、失联、完成、阻塞或异常才唤醒负责验收的 task。
 - heartbeat 不得与同一目标上的 active `/goal` 自动续跑并存。若同一外部状态等待已重复至少三轮、没有其他可安全推进的就绪节点，且必须等待 worker 或其他外部状态变化，按 goal 合同把 goal 标为 `blocked`，确认 task 已 idle 后再启用 heartbeat；这是真实外部阻塞，不是因任务困难或耗时而暂停。未达到 blocked 条件时 Agent 无权暂停 goal，应只保留 goal 这一名监控所有者，并让新建 heartbeat 保持 `PAUSED`，避免双重唤醒。
 - 已有长会话不得仅为降低监控成本临时切换模型：跨模型会失去原有 prompt cache，首轮可能比继续原模型更贵。默认保持同一个 `gpt-5.6-sol`：纯状态监工 follow-up 使用 `thinking=low`，正式合同判断、累计 diff Review、失败诊断与 P0–P2 闭环使用 `thinking=high`。向既有 task 发送监工或 Review 唤醒消息时显式携带对应 thinking override；自动续跑或 heartbeat 不能设置该参数时，保持原模型并在任务/UI 配置中优先固定监工为 low，不为切 reasoning 重建 worker 或丢失原会话。
 - heartbeat 在目标完成、被取消或不再需要监控时立即暂停或删除，避免孤儿自动化。
 
 ## 按路径低噪声等待
 
-监工 Codex App 任务时，启动确认阶段优先一次调用 `wait_threads`，使用宿主允许的最长等待；当前 `timeoutMs` 单次最大为 `120000`。传入最近 `afterCursor`，多任务尽量在同一有界等待中聚合。连续两个 120 秒窗口状态不变且任务仍稳定执行时，不再继续同一 turn 的无限等待链，也不发送“仍在运行”类消息；由唯一监控所有者建立默认每 10 分钟一次的 thread heartbeat。heartbeat 每次只取一份即时紧凑快照，状态无变化就静默结束本次检查。
+监工 Codex App 任务时，启动确认阶段优先一次调用 `wait_threads`，使用宿主允许的最长等待；当前 `timeoutMs` 单次最大为 `120000`。传入最近 `afterCursor`，多任务尽量在同一有界等待中聚合。连续两个 120 秒窗口状态不变且任务仍稳定执行时，不再继续同一 turn 的无限等待链，也不发送“仍在运行”类消息；先依赖 child 状态事件，并由唯一监控所有者建立默认每 30 分钟一次的 thread watchdog。watchdog 每次只取一份即时紧凑快照，状态无变化就静默结束本次检查。
 
 用户明确要求持续监工、稍后检查、保持关注或完成后继续时，使用 Codex App heartbeat automation，而不是让主模型常驻循环。创建前检查现有 automation，优先更新同一目标的既有 heartbeat，避免重复；目标 task、检查对象、完成条件和停止条件必须写清楚。不要把 heartbeat 建成新的用户侧 task，也不要为同一 worker 创建多个 heartbeat。
 
