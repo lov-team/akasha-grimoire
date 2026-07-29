@@ -33,11 +33,21 @@ Codex App 路径先用 `list_projects` 取得 project id 和 `isGitRepository`�
 
 创建 Codex App developer 时，用户没有明确指定模型或 thinking 就省略覆盖，沿用其 App 默认配置。Issue 任务的纯状态处理和 watchdog 使用 `gpt-5.6-sol low`，正式 Review、失败诊断和 P0–P2 闭环使用同一模型的 `high`。不要为切 reasoning 更换模型或重建会话。
 
+## 由 Issue 会话创建定时任务
+
+developer 启动并在前两个有界等待窗确认链路稳定后，Issue 负责/验收任务必须调用 `automation_update` 为自己创建或更新唯一 heartbeat，不能要求 Epic 监工代建 developer watchdog：
+
+- 名称包含 Issue id 和 developer 标识；`targetThreadId` 指向 Issue 负责/验收任务自身，周期为每 15 分钟。
+- App developer 每次只调用一次 `wait_threads(timeoutMs: 0)` 紧凑快照；CLI developer 每次只读一次状态/交付文件。
+- prompt 固定 developer id/host 或状态文件、最近 cursor、`last_event_id`、失联阈值、完成条件和停止条件。
+- 状态不变时静默；阻塞、偏航、交付、异常或失联才唤醒 Issue 任务。普通状态用 sol low，Review、诊断和 P0–P2 用 sol high。
+- 创建前检查现有 automation，优先更新同一 Issue/developer 的 heartbeat；禁止重复 heartbeat 或与 Issue task 的 active goal 持续等待并存。
+
 ## 推送优先，watchdog 兜底
 
 developer 主动把 `MILESTONE_READY`、`BLOCKED_USER_DECISION`、`SCOPE_DRIFT`、`DELIVERY_READY`、`COMPLETE`、`ERROR` 或 `ABORTED` 推送给 Issue 任务。Issue 任务按 `event_id` 去重，并把需要 Epic 层动作的状态再汇总推送给 Epic 监工；普通执行进度不逐层转发。
 
-Issue 任务仍为 developer 保留唯一的 15 分钟 watchdog，只检查状态、最后更新时间和 cursor。Epic 监工只监控 Issue 任务，不越级为同一 developer 建第二个 watchdog。正常活跃时静默；`failed`、`notLoaded`、异常退出或超过失联阈值时才做最小诊断。
+Issue 任务通过上述 heartbeat 为 developer 保留唯一的 15 分钟 watchdog，只检查状态、最后更新时间和 cursor。Epic 监工只监控 Issue 任务，不越级为同一 developer 建第二个 watchdog。正常活跃时静默；`failed`、`notLoaded`、异常退出或超过失联阈值时才做最小诊断。
 
 `DELIVERY_READY` 或 worker 完成标记只代表待 Review。Issue 任务独立验收通过、任务取消或不再受监控时才停用 developer watchdog；Issue 关闭后，Epic 监工再停用对应 Issue watchdog。
 

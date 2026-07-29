@@ -49,4 +49,6 @@ Issue 任务只向 Epic 监工汇总需要跨 Issue 协调、用户决策或图�
 
 Issue 任务每 15 分钟对 developer 做一次紧凑 watchdog；Epic 监工每 15 分钟只对 Issue 任务做 watchdog。每条父子边只有一个监控 owner，不允许 Epic 监工和 Issue 任务同时轮询 developer。
 
+Issue 任务创建的 heartbeat 必须附着到自己的 `thread_id`，而不是 Epic 监工 thread；它只监控当前 developer。Epic 监工的 heartbeat 另行附着到 Epic thread，只监控 Issue task。两者名称、target、cursor、event id 和停止条件分别记录，不能共用一个 automation 冒充两条边。
+
 P0–P2 必须由 Issue 任务发回原 developer task 或同一 CLI 会话，返工后由 Issue 任务重新完整验收。Issue 验收通过后停止 developer watchdog 并向 Epic 发送 `COMPLETE`；Epic 关闭 Issue 后停止 Issue watchdog。

@@ -81,7 +81,7 @@ Every implementation and acceptance task is Issue-driven. Each task maps to an I
 
 ### App tasks and CLI development workers
 
-Development uses a three-layer loop: **the Epic supervisor finds a ready Issue → an independent Issue App owns the contract and acceptance → a separate developer implements → the Issue App reviews and sends P0–P2 back to the same worker → Evidence returns to the Epic**. The developer defaults to a new Codex App task/worktree. Selecting Grok, Claude Code, Gemini, or Codex CLI only replaces the bottom worker; the Issue App never writes business code, preserving a distinct acceptance perspective.
+Development uses a three-layer loop: **the Epic supervisor finds a ready Issue → an independent Issue App owns the contract and acceptance → a separate developer implements → the Issue App reviews and sends P0–P2 back to the same worker → Evidence returns to the Epic**. The developer defaults to a new Codex App task/worktree. Selecting Grok, Claude Code, Gemini, or Codex CLI only replaces the bottom worker. The Issue App never writes business code and creates its own 15-minute developer heartbeat; the Epic heartbeat watches only the Issue App.
 
 | Skill | Worker | Highlights |
 | --- | --- | --- |

@@ -81,7 +81,7 @@ Graph Engineering 把交付建模为一张可追踪的工作图，而不是一�
 
 ### App 子任务与 CLI 开发 worker
 
-开发默认采用三层闭环：**Epic 监工 App 找到 ready Issue → 独立 Issue App 负责合同与验收 → 独立 developer 实现 → Issue App Review 并把 P0–P2 发回原 worker → Evidence 回到 Epic**。developer 默认是新的 Codex App task/worktree；指定 Grok、Claude Code、Gemini 或 Codex CLI 时，只把最底层替换为对应 CLI worker。Issue App 始终不写业务代码，确保实现与验收视角不同。
+开发默认采用三层闭环：**Epic 监工 App 找到 ready Issue → 独立 Issue App 负责合同与验收 → 独立 developer 实现 → Issue App Review 并把 P0–P2 发回原 worker → Evidence 回到 Epic**。developer 默认是新的 Codex App task/worktree；指定 Grok、Claude Code、Gemini 或 Codex CLI 时，只把最底层替换为对应 CLI worker。Issue App 始终不写业务代码，并为 developer 创建自己的 15 分钟 heartbeat；Epic heartbeat 只监控 Issue App。
 
 | Skill | Worker | 特点 |
 | --- | --- | --- |

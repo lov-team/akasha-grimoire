@@ -81,7 +81,7 @@ Graph Engineering は、納品作業を一時的な prompt の列ではなく、
 
 ### App 子 task と CLI 開発 worker
 
-開発は三層ループを使います。**Epic 監督 App が ready Issue を発見 → 独立 Issue App が契約と受け入れを担当 → 別 developer が実装 → Issue App が Review し P0–P2 を元 worker に返却 → Evidence を Epic に返却**。developer の既定は新しい Codex App task/worktree です。Grok、Claude Code、Gemini、Codex CLI を指定した場合は最下層 worker だけを置換し、Issue App は業務コードを書きません。
+開発は三層ループを使います。**Epic 監督 App が ready Issue を発見 → 独立 Issue App が契約と受け入れを担当 → 別 developer が実装 → Issue App が Review し P0–P2 を元 worker に返却 → Evidence を Epic に返却**。developer の既定は新しい Codex App task/worktree です。Grok、Claude Code、Gemini、Codex CLI を指定した場合は最下層 worker だけを置換します。Issue App は業務コードを書かず、自身に developer 用 15 分 heartbeat を作成し、Epic heartbeat は Issue App のみ監視します。
 
 | Skill | Worker | 特徴 |
 | --- | --- | --- |
