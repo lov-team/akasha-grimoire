@@ -1,4 +1,4 @@
 interface:
   display_name: "Codex CLI 可见 TUI 开发"
-  short_description: "在可见 TUI 中预审 Codex Red 证据并最终验收"
-  default_prompt: "使用 $codex-cli-development 在可见 TUI 中驱动 Codex CLI 先交付 Red 测试证据，审核通过后继续实现并完成最终 Review。"
+  short_description: "在可见 TUI 中完成 Red、实现、Git 交付与关闭"
+  default_prompt: "使用 $codex-cli-development 驱动 Codex CLI 先交付 Red，审核后继续实现，再由 Issue task 完成 Git 交付、worktree 回收和 Issue 关闭。"

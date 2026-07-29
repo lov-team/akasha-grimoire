@@ -1,6 +1,6 @@
 ---
 name: agent-task-supervisor
-description: 在 Codex App 中以 Spec、Epic、Issue 和证据关系图轻量监工多个任务或外部 Agent，维护紧凑任务板；由独立 Issue task 在实现前审核 worker 的 Red 测试证据、在交付后审核完整实现，父任务保留单一所有者的低频失联 watchdog。用户要求用 Graph Engineering 拆解、监工、协调、等待或验收多个任务，或持续推进 worker 但不代替其实现时使用。
+description: 在 Codex App 中以 Spec、Epic、Issue 和证据关系图轻量监工多个任务或外部 Agent，维护紧凑任务板；由独立 Issue task 审核 Red 与完整实现，默认完成 commit、push、worktree 回收和 Issue 关闭，再由 Epic 启动一个或多个 ready Issue。用户要求用 Graph Engineering 拆解、监工、协调、等待或验收多个任务，或持续推进 worker 但不代替其实现时使用。
 ---
 
 # Agent 任务监工
@@ -22,11 +22,22 @@ description: 在 Codex App 中以 Spec、Epic、Issue 和证据关系图轻量�
 | event | 最近已消费 `event_id`、最后更新时间与失联阈值 |
 | edges | `depends_on`、`blocks`、`produces`、`validates` |
 
-用户已明确要求开发采用三层分工。Epic 监工发现 ready Issue 后先调用 `create_thread` 建立独立 Issue 负责/验收 task；Issue task 再按 `codex-app-development` 创建独立 developer。默认 developer 是新的 Codex App task/worktree；用户指定 Grok、Claude Code、Gemini 或 Codex CLI 时只替换最底层 worker。禁止 Epic 监工直接把 developer 当 Issue task，也禁止 Issue task 自己实现再自审。
+用户已明确要求开发采用三层分工。Epic 监工发现 ready Issue 后先调用 `create_thread` 建立独立 Issue 负责/验收 task；Issue task 再按 `codex-app-development` 创建独立 developer。禁止 Epic 监工直接把 developer 当 Issue task，也禁止 Issue task 自己实现再自审。
 
 Issue task 创建 developer 并确认启动稳定后，必须为自己的 thread 创建唯一 15 分钟 heartbeat 来监控 developer；Epic 监工也必须为 Epic thread 创建唯一 15 分钟 heartbeat，只监控其直接管理的 Issue task。两级 watchdog 分别归属各自的父 thread，不能合并、越级或重复；Issue 仍主动上报阻塞、异常、决策和 Evidence。
 
 代码任务默认使用两道验收门：Issue task 先定义验收矩阵，developer 只写测试并交付真实 Red，Issue task 审核通过后才允许同一 developer 进入 Green → Refactor；最终交付后再审完整累计 diff。Issue task 不得亲自写测试或生产实现。纯文档、纯视觉、格式修改或已有精确失败用例的极小修复可以豁免 Red 预审，但必须在 Issue 合同中写明理由。
+
+默认授权 Issue task 在最终验收通过后完成当前 Issue 的 Git 交付：提交、推送当前 Issue 分支并核对远端 SHA。该默认授权不包含新建或合并 PR、改写历史、强推、发布或生产写入；项目规则或用户另有要求时优先。Git 交付成功后由 Issue task 安全回收精确 developer worktree、关闭对应 Issue，再向 Epic 发送 `COMPLETE`。
+
+## 选择开发 Agent
+
+按以下优先级选择最底层 worker：
+
+1. 小需求默认可用 Grok CLI：范围和验收明确、单模块或单一状态 owner、预计不超过 5 个文件和 300 行、核心不变量不超过 3 个，且不涉及协议/schema、迁移、事务、恢复、并发、安全边界或架构决策。
+2. 简单网页/UI 修改也可用 Grok CLI：只调整现有页面或组件的文案、颜色、间距、尺寸、局部布局、简单样式或轻量展示逻辑，不新增跨组件状态、路由、API 数据流、复杂表单、权限、拖拽、复杂动效或系统性响应式改造，并能做截图或主路径视觉验证。
+3. 任一条件超出上述小需求边界即视为复杂需求，使用新的 Codex App developer/worktree。跨模块、跨状态 owner、状态机、协议、事务、恢复、并发、复杂数据流，或 UI 涉及新交互状态、跨组件协作、路由/API、设计系统和多页面重构时直接归入复杂需求，不先让 Grok 试错。
+4. 用户在当前任务明确指定 Claude Code、Gemini 或 Codex CLI 时只替换最底层 worker；实现与验收职责仍保持分离。
 
 ## 用 Graph Engineering 驱动交付
 
@@ -38,7 +49,7 @@ Issue task 创建 developer 并确认启动稳定后，必须为自己的 thread
 - **Agent Task**：分为只读协调/验收的 Issue task 与唯一写入的 developer task，分别保存 task id、host、worktree 和 cursor，不充当新的事实源。
 - **Evidence**：用累计 diff、测试、产物、Review 和远端 SHA 关闭 Issue，再自底向上关闭 Epic 与 Spec。
 
-开始实现前先建立或更新节点与依赖边；没有 Issue 映射的任务不得进入执行。只并行没有未满足依赖的 Issue。范围或方向变化时先更新 Spec/Epic/Issue，再推动原任务；阻塞、决策和验收结论写回对应节点，不另建流水账。
+开始实现前先建立或更新节点与依赖边；没有 Issue 映射的任务不得进入执行。只并行没有未满足依赖的 Issue。范围或方向变化时先更新 Spec/Epic/Issue，再推动原任务；阻塞、决策和验收结论写回对应节点，不另建流水账。Epic 收到已关闭 Issue 的 `COMPLETE` 后立即重新计算 ready 集合，按依赖、写入冲突、资源和优先级启动下一个 Issue，或并行启动多个互不冲突的 ready Issue。
 
 ## 默认保持轻量
 
@@ -53,6 +64,7 @@ Issue task 创建 developer 并确认启动稳定后，必须为自己的 thread
 - 通知链固定为 `developer → Issue 负责/验收 task → Epic 监工 task`；每层只汇总会解锁上层动作的状态。
 - 创建或委派 child task 时传入直接父 `thread_id`、`host_id`、Issue、验收合同和通知合同。
 - child 只在 `RED_READY`、`MILESTONE_READY`、`BLOCKED_USER_DECISION`、`SCOPE_DRIFT`、`DELIVERY_READY`、`COMPLETE`、`ERROR` 或 `ABORTED` 等会解锁父任务动作的状态变化时调用 `send_message_to_thread`；不发送普通 `IMPLEMENTING` 或无变化状态。
+- developer 的最高交付状态是 `DELIVERY_READY`；只有 Issue task 完成 Git 交付、worktree 回收和 Issue 关闭后，才可向 Epic 发送 `COMPLETE`。
 - 事件使用稳定的 `event_id=<issue>:<round>:<state>`；父任务保存 `last_event_id` 并丢弃重复消息。正文只含 child id、state、最小 evidence 和期望动作。
 - 推送是主路径但不是唯一活性证据。父任务必须保留低频 watchdog，防止 child 异常死亡、漏报或通知链路中断。
 
@@ -65,7 +77,7 @@ Issue task 创建 developer 并确认启动稳定后，必须为自己的 thread
 - heartbeat 只做一次即时状态读取或 `wait_threads timeoutMs: 0` 紧凑快照，核对状态、最后更新时间、cursor 和失联阈值。状态不变时不发 commentary、不读取历史、不重新执行完整推理链；只有漏报、失联、完成、阻塞或异常才唤醒负责验收的 task。
 - heartbeat 不得与同一目标上的 active `/goal` 自动续跑并存。若同一外部状态等待已重复至少三轮、没有其他可安全推进的就绪节点，且必须等待 worker 或其他外部状态变化，按 goal 合同把 goal 标为 `blocked`，确认 task 已 idle 后再启用 heartbeat；这是真实外部阻塞，不是因任务困难或耗时而暂停。未达到 blocked 条件时 Agent 无权暂停 goal，应只保留 goal 这一名监控所有者，并让新建 heartbeat 保持 `PAUSED`，避免双重唤醒。
 - 已有长会话不得仅为降低监控成本临时切换模型：跨模型会失去原有 prompt cache，首轮可能比继续原模型更贵。默认保持同一个 `gpt-5.6-sol`：纯状态监工 follow-up 使用 `thinking=low`，正式合同判断、累计 diff Review、失败诊断与 P0–P2 闭环使用 `thinking=high`。向既有 task 发送监工或 Review 唤醒消息时显式携带对应 thinking override；自动续跑或 heartbeat 不能设置该参数时，保持原模型并在任务/UI 配置中优先固定监工为 low，不为切 reasoning 重建 worker 或丢失原会话。
-- worker 交付标记只代表待 Review，不等于目标完成。Issue task 独立 Review 并确认 P0–P2 清零后，调用 `automation_update(mode="delete")` 删除 developer watchdog，再向 Epic 主动上报；Epic 确认 Issue 已合并并关闭后，用同样方式删除对应 Issue watchdog。目标取消或确定不再需要监控时也直接删除，避免保留暂停的孤儿 automation。
+- worker 交付标记只代表待 Review，不等于目标完成。Issue task 独立 Review 并确认 P0–P2 清零后，先确认 worker 停止并删除 developer watchdog，再完成 commit、push、远端 SHA 核验、精确 worktree 回收和 Issue 关闭，才向 Epic 主动上报 `COMPLETE`。Epic 验证 Evidence 后删除对应 Issue watchdog并推进新的 ready Issue。目标取消或确定不再需要监控时也直接删除 watchdog，避免保留暂停的孤儿 automation。
 
 ## 按路径低噪声等待
 
@@ -139,4 +151,17 @@ developer 最终交付后，仍由同一独立 Issue task 验收；Issue task �
 4. 将问题标为 P0-P3；P0-P2 必须回到原任务关闭并重新验收。
 5. 只有证据一致、P0-P2 清零、未验证项已披露时才给出通过结论。
 
-developer 自述、其测试摘要或“命令成功”不能替代 Review。Issue task 验收通过后把 Evidence 推给 Epic 监工，由 Epic 层关闭图谱并汇报任务状态、未验证项、Git/远端事实和已解锁后续工作。
+developer 自述、其测试摘要或“命令成功”不能替代 Review。Issue task 验收通过后完成 Git 交付、worktree 回收和 Issue 关闭，再把 Evidence 推给 Epic；Epic 只核实闭环、更新上层图谱并推进已解锁工作。
+
+## Issue 交付、关闭与续跑
+
+最终 Review 通过后由 Issue task 按顺序完成：
+
+1. 确认 developer 已完成且不再写入，删除 developer watchdog；关闭对应 CLI/tmux 会话时遵守其精确目标清理合同。
+2. 检查完整 Git 状态，只提交当前 Issue 已验收的 tracked/untracked 文件；发现来源不明或越界文件就停止关闭。
+3. 默认创建当前 Issue 的提交并推送当前分支，核对本地 HEAD 与目标远端 SHA 完全一致；push 失败时保留 Issue 打开并处理失败。
+4. 仅对记录的精确 developer worktree 执行非强制回收；先确认 Git 状态干净、无未提交或未跟踪文件且提交已在远端，禁止 `--force`、模糊路径或批量删除。任一条件不满足就保留 worktree 和 Issue。
+5. 关闭图谱中的对应 Issue；若该节点绑定远端 Issue，也由 Issue task 按项目工具和权限关闭。
+6. 向 Epic 发送唯一 `COMPLETE`，Evidence 至少包含 commit、remote SHA、验证摘要、worktree 回收结果和 Issue closed 状态。
+
+Epic 收到并核实 `COMPLETE` 后删除该 Issue watchdog，更新依赖边并立即启动一个或多个已解锁且互不冲突的 ready Issue。Epic 不重复执行 commit、push、worktree 回收或 Issue 关闭。

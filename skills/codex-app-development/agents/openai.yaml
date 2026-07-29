@@ -1,4 +1,4 @@
 interface:
   display_name: "Codex App 子任务开发"
-  short_description: "由独立 Issue 任务预审 Red 并最终验收开发会话"
-  default_prompt: "使用 $codex-app-development 由当前 Issue 验收任务创建独立开发会话，先审核 Red 测试证据，再对最终交付做完整 Review。"
+  short_description: "由 Issue 双重验收、Git 交付、回收现场并关闭任务"
+  default_prompt: "使用 $codex-app-development 为复杂需求创建独立 Codex App developer；小需求和简单网页/UI 修改可路由 Grok，Issue 最终完成交付与关闭。"

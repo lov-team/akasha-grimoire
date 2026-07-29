@@ -1,4 +1,4 @@
 interface:
   display_name: "Agent 任务轻量监工"
-  short_description: "以三层任务图谱监工并执行 Red 与最终双重验收"
-  default_prompt: "使用 $agent-task-supervisor 按 Epic 监工 → Issue 验收 task → 独立 developer 三层拓扑推进，由 Issue 先审核 Red 测试证据，再审核最终完整交付。"
+  short_description: "三层监工、双重验收、Issue 关闭和后续任务续跑"
+  default_prompt: "使用 $agent-task-supervisor 按三层拓扑推进：复杂需求用 Codex App，小需求和简单网页/UI 修改可用 Grok；Issue 关闭后由 Epic 启动后续 ready Issue。"

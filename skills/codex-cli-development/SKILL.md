@@ -71,4 +71,4 @@ scripts/submit-to-tmux.zsh \
 
 主 Agent 亲自检查完整累计 diff、所有变更文件、真实生产调用链和风险相关测试。问题分 P0-P3；P0-P2 必须在同一 TUI 返工并重新完整验收。worker 自述、测试摘要或完成标记不能替代 Review。
 
-只有需求证据齐全、P0-P2 清零、独立验证通过、未验证项披露、Git/远端事实核实后才关闭精确 tmux session 并声称完成。
+只有需求证据齐全、P0-P2 清零、独立验证通过且未验证项披露后，Issue 负责/验收 task 才关闭精确 tmux session。随后默认由 Issue task 提交并 push 当前 Issue 分支、核对远端 SHA，按 `codex-app-development` 合同安全回收精确 worktree、关闭 Issue并向 Epic 上报 `COMPLETE`。Codex CLI worker 不执行最终 Git 交付；默认授权不包含 PR、合并、强推、发布或生产写入。

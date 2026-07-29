@@ -1,6 +1,6 @@
 ---
 name: grok-cli-development
-description: 使用可见 macOS Terminal + tmux 弹窗以简体中文编排 Grok CLI，在同一个 TUI 中完成任务规模闸门、Plan 自检、高风险代码 Red-only 中间审核、Green/Refactor、图像或视频生成，再由主 Agent 独立验收。用户要求“用 Grok CLI 开发”“让 Grok 干活”、让 Grok 生图/做 UI 概念稿/生成游戏资产/制作视频、要求 Grok plan 后编码、审查或打回 Grok diff、使用同一 Grok 会话返工，或让 Grok 生成最终交付文档时使用。禁止 Codex 右侧终端、后台 PTY、pane 过程采集和未到交付闸门的中途干预；覆盖中文需求对齐、真实 fixture、弱测试审计、视觉 QA、状态轮询、业务实现 Review、风险复测、P0-P2 闭环及 Git 状态核验。
+description: 使用可见 macOS Terminal + tmux 让 Grok CLI 实现边界明确的小需求和简单网页/UI 修改，或生成图像、UI 概念稿、游戏资产和视频；代码任务在同一 TUI 完成 Plan、Red-only 审核、Green/Refactor，再由 Issue task 独立验收。复杂需求改用 codex-app-development。用户要求用 Grok CLI、让 Grok 干活、生成视觉素材、审查或打回 Grok diff、复用同一 Grok 会话返工时使用。
 ---
 
 # Grok CLI 开发与独立验收
@@ -13,6 +13,12 @@ description: 使用可见 macOS Terminal + tmux 弹窗以简体中文编排 Grok
 2. 默认一个 Issue、一个 Codex App 任务、一个 worktree、一个 Grok 会话；不得让多个写入者同时修改同一 worktree。
 3. 产品取舍、UI/协议歧义、破坏性操作、权限凭证不明或未知业务文件出现时，先停止并请求用户决策。
 4. 不把需求理解、真实调用链识别或成功标准制定外包给 Grok。
+
+## 先做开发 Agent 选型
+
+- 范围明确、单模块或单一状态 owner、预计不超过 5 个文件和 300 行、核心不变量不超过 3 个，且不涉及协议/schema、迁移、事务、恢复、并发、安全边界或架构决策的小需求可用 Grok 开发。
+- 简单网页/UI 修改也可用 Grok：只调整现有页面或组件的文案、颜色、间距、尺寸、局部布局、简单样式或轻量展示逻辑，不新增跨组件状态、路由、API 数据流、复杂表单、权限、拖拽、复杂动效或系统性响应式改造，并必须执行截图或主路径视觉验证。
+- 超出任一条件就是复杂需求，直接交给新的 Codex App developer；尤其是新交互状态、跨组件协作、路由/API、设计系统或多页面重构，不要先让 Grok 实现一轮再迁移。
 
 ## 先做任务规模闸门
 
@@ -161,7 +167,7 @@ grok --cwd "$TASK_WORKTREE" \
 
 ### Red-only 中间审核
 
-功能、缺陷、跨模块状态、协议、事务、恢复或复杂 UI 代码默认启用 Red 闸门。纯文档、纯视觉生成、只改格式、已有精确失败用例的极小修复可以豁免，但必须在 prompt contract 写明理由。
+进入 Grok 路径的功能或缺陷默认启用 Red 闸门。纯文档、纯视觉生成、只改格式、已有精确失败用例的极小修复可以豁免，但必须在 prompt contract 写明理由；跨模块状态、协议、事务、恢复和复杂 UI 应在选型阶段改用 Codex App。
 
 启动前为 Red 阶段指定独立状态与交付路径。Grok 完成测试和真实失败后：
 
@@ -269,9 +275,9 @@ tmux kill-session -t "$EXACT_SESSION"
 
 ## Git 与完成条件
 
-默认由主 Agent 在验收后执行 Git 交付；Grok 不负责最终 commit、push、PR 或合并，除非用户或项目规则明确改变权限。
+默认由主 Agent（在三层拓扑中即 Issue 负责/验收 task）在验收后提交并 push 当前 Issue 分支；Grok 不负责最终 Git 交付。默认授权不包含 PR、合并、强推、发布或生产写入，除非用户或项目规则明确扩大权限。
 
-发生 Git 操作时，独立核对本地 HEAD、远端 SHA、PR 基线与完整 diff、可合并状态和目标分支。CI 是否为门禁、是否直接合并，以当前项目 `AGENTS.md` 和用户指令为准，不在技能中硬编码。
+发生 Git 操作时，独立核对本地 HEAD、远端 SHA、PR 基线与完整 diff、可合并状态和目标分支。提交与 push 成功后按 `codex-app-development` 合同确认 worktree 干净、无未跟踪文件且远端 SHA 一致，再非强制回收精确 worktree、关闭 Issue并向 Epic 上报 `COMPLETE`。任一步失败都保留现场和 Issue。CI 是否为门禁、是否直接合并，以当前项目 `AGENTS.md` 和用户指令为准，不在技能中硬编码。
 
 只有同时满足以下条件才声称完成：
 
