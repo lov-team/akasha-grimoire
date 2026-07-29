@@ -1,6 +1,6 @@
 ---
 name: grok-cli-development
-description: 使用可见 macOS Terminal + tmux 弹窗以简体中文编排 Grok CLI 在同一个 TUI 中先给 Plan 并自检，再原地完成开发、图像生成或视频生成；启动后轮询仓库外状态与最终交付标记，再由主 Agent 独立验收。用户要求“用 Grok CLI 开发”“让 Grok 干活”、让 Grok 生图/做 UI 概念稿/生成游戏资产/制作视频、要求 Grok plan 后编码、审查或打回 Grok diff、使用同一 Grok 会话返工，或让 Grok 生成最终交付文档时使用。禁止 Codex 右侧终端、后台 PTY、pane 过程采集和开发中途干预；覆盖中文需求对齐、视觉生成与 QA、状态轮询、业务实现 Review、风险复测、P0-P2 闭环及 Git 状态核验。
+description: 使用可见 macOS Terminal + tmux 弹窗以简体中文编排 Grok CLI，在同一个 TUI 中完成任务规模闸门、Plan 自检、高风险代码 Red-only 中间审核、Green/Refactor、图像或视频生成，再由主 Agent 独立验收。用户要求“用 Grok CLI 开发”“让 Grok 干活”、让 Grok 生图/做 UI 概念稿/生成游戏资产/制作视频、要求 Grok plan 后编码、审查或打回 Grok diff、使用同一 Grok 会话返工，或让 Grok 生成最终交付文档时使用。禁止 Codex 右侧终端、后台 PTY、pane 过程采集和未到交付闸门的中途干预；覆盖中文需求对齐、真实 fixture、弱测试审计、视觉 QA、状态轮询、业务实现 Review、风险复测、P0-P2 闭环及 Git 状态核验。
 ---
 
 # Grok CLI 开发与独立验收
@@ -13,6 +13,18 @@ description: 使用可见 macOS Terminal + tmux 弹窗以简体中文编排 Grok
 2. 默认一个 Issue、一个 Codex App 任务、一个 worktree、一个 Grok 会话；不得让多个写入者同时修改同一 worktree。
 3. 产品取舍、UI/协议歧义、破坏性操作、权限凭证不明或未知业务文件出现时，先停止并请求用户决策。
 4. 不把需求理解、真实调用链识别或成功标准制定外包给 Grok。
+
+## 先做任务规模闸门
+
+Grok 适合作为边界明确的实现 worker，不默认一次承接小 Epic。启动前先估算改动；命中任一项时，优先把任务拆成有依赖顺序的多个 Issue，再分别启动：
+
+- 预计修改超过 12 个文件或新增超过 1200 行；
+- 同时改变超过 2 个权威状态 owner；
+- 一次横跨协议、服务端事务和客户端 UI 三层；
+- 超过 8 个可独立验证的核心不变量；
+- 同时要求状态机迁移、重连/恢复、UI 交互和端到端证据。
+
+用户或项目明确要求原子交付且无法安全拆分时，记录不拆分理由，并把每个状态 owner 分成独立验证阶段；不得把范围风险只写进最终“已知风险”。拆分后的每个 Issue 都必须能独立 Red、实现和验收，不用并行写入同一 worktree 换取速度。
 
 ## 强制中文交互
 
@@ -59,6 +71,14 @@ grok --help
 - Git 权限边界；
 - 仓库外交付文件路径与固定完成标记。
 
+对代码任务，把连续长合同压缩成“短主合同 + 验收矩阵”。主合同只保留目标、边界、真实入口、禁止路径与交付门禁；矩阵逐个绑定：
+
+| 不变量 | 生产入口 | 权威 owner | 可观察结果 | 必须失败的负例 | 测试 |
+|---|---|---|---|---|---|
+| 一条核心行为 | 实际入口符号 | 唯一状态所有者 | 事件/状态/UI | 精确拒绝或回滚 | 真实测试名 |
+
+协议 fixture 必须来自真实生产 producer、仓库内 canonical/golden wire fixture，或对真实 producer 输出的最小裁剪。不得根据 Issue 文案手写简化协议并让实现反向适配测试；确实只能手写时，先逐字段对照生产 encoder/decoder 并在 Red 交付中记录来源。
+
 视觉生成任务还必须明确：用途、画幅/分辨率或视频时长、风格、角色与世界观、必须出现和禁止出现的元素、参考图仅允许借鉴的维度、精确文字、候选数量、仓库外 staging 路径，以及是否需要用户选稿后才能进入实现。
 
 ## 图像、UI 概念稿与视频生成
@@ -103,7 +123,7 @@ scripts/launch-visible-grok.zsh \
 
 初次启动禁止附着或复用同名 tmux session；同名已存在必须报错，避免 `new-session -A` 忽略本轮目录。启动脚本负责一次性核对 `pane_current_path` 的物理路径严格等于任务 worktree；不读取 pane 内容。目录不一致时不得进入计划或开发，应报告并只处理这个精确 session。路径通过后只允许用 `tmux list-sessions` 确认会话存在且 attached；禁止 `capture-pane`、后台 attach、截图读取 Grok 过程、持续 `pgrep` 或轮询 TUI 输出。没有现成 tmux client 时不要调用 `display-popup`；由启动脚本打开 Terminal 并在其中创建/附着会话。
 
-## 在可见终端一次启动 Plan 与开发
+## 在可见终端启动 Plan、Red 闸门与开发
 
 主 Agent 完成前置决策闸门后，把计划与实现契约放入可见 Terminal + tmux 一次启动：
 
@@ -126,21 +146,44 @@ grok --cwd "$TASK_WORKTREE" \
 - 不使用 `exec_command` 的 `tty:true`、后台统一 PTY或隐藏终端启动 Grok TUI。tmux 只允许按上一节通过可见 Terminal attached 会话使用。
 - 不使用 `-p/--single` 代替同一可见 TUI 内的 Plan 自检与直接开发。
 - 启动固定同时使用 `--permission-mode bypassPermissions --always-approve`，确保 TUI 显示并实际处于完全批准状态；完全授权只免除工具逐条审批，不授权扩大范围、Git 交付或替用户决定前置歧义。
-- prompt 必须要求 Grok 先输出中文计划并自检需求、TDD、边界、风险与验证；确认无遗漏后在同一 TUI 原地直接开发，不等待用户在窗口再次确认，不退出、不调用 `--continue`、不启动第二个 Grok。
+- prompt 必须要求 Grok 先输出中文计划并自检需求、TDD、边界、风险与验证；确认无遗漏后在同一 TUI 进入 Red。高风险代码任务先停在下述 Red 闸门；豁免任务才原地直接完成实现。全程不退出、不调用 `--continue`、不启动第二个 Grok。
 - 必须由用户决定的事项在启动前解决；开发中新发现的决策阻塞写入状态文件并停止等待用户。
 
 `PLAN_AND_IMPLEMENT_PROMPT` 必须要求：
 
 1. 先读 worktree 内 `AGENTS.md`；
-2. 先输出并自检计划；确认无遗漏后不等待用户在 TUI 再次确认，直接执行 Red → Green → Refactor；
+2. 先输出并自检计划；确认无遗漏后先执行 Red，不等待用户在窗口确认计划；
 3. 只修改允许范围；
 4. 遇到冲突、未知业务改动、测试设施故障或用户决策时停止；
-5. 完成实现和自测后，才写指定交付文件；
-6. 交付文件用中文包含修改文件、需求映射、测试命令与结果、未验证项、风险和 Git 状态，末行写固定完成标记。
+5. 命中 Red 闸门时先写 Red 交付文件并暂停，收到主 Agent 的继续指令后才执行 Green → Refactor；
+6. 完成实现和自测后，才写最终交付文件；
+7. 最终交付文件用中文包含修改文件、需求映射、测试命令与结果、未验证项、风险和 Git 状态，末行写固定完成标记。
+
+### Red-only 中间审核
+
+功能、缺陷、跨模块状态、协议、事务、恢复或复杂 UI 代码默认启用 Red 闸门。纯文档、纯视觉生成、只改格式、已有精确失败用例的极小修复可以豁免，但必须在 prompt contract 写明理由。
+
+启动前为 Red 阶段指定独立状态与交付路径。Grok 完成测试和真实失败后：
+
+1. 原子写状态 `GROK_RED_READY`；
+2. 写中文 Red 交付文件，末行独占 `GROK_RED_READY`；
+3. 保持同一 TUI 打开并暂停，不写生产实现。
+
+Red 交付只包含：新增/修改测试、每个 fixture 的生产来源、完整命令、退出码、精确失败断言、短日志路径，以及“为何是目标行为缺失而不是测试自身错误”。主 Agent 使用 `wait-for-delivery.zsh` 等待双标记，随后只审测试 diff、fixture/producer、Red 日志相关片段和必要生产契约；不读取 pane，不提前审未交付的实现。
+
+只有同时满足以下条件才允许 Green：
+
+- 测试从验收矩阵声明的真实入口进入；
+- Red 因目标行为缺失失败，不是类型、语法、fixture、解析或环境错误；
+- 事件/状态确实发生且有非零或精确断言；
+- 集成验收未直接写私有字段、调用私有 helper 或用 mock 替代核心逻辑；
+- 负例证明拒绝、清理、回滚或未应用结果，而不是提前返回。
+
+审核通过后，把单行 `Red 证据已审核通过，请继续 Green → Refactor，并按最终交付合同完成。` 写入唯一仓库外文件，再用既有 `tmux load-buffer`、`tmux paste-buffer` 和一次 Enter 投递到同一 TUI。审核不通过时，按返工合同方式只要求修正 Red；不得让 Grok先实现再补证据。
 
 ## 低噪声长轮询状态与最终交付
 
-启动前指定唯一的仓库外状态文件和交付文件。状态文件只允许单行 `GROK_PLANNING`、`GROK_IMPLEMENTING`、`GROK_BLOCKED_USER_DECISION` 或 `GROK_DELIVERY_COMPLETE`；Grok 在阶段切换时原子覆盖，不写思考过程或长日志。
+启动前指定唯一的仓库外状态文件和交付文件。代码任务状态文件只允许单行 `GROK_PLANNING`、`GROK_RED_READY`、`GROK_IMPLEMENTING`、`GROK_BLOCKED_USER_DECISION` 或 `GROK_DELIVERY_COMPLETE`；豁免 Red 的任务不使用 `GROK_RED_READY`。Grok 在阶段切换时原子覆盖，不写思考过程或长日志。
 
 tmux 启动成功后立即运行一次长轮询，让脚本在进程内每 5 秒检查，不要由主 Agent 高频调用工具：
 
@@ -153,7 +196,7 @@ scripts/wait-for-delivery.zsh \
 
 默认等待 240 秒；任务明确较长时可提高，但不要用更短等待恢复高频轮询。脚本循环中零输出；仅当状态和交付末行同时完成时输出一行并退出 0，整段超时才输出一次最后状态并退出 124。若宿主先返回仍在运行的 session，使用一次支持的最长等待续接该进程，不要每 5 秒读取文件、轮询 session 或发送状态更新。
 
-退出 0 后保留 Grok TUI，只读一次中文交付文件并从完整累计 diff 开始独立验收。退出 124 时按最后状态做一次决策：`GROK_IMPLEMENTING` 或缺失则重新执行一轮 240 秒或更长的等待；`GROK_PLANNING` 持续超时且有明确安全推荐时才按既有安全方式发送一次 `按推荐执行`，随后重新长等；`GROK_BLOCKED_USER_DECISION` 才请求用户决策；异常状态才做一次最小诊断。
+等待 Red 时把 expected status 和 marker 都设为 `GROK_RED_READY`；退出 0 后执行 Red-only 审核并向同一 TUI 继续或返工。等待最终交付时仍使用 `GROK_DELIVERY_COMPLETE`。最终等待退出 0 后保留 Grok TUI，只读一次中文交付文件并从完整累计 diff 开始独立验收。退出 124 时按最后状态做一次决策：`GROK_IMPLEMENTING` 或缺失则重新执行一轮 240 秒或更长的等待；`GROK_PLANNING` 持续超时且有明确安全推荐时才按既有安全方式发送一次 `按推荐执行`，随后重新长等；`GROK_RED_READY` 立即进入 Red 审核，不发送推荐；`GROK_BLOCKED_USER_DECISION` 才请求用户决策；异常状态才做一次最小诊断。
 
 等待期间不检查中间 Git 状态、文件列表、tmux pane、进程、测试进度、思考过程、token 或中间 diff，不发送 `Ctrl-C`。开发中的文件变化留到最终 Review。若发现 P0-P2，向同一个 Grok TUI 提交返工合同后再次使用同一轮询脚本；不重启 Grok、不使用 `--continue`、不新建 tmux session，也不管理 Grok session ID。
 
@@ -180,6 +223,8 @@ git ls-files --others --exclude-standard
 5. 是否提前实现后续 Issue 或引入未确认决策；
 6. 测试是否覆盖真实核心逻辑，mock 是否绕过被测对象；
 7. Red 证据是否能证明测试在实现前有效失败。
+
+正式 Review 前先运行 [`scripts/audit-test-strength.zsh`](scripts/audit-test-strength.zsh) 扫描本轮变更测试。恒真放行（如 `or true`、`|| true`）是阻断项；提前 `return`、条件断言、私有访问和允许零次事件属于人工审计项，必须逐条证明不会让核心行为“没发生也通过”。脚本只是下限检查，不能替代调用链 Review。
 
 测试全绿不能替代业务语义 Review。默认按真实生产调用链执行 focused → 受影响模块 → 直接依赖契约测试，不再为每个 Issue 或每轮返工固定跑全量。不得只跑新增测试自证，必须覆盖被改实现的直接调用方、被调用方和共享数据契约。涉及 class/资产跑 import，涉及 UI 做截图/主路径手测，涉及网络或设备而无法真实验证时明确披露。
 
