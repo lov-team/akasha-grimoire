@@ -46,7 +46,10 @@ developer 启动并在前两个有界等待窗确认链路稳定后，Issue 负�
 - 名称包含 Issue id 和 developer 标识；`targetThreadId` 指向 Issue 负责/验收任务自身，周期为每 15 分钟。
 - App developer 每次只调用一次 `wait_threads(timeoutMs: 0)` 紧凑快照；CLI developer 每次只读一次状态/交付文件。
 - prompt 固定 developer id/host 或状态文件、最近 cursor、`last_event_id`、失联阈值、完成条件和停止条件。
-- 状态不变时静默；阻塞、偏航、交付、异常或失联才唤醒 Issue 任务。普通状态用 sol low，Review、诊断和 P0–P2 用 sol high。
+- memory 分开保存 `observed_event_id` 与 `acked_event_id`；只有 follow-up 明确成功排队，或快照已证明 Issue task 正在处理同一事件，才允许 ack。投递失败不得 ack，下一轮重试。
+- 状态、mtime、cursor 和 event id 都不变时不输出 commentary/final、不发送消息；阻塞、偏航、交付、异常或失联首次出现时才唤醒 Issue 任务。普通状态用 sol low，Review、诊断和 P0–P2 用 sol high。
+- `RED_READY` 必须唤醒 Issue task 进入测试 Review，`DELIVERY_READY` 必须唤醒完整 diff Review；禁止只报告“worker 已完成”。Issue task 已在处理同一事件时只 ack，不重复投递。
+- heartbeat 默认设置 `notificationPolicy=failed_runs_only`，避免每 15 分钟向用户重复发送相同状态；推进结果由 Issue task 自身输出。
 - 创建前检查现有 automation，优先更新同一 Issue/developer 的 heartbeat；禁止重复 heartbeat 或与 Issue task 的 active goal 持续等待并存。
 
 ## Red-only 预审
@@ -66,7 +69,7 @@ Issue task 在创建 developer 前先建立验收矩阵，把每个核心不变�
 
 developer 主动把 `RED_READY`、`MILESTONE_READY`、`BLOCKED_USER_DECISION`、`SCOPE_DRIFT`、`DELIVERY_READY`、`ERROR` 或 `ABORTED` 推送给 Issue 任务。worker 的最高交付状态是 `DELIVERY_READY`；只有 Issue task 完成 Git 交付、worktree 回收和 Issue 关闭后才向 Epic 发送 `COMPLETE`。Issue 任务按 `event_id` 去重；普通执行进度和 Red 预审不越级转发。
 
-Issue 任务通过上述 heartbeat 为 developer 保留唯一的 15 分钟 watchdog，只检查状态、最后更新时间和 cursor。Epic 监工另有自己的 15 分钟 watchdog，只监控 Issue 任务，不越级轮询 developer。正常活跃时静默；`failed`、`notLoaded`、异常退出或超过失联阈值时才做最小诊断。
+Issue 任务通过上述 heartbeat 为 developer 保留唯一的 15 分钟 watchdog，只检查状态、mtime、cursor 和 event id。Epic 监工另有自己的 15 分钟 watchdog，只监控 Issue 任务，不越级轮询 developer。两层 watchdog 都按两阶段 ack：动作成功后才确认消费事件；正常活跃或相同事件重复出现时完全静默。
 
 `DELIVERY_READY` 或 worker 完成标记只代表待 Review。Issue 任务必须独立 Review 完整 diff；确认 P0–P2 清零后先确认 worker 停止并调用 `automation_update(mode="delete")` 删除 developer watchdog，再完成 Git 交付、安全回收精确 worktree并关闭 Issue。Epic 收到 `COMPLETE` 后删除对应 Issue watchdog并启动新的 ready Issue；任务取消或确定不再受监控时也直接删除，不保留暂停的孤儿 automation。
 

@@ -68,13 +68,23 @@ Issue task 创建 developer 并确认启动稳定后，必须为自己的 thread
 - 事件使用稳定的 `event_id=<issue>:<round>:<state>`；父任务保存 `last_event_id` 并丢弃重复消息。正文只含 child id、state、最小 evidence 和期望动作。
 - 推送是主路径但不是唯一活性证据。父任务必须保留低频 watchdog，防止 child 异常死亡、漏报或通知链路中断。
 
+## 用两阶段 ack 保证唤醒
+
+watchdog 是推进触发器，不是状态播报器。memory 必须分开保存 `observed_event_id` 与 `acked_event_id`：
+
+1. 快照首次发现 `RED_READY` 时，若 Issue task 未在执行对应 Review，向原 Issue task 成功投递一次 high-reasoning follow-up，要求立即审核测试并决定打回或发送 `CONTINUE_GREEN`。
+2. 首次发现 `DELIVERY_READY` 时，同样投递一次 high-reasoning follow-up，要求立即审核完整累计 diff、独立复测并闭环 P0–P2；不能只发送“worker 已完成”的摘要。
+3. 只有 `send_message_to_thread` 明确成功排队，或即时快照已证明目标 task 正在执行对应 Review，才写 `acked_event_id`。投递失败不得 ack，下一轮必须重试；旧的 `sent_event_ids` 不能单独视为已唤醒。
+4. 目标 task 已在处理同一事件时只 ack，不再投递。状态、mtime、cursor 与 event_id 都未变化时不输出 commentary/final、不发消息、不复述旧结论，立即静默结束。
+5. Epic 层同理：只有 Issue 的新 `COMPLETE` 已触发依赖图更新和 ready Issue 启动，才能 ack；不能只报告 Issue 已完成。
+
 ## 成本与并发边界
 
 - 不对用户可同时运行的任务数量设置硬上限；并发由依赖、写入冲突、资源和用户优先级决定。
 - 无论并发多少，每条父子边只能有一个监控所有者：Issue task 监控 developer，Epic 监工只监控 Issue task；Epic、Issue task 和 CLI wrapper 不得同时轮询同一 developer 或状态文件。
 - heartbeat 必须附着到被监控目标的直接父任务：developer watchdog 的 `targetThreadId` 是具体 Issue task，Issue watchdog 的 `targetThreadId` 是 Epic 监工 task。
 - 启动、输入投递或异常恢复后的前两个等待窗用于确认链路稳定；进入明确的 `IMPLEMENTING` 或等价稳定状态后，结束当前持续等待 turn，改用默认 15 分钟 watchdog heartbeat。
-- heartbeat 只做一次即时状态读取或 `wait_threads timeoutMs: 0` 紧凑快照，核对状态、最后更新时间、cursor 和失联阈值。状态不变时不发 commentary、不读取历史、不重新执行完整推理链；只有漏报、失联、完成、阻塞或异常才唤醒负责验收的 task。
+- heartbeat 只做一次即时状态读取或 `wait_threads timeoutMs: 0` 紧凑快照，核对状态、mtime、cursor、event id 和失联阈值。状态不变时不发 commentary/final、不读取历史、不重新执行完整推理链；只有新的漏报、失联、完成、阻塞或异常才唤醒负责验收的 task，并按两阶段 ack 确认推进动作成功。
 - heartbeat 不得与同一目标上的 active `/goal` 自动续跑并存。若同一外部状态等待已重复至少三轮、没有其他可安全推进的就绪节点，且必须等待 worker 或其他外部状态变化，按 goal 合同把 goal 标为 `blocked`，确认 task 已 idle 后再启用 heartbeat；这是真实外部阻塞，不是因任务困难或耗时而暂停。未达到 blocked 条件时 Agent 无权暂停 goal，应只保留 goal 这一名监控所有者，并让新建 heartbeat 保持 `PAUSED`，避免双重唤醒。
 - 已有长会话不得仅为降低监控成本临时切换模型：跨模型会失去原有 prompt cache，首轮可能比继续原模型更贵。默认保持同一个 `gpt-5.6-sol`：纯状态监工 follow-up 使用 `thinking=low`，正式合同判断、累计 diff Review、失败诊断与 P0–P2 闭环使用 `thinking=high`。向既有 task 发送监工或 Review 唤醒消息时显式携带对应 thinking override；自动续跑或 heartbeat 不能设置该参数时，保持原模型并在任务/UI 配置中优先固定监工为 low，不为切 reasoning 重建 worker 或丢失原会话。
 - worker 交付标记只代表待 Review，不等于目标完成。Issue task 独立 Review 并确认 P0–P2 清零后，先确认 worker 停止并删除 developer watchdog，再完成 commit、push、远端 SHA 核验、精确 worktree 回收和 Issue 关闭，才向 Epic 主动上报 `COMPLETE`。Epic 验证 Evidence 后删除对应 Issue watchdog并推进新的 ready Issue。目标取消或确定不再需要监控时也直接删除 watchdog，避免保留暂停的孤儿 automation。
@@ -83,7 +93,7 @@ Issue task 创建 developer 并确认启动稳定后，必须为自己的 thread
 
 监工 Codex App 任务时，启动确认阶段优先一次调用 `wait_threads`，使用宿主允许的最长等待；当前 `timeoutMs` 单次最大为 `120000`。传入最近 `afterCursor`，多任务尽量在同一有界等待中聚合。连续两个 120 秒窗口状态不变且任务仍稳定执行时，不再继续同一 turn 的无限等待链，也不发送“仍在运行”类消息；先依赖 child 状态事件，并由唯一监控所有者建立默认每 15 分钟一次的 thread watchdog。watchdog 每次只取一份即时紧凑快照，状态无变化就静默结束本次检查。
 
-用户明确要求持续监工、稍后检查、保持关注或完成后继续时，使用 Codex App heartbeat automation，而不是让主模型常驻循环。创建前检查现有 automation，优先更新同一目标的既有 heartbeat，避免重复；目标 task、检查对象、完成条件和停止条件必须写清楚。不要把 heartbeat 建成新的用户侧 task，也不要为同一 worker 创建多个 heartbeat。
+用户明确要求持续监工、稍后检查、保持关注或完成后继续时，使用 Codex App heartbeat automation，而不是让主模型常驻循环。创建前检查现有 automation，优先更新同一目标的既有 heartbeat，避免重复；目标 task、检查对象、完成条件、两阶段 ack 和停止条件必须写清楚。heartbeat 默认使用 `notificationPolicy=failed_runs_only`，正常检查和成功唤醒不另发通知；实际 Review 或推进在目标 task 中呈现。不要把 heartbeat 建成新的用户侧 task，也不要为同一 worker 创建多个 heartbeat。
 
 监工提供单行状态文件和最终交付文件的外部 Agent 时，运行：
 

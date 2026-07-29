@@ -54,6 +54,8 @@ Issue 任务每 15 分钟对 developer 做一次紧凑 watchdog；Epic 监工每
 
 Issue 任务创建的 heartbeat 必须附着到自己的 `thread_id`，而不是 Epic 监工 thread；它只监控当前 developer。Epic 监工的 heartbeat 另行附着到 Epic thread，只监控 Issue task。两者名称、target、cursor、event id 和停止条件分别记录，不能共用一个 automation 冒充两条边。
 
+两级 heartbeat 默认设置 `notificationPolicy=failed_runs_only`，并在 memory 中分别保存 `observed_event_id` 与 `acked_event_id`。发现新 `RED_READY`、`DELIVERY_READY` 或 `COMPLETE` 时，必须成功向负责处理的父 task 投递可执行 follow-up，或确认该 task 已在处理同一事件，之后才能 ack。投递失败不 ack并在下一轮重试。状态、mtime、cursor 与 event id 均未变化时不得输出 commentary/final、发送消息或重复摘要。worker 的交付唤醒 Review，Issue 的 `COMPLETE` 唤醒 Epic 更新图谱并启动 ready Issue；watchdog 不能停在“报告完成”。
+
 P0–P2 必须由 Issue 任务发回原 developer task 或同一 CLI 会话，返工后由 Issue 任务重新完整验收。确认 P0–P2 清零后，Issue task 先确认 worker 停止并删除 developer watchdog，再完成 commit、push、远端 SHA 核验、精确 worktree 安全回收和 Issue 关闭，才向 Epic 发送 `COMPLETE`。Epic 核实 Evidence 后删除对应 Issue watchdog并启动新的 ready Issue。不得用长期 `PAUSED` 代替生命周期结束时的删除。
 
 ## 两道验收门
