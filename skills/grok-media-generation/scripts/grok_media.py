@@ -16,6 +16,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
+from typing import Any
 
 MAX_DOWNLOAD_BYTES = 256 * 1024 * 1024
 DEFAULT_BASE_URL = "https://newapi.1234bot.com/v1"
@@ -24,6 +25,81 @@ TERMINAL_VIDEO_STATES = {"completed", "failed", "expired", "cancelled"}
 
 class GrokMediaError(RuntimeError):
     pass
+
+
+def _load_akasha_recharge() -> Any:
+    """Process-level path-verified singleton for shared/akasha_recharge.py."""
+    import importlib.util
+
+    cache_attr = "_akasha_recharge_singleton"
+    cached = globals().get(cache_attr)
+    here = Path(__file__).resolve().parent
+    candidates = [
+        here / "akasha_recharge.py",
+        here.parents[3] / "shared" / "akasha_recharge.py",
+        here.parents[2] / "shared" / "akasha_recharge.py",
+    ]
+    path: Path | None = None
+    for candidate in candidates:
+        try:
+            if candidate.is_file():
+                path = candidate.resolve()
+                break
+        except OSError:
+            continue
+    if path is None:
+        raise GrokMediaError(
+            "shared akasha_recharge helper not found; install from monorepo so "
+            "shared/akasha_recharge.py resolves via symlink"
+        )
+
+    def _matches(module: Any) -> bool:
+        try:
+            file_value = getattr(module, "__file__", None)
+            return bool(file_value) and Path(file_value).resolve() == path
+        except (OSError, RuntimeError, TypeError, ValueError):
+            return False
+
+    if cached is not None and _matches(cached) and hasattr(cached, "RechargeController"):
+        return cached
+
+    for existing in list(sys.modules.values()):
+        if existing is None or not hasattr(existing, "RechargeController"):
+            continue
+        if _matches(existing):
+            globals()[cache_attr] = existing
+            return existing
+
+    for existing in list(sys.modules.values()):
+        loader = getattr(existing, "load_akasha_recharge_module", None)
+        if callable(loader) and _matches(existing):
+            module = loader(Path(__file__))
+            globals()[cache_attr] = module
+            return module
+
+    stable_name = "akasha_grimoire_shared_akasha_recharge"
+    stable = sys.modules.get(stable_name)
+    if stable is not None and _matches(stable):
+        globals()[cache_attr] = stable
+        return stable
+    module_name = stable_name
+    if stable is not None and not _matches(stable):
+        module_name = f"{stable_name}_{abs(hash(str(path))) & 0xFFFFFFFF:x}"
+
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    if spec is None or spec.loader is None:
+        raise GrokMediaError(
+            "shared akasha_recharge helper not found; install from monorepo so "
+            "shared/akasha_recharge.py resolves via symlink"
+        )
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    loader = getattr(module, "load_akasha_recharge_module", None)
+    if callable(loader):
+        module = loader(Path(__file__))
+    globals()[cache_attr] = module
+    return module
 
 
 def normalize_base_url(raw: str) -> str:
@@ -69,7 +145,18 @@ def read_api_key() -> str:
     return key.strip()
 
 
-def api_request(base_url: str, api_key: str, path: str, timeout: float, *, payload: dict | None = None, body: bytes | None = None, content_type: str | None = None) -> tuple[bytes, str]:
+def api_request(
+    base_url: str,
+    api_key: str,
+    path: str,
+    timeout: float,
+    *,
+    payload: dict | None = None,
+    body: bytes | None = None,
+    content_type: str | None = None,
+    controller: Any | None = None,
+) -> tuple[bytes, str]:
+    recharge = _load_akasha_recharge()
     if payload is not None:
         body = json.dumps(payload, separators=(",", ":")).encode()
         content_type = "application/json"
@@ -77,23 +164,41 @@ def api_request(base_url: str, api_key: str, path: str, timeout: float, *, paylo
     if content_type:
         headers["Content-Type"] = content_type
     request = urllib.request.Request(base_url + path, data=body, headers=headers, method="POST" if body is not None else "GET")
-    try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            data = response.read(MAX_DOWNLOAD_BYTES + 1)
-            if len(data) > MAX_DOWNLOAD_BYTES:
-                raise GrokMediaError("endpoint response exceeds 256 MiB")
-            return data, response.headers.get("Content-Type", "")
-    except urllib.error.HTTPError as exc:
-        raw = exc.read(64 * 1024)
-        message = ""
+
+    def once() -> tuple[bytes, str]:
         try:
-            parsed = json.loads(raw)
-            message = str(parsed.get("error", {}).get("message") or parsed.get("message") or "")
-        except (json.JSONDecodeError, AttributeError):
-            pass
-        raise GrokMediaError(f"HTTP {exc.code}: {message or exc.reason}") from exc
-    except urllib.error.URLError as exc:
-        raise GrokMediaError(f"request failed: {exc.reason}") from exc
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                data = response.read(MAX_DOWNLOAD_BYTES + 1)
+                if len(data) > MAX_DOWNLOAD_BYTES:
+                    raise GrokMediaError("endpoint response exceeds 256 MiB")
+                return data, response.headers.get("Content-Type", "")
+        except urllib.error.HTTPError as exc:
+            raw = exc.read(64 * 1024)
+            try:
+                exc.close()
+            except Exception:
+                pass
+            recharge.raise_quota_if_applicable(exc.code, raw, base_url=base_url)
+            message = ""
+            try:
+                parsed = json.loads(raw)
+                message = str(parsed.get("error", {}).get("message") or parsed.get("message") or "")
+            except (json.JSONDecodeError, AttributeError):
+                pass
+            raise GrokMediaError(f"HTTP {exc.code}: {message or exc.reason}") from exc
+        except urllib.error.URLError as exc:
+            raise GrokMediaError(f"request failed: {exc.reason}") from exc
+
+    if controller is None:
+        controller = recharge.RechargeController(
+            api_key=api_key,
+            base_url=base_url,
+            request_timeout=timeout,
+        )
+    try:
+        return controller.run(once)
+    except recharge.AkashaRechargeError as exc:
+        raise GrokMediaError(str(exc)) from exc
 
 
 def parse_json(raw: bytes) -> dict:
@@ -128,6 +233,12 @@ def multipart_image_body(model: str, prompt: str, image_path: Path) -> tuple[byt
         f"--{boundary}--\r\n".encode(),
     ])
     return b"".join(chunks), f"multipart/form-data; boundary={boundary}"
+
+
+def validate_public_https_url(url: str) -> None:
+    parsed = urllib.parse.urlsplit(url)
+    if parsed.scheme != "https" or not parsed.netloc or parsed.username or parsed.password:
+        raise GrokMediaError("video URL must be an absolute public HTTPS URL without userinfo")
 
 
 def download_public_url(url: str, timeout: float) -> bytes:
@@ -196,10 +307,26 @@ def write_output(path: Path, data: bytes, overwrite: bool) -> None:
         raise
 
 
-def wait_for_video(base_url: str, api_key: str, task_id: str, request_timeout: float, poll_timeout: float, poll_interval: float) -> dict:
+def wait_for_video(
+    base_url: str,
+    api_key: str,
+    task_id: str,
+    request_timeout: float,
+    poll_timeout: float,
+    poll_interval: float,
+    controller: Any,
+) -> dict:
     deadline = time.monotonic() + poll_timeout
     while True:
-        response = parse_json(api_request(base_url, api_key, f"/videos/{urllib.parse.quote(task_id, safe='')}", request_timeout)[0])
+        response = parse_json(
+            api_request(
+                base_url,
+                api_key,
+                f"/videos/{urllib.parse.quote(task_id, safe='')}",
+                request_timeout,
+                controller=controller,
+            )[0]
+        )
         state = str(response.get("status") or "").lower()
         if state in TERMINAL_VIDEO_STATES:
             if state != "completed":
@@ -215,11 +342,28 @@ def wait_for_video(base_url: str, api_key: str, task_id: str, request_timeout: f
 def run(args: argparse.Namespace) -> None:
     base_url = resolve_base_url(args.base_url)
     api_key = read_api_key()
+    recharge = _load_akasha_recharge()
+    recharge.validate_cli_recharge_usd(getattr(args, "recharge_usd", None))
+    controller = recharge.RechargeController(
+        api_key=api_key,
+        base_url=base_url,
+        cli_recharge_usd=getattr(args, "recharge_usd", None),
+        request_timeout=args.timeout,
+    )
     output = Path(args.output).expanduser().resolve()
 
     if args.command == "image-generate":
         payload = {"model": args.model, "prompt": args.prompt, "n": 1, "size": args.size, "response_format": "url"}
-        response = parse_json(api_request(base_url, api_key, "/images/generations", args.timeout, payload=payload)[0])
+        response = parse_json(
+            api_request(
+                base_url,
+                api_key,
+                "/images/generations",
+                args.timeout,
+                payload=payload,
+                controller=controller,
+            )[0]
+        )
         media = image_bytes(response, args.timeout)
         validate_image(media)
         write_output(output, media, args.overwrite)
@@ -228,7 +372,17 @@ def run(args: argparse.Namespace) -> None:
         if not image_path.is_file():
             raise GrokMediaError(f"reference image not found: {image_path}")
         body, content_type = multipart_image_body(args.model, args.prompt, image_path)
-        response = parse_json(api_request(base_url, api_key, "/images/edits", args.timeout, body=body, content_type=content_type)[0])
+        response = parse_json(
+            api_request(
+                base_url,
+                api_key,
+                "/images/edits",
+                args.timeout,
+                body=body,
+                content_type=content_type,
+                controller=controller,
+            )[0]
+        )
         media = image_bytes(response, args.timeout)
         validate_image(media)
         write_output(output, media, args.overwrite)
@@ -238,15 +392,40 @@ def run(args: argparse.Namespace) -> None:
             payload = {"model": args.model, "prompt": args.prompt, "duration": args.duration}
         else:
             path = "/videos/edits"
+            if args.video_url:
+                validate_public_https_url(args.video_url)
             video_input = {"file_id": args.video_file_id} if args.video_file_id else {"url": args.video_url}
             payload = {"model": args.model, "prompt": args.prompt, "video": video_input}
-        submitted = parse_json(api_request(base_url, api_key, path, args.timeout, payload=payload)[0])
+        submitted = parse_json(
+            api_request(
+                base_url,
+                api_key,
+                path,
+                args.timeout,
+                payload=payload,
+                controller=controller,
+            )[0]
+        )
         task_id = submitted.get("request_id") or submitted.get("id")
         if not isinstance(task_id, str) or not task_id:
             raise GrokMediaError("video submit response does not contain request_id")
-        wait_for_video(base_url, api_key, task_id, args.timeout, args.poll_timeout, args.poll_interval)
+        wait_for_video(
+            base_url,
+            api_key,
+            task_id,
+            args.timeout,
+            args.poll_timeout,
+            args.poll_interval,
+            controller,
+        )
         content_path = f"/videos/{urllib.parse.quote(task_id, safe='')}/content"
-        video, _ = api_request(base_url, api_key, content_path, args.timeout)
+        video, _ = api_request(
+            base_url,
+            api_key,
+            content_path,
+            args.timeout,
+            controller=controller,
+        )
         validate_video(video)
         write_output(output, video, args.overwrite)
         print(f"task_id={task_id}")
@@ -255,16 +434,19 @@ def run(args: argparse.Namespace) -> None:
 
 
 def parser() -> argparse.ArgumentParser:
+    recharge = _load_akasha_recharge()
+    recharge_parent = recharge.recharge_parent_parser()
     root = argparse.ArgumentParser(description=__doc__)
     root.add_argument(
         "--base-url",
         help=f"new-api host or /v1 API root (default: {DEFAULT_BASE_URL})",
     )
     root.add_argument("--timeout", type=float, default=180, help="per-request timeout in seconds")
+    recharge.add_recharge_argument(root)
     subparsers = root.add_subparsers(dest="command", required=True)
 
     def common_media(command: str, *, video: bool) -> argparse.ArgumentParser:
-        sub = subparsers.add_parser(command)
+        sub = subparsers.add_parser(command, parents=[recharge_parent])
         sub.add_argument("--prompt", required=True)
         sub.add_argument("--output", required=True)
         sub.add_argument("--overwrite", action="store_true")

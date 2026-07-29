@@ -9,9 +9,21 @@ description: 通过 new-api 的 OpenAI-compatible Grok 端点生成或编辑图�
 
 ## 准备
 
-脚本默认使用 LovBrowser new-api：`https://newapi.1234bot.com/v1`。只有需要切换私有部署时才按 `--base-url`、`GROK_MEDIA_BASE_URL`、`NEW_API_BASE_URL`、`OPENAI_BASE_URL` 的顺序覆盖。Bearer token 按 `GROK_MEDIA_API_KEY`、`NEW_API_API_KEY`、`OPENAI_API_KEY` 的顺序读取。
+默认连接 LovBrowser new-api：`https://newapi.1234bot.com/v1`。只配置 Bearer token 即可开始，按 `GROK_MEDIA_API_KEY`、`NEW_API_API_KEY`、`OPENAI_API_KEY` 的顺序读取。通过受控的环境注入或凭证管理器提供 key；不要把 key 写进参数、prompt、日志、代码或仓库。
 
-没有 key 时，引导用户访问 `https://lovbrowser.com`：注册或登录 → 选择套餐或充值并完成付费 → 在控制台创建 new-api key → 设置 `NEW_API_API_KEY` 后重试。不要打印 key、完整响应、base64 正文或临时媒体 URL。
+没有 key 时，引导用户访问 `https://lovbrowser.com`：注册或登录 → 选择套餐或充值并完成付费 → 在控制台创建 new-api key → 设置 `NEW_API_API_KEY` 后重试。
+
+仅官方 new-api 在返回可充值的 `insufficient_user_quota` 时，才会自动二维码充值。**整次命令最多一次 ticket/session**；入账后只重试当时失败的 HTTP 阶段一次（视频已提交后的轮询/下载不会重新提交任务）。默认 10 USD；`--recharge-usd` 可写在子命令前或后（如 `image-generate --recharge-usd 10 ...`）。收到 `akasha.recharge` 后须在 Codex 对话中渲染 `qrPngPath` 二维码并给出 `publicPageUrl`。详见 [`shared/recharge-contract.md`](../../shared/recharge-contract.md)。
+
+需要切换端点时，按以下优先级覆盖：
+
+1. `--base-url`
+2. `GROK_MEDIA_BASE_URL`
+3. `NEW_API_BASE_URL`
+4. `OPENAI_BASE_URL`
+5. `https://newapi.1234bot.com/v1`
+
+base URL 可传 host 根或以 `/v1` 结尾的 API 根；自定义前缀会在末尾补 `/v1`。拒绝 userinfo、query 和 fragment。覆盖配置只影响当前进程或受控运行环境，不要把团队密钥提交到配置文件。
 
 输出必须写到仓库外 staging。脚本拒绝静默覆盖已有文件；只有用户明确要求时才传 `--overwrite`。
 
@@ -60,9 +72,9 @@ python3 skills/grok-media-generation/scripts/grok_media.py video-edit \
   --output /tmp/grok-video-edited.mp4
 ```
 
-支持 `video.file_id` resolver 的 CPA 会同步确认来源任务已完成，将结果改写为 xAI 可用的 `video.url`，并复用生成来源账号。未知任务返回 404，未完成或失败返回 409，类型错误返回 422，不应先返回 200 再异步失败。
+当前 CPA 已支持 `video.file_id` resolver：它会同步确认来源任务已完成，将结果改写为 xAI 可用的 `video.url`，并复用生成来源账号。未知任务返回 404，未完成或失败返回 409，类型错误返回 422，不应先返回 200 再异步失败。
 
-尚未发布该 resolver 的 CPA，或需要编辑外部来源视频时，改用可被上游直接访问的公开 HTTPS URL：
+需要编辑外部来源视频，或任务 ID 已因 CPA 重启、缓存过期而无法解析时，改用可被上游直接访问的公开 HTTPS URL：
 
 ```bash
 python3 skills/grok-media-generation/scripts/grok_media.py video-edit \
@@ -79,7 +91,7 @@ python3 skills/grok-media-generation/scripts/grok_media.py video-edit \
 - 视频：检查文件签名、时长、编码、分辨率、代表帧、运动连续性和编辑指令，不以任务 `completed` 代替成片验收。
 - `401`：token 缺失、失效或无权访问。
 - `400 multipart: NextPart...`：代理可能把 JSON 请求体与 multipart 请求头混用；检查上游 `Content-Type`。
-- 视频状态 `failed` 且提示 `File not found`：CPA 尚未支持同步 `file_id` resolver；升级 CPA 或改用完成状态中的 `metadata.url`。
+- `video.file_id` 返回 404：确认 ID 来自同一 CPA 实例且仍在缓存期；否则改用完成状态中的 `metadata.url`。
 - `queued` 或 `processing`：继续轮询；超过 `--poll-timeout` 后明确报告未完成，不伪造成功。
 
 脚本只在最终成功后写文件。失败时不要把错误 JSON、登录页或 HTML 保存成图片或视频。

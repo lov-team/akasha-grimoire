@@ -1,0 +1,4 @@
+interface:
+  display_name: "文章转短视频"
+  short_description: "把中文长文稳定制作成可复用、可验收、可追溯的竖屏观点短视频"
+  default_prompt: "使用 $article-to-short-video 把这篇文章制作成 90 秒竖屏观点短视频，并交付工程、字幕与成片。"

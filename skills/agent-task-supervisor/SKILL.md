@@ -1,6 +1,6 @@
 ---
 name: agent-task-supervisor
-description: 轻量监工多个 Codex App 任务或外部 Agent，维护紧凑任务板；Codex App 使用宿主允许的最长等待（当前单次最大 120 秒），外部 Agent 使用默认 240 秒的静默等待脚本，仅在阻塞、偏航、验收失败、证据冲突、正式 Review 或 P0-P2 风险时逐层下钻。用户要求监工、跟进、协调、等待、验收多个任务，或持续推进 worker 但不代替其实现时使用。
+description: 在 Codex App 中以 Spec、Epic、Issue 和证据关系图轻量监工多个任务或外部 Agent，维护紧凑任务板；Codex App 使用宿主允许的最长等待（当前单次最大 120 秒），外部 Agent 使用默认 240 秒的静默等待脚本，仅在阻塞、偏航、验收失败、证据冲突、正式 Review 或 P0-P2 风险时逐层下钻。用户要求用 Graph Engineering 拆解、监工、协调、等待或验收多个任务，或持续推进 worker 但不代替其实现时使用。
 ---
 
 # Agent 任务监工
@@ -15,12 +15,25 @@ description: 轻量监工多个 Codex App 任务或外部 Agent，维护紧凑�
 |---|---|
 | task | 任务名与 task/thread id |
 | location | host id、worktree、分支 |
-| scope | Issue、交付合同、禁止项 |
+| graph | Spec、Epic、Issue id 与当前节点 |
+| scope | Issue 交付合同、验收条件、禁止项 |
 | state | 当前阶段、最近一条简短进展、是否需关注 |
 | cursor | 最近已消费 cursor |
-| deps | 前置依赖、后续解锁项 |
+| edges | `depends_on`、`blocks`、`produces`、`validates` |
 
 用户明确要求时才创建新任务。创建后保存返回的 task id 和 host id，并等待其实际进展；不要把子任务误建成用户侧新任务。
+
+## 用 Graph Engineering 驱动交付
+
+把需要执行和验收的工作组织为 `Spec → Epic → Issue → Agent Task → Evidence`：
+
+- **Spec**：定义目标、边界、非目标、关键决策和最终验收，是根合同。
+- **Epic**：把 Spec 切成可交付的里程碑子图，维护跨 Issue 依赖与汇总验收。
+- **Issue**：作为最小可执行节点，明确 owner、范围、依赖、输出和验证；每个活跃任务必须映射一个 Issue。
+- **Agent Task**：作为 Issue 在 Codex App 或外部 Agent 中的运行实例，保存 task id、host、worktree 和 cursor，不充当新的事实源。
+- **Evidence**：用累计 diff、测试、产物、Review 和远端 SHA 关闭 Issue，再自底向上关闭 Epic 与 Spec。
+
+开始实现前先建立或更新节点与依赖边；没有 Issue 映射的任务不得进入执行。只并行没有未满足依赖的 Issue。范围或方向变化时先更新 Spec/Epic/Issue，再推动原任务；阻塞、决策和验收结论写回对应节点，不另建流水账。
 
 ## 默认保持轻量
 
@@ -69,7 +82,7 @@ scripts/wait-for-task-delivery.zsh \
 
 ## 固化重要结论
 
-只把重要方向决策、真实阻塞、里程碑和验收结论写入活跃 Issue 或项目笔记。写结论、证据与下一步，不写轮询流水账，不刷屏。
+只把重要方向决策、真实阻塞、里程碑和验收结论写入对应 Spec、Epic、Issue 或项目笔记。写结论、关系边、证据与下一步，不写轮询流水账，不刷屏。
 
 ## 独立验收
 

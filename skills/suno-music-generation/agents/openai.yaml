@@ -1,0 +1,4 @@
+interface:
+  display_name: "Suno 歌曲生成"
+  short_description: "通过 new-api 提交 Suno 歌曲任务并静默等待、下载验收"
+  default_prompt: "使用 $suno-music-generation 通过 new-api 生成一首歌曲，静默等待完成并下载可验收的音频与封面。"

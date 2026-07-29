@@ -1,0 +1,4 @@
+interface:
+  display_name: "Seedance 尾帧续拍"
+  short_description: "从上一段视频尾帧继续生成 Seedance，并完成拼接与连续性验收"
+  default_prompt: "使用 $seedance-video-continuation 从这段视频的最后一帧继续生成下一段，并拼接验收。"
