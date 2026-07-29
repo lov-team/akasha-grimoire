@@ -65,7 +65,7 @@ Every implementation and acceptance task is Issue-driven. Each task maps to an I
 
 | Skill | Best for | What it provides |
 | --- | --- | --- |
-| [`agent-task-supervisor`](skills/agent-task-supervisor/) | Supervising, coordinating, and accepting tasks through a Spec/Epic/Issue graph | Keeps reasonable concurrency unrestricted; children push state changes while the parent retains one 15-minute lost-contact watchdog; the same sol model uses low for status and high for formal review |
+| [`agent-task-supervisor`](skills/agent-task-supervisor/) | Supervising, coordinating, and accepting tasks through a Spec/Epic/Issue graph | Keeps concurrency unrestricted; Epic watches Issues and each Issue watches its developer with separate 15-minute watchdogs; sol low handles status and high handles review |
 | [`codex-app-development`](skills/codex-app-development/) | Having an independent Issue acceptance task create a Codex App developer | Epic supervisor → Issue acceptance → developer separation, isolated worktrees, bidirectional events, same-worker rework, and independent diff review |
 
 ### Image, game, and audio production
@@ -81,7 +81,7 @@ Every implementation and acceptance task is Issue-driven. Each task maps to an I
 
 ### App tasks and CLI development workers
 
-Development uses a three-layer loop: **the Epic supervisor finds a ready Issue → an independent Issue App owns the contract and acceptance → a separate developer implements → the Issue App reviews and sends P0–P2 back to the same worker → Evidence returns to the Epic**. The developer defaults to a new Codex App task/worktree. Selecting Grok, Claude Code, Gemini, or Codex CLI only replaces the bottom worker. The Issue App never writes business code and creates its own 15-minute developer heartbeat; the Epic heartbeat watches only the Issue App.
+Development uses a three-layer loop: **the Epic supervisor finds a ready Issue → an independent Issue App owns the contract and acceptance → a separate developer implements → the Issue App reviews and sends P0–P2 back to the same worker → Evidence returns to the Epic**. The developer defaults to a new Codex App task/worktree. Selecting Grok, Claude Code, Gemini, or Codex CLI only replaces the bottom worker. The Issue App never writes business code. Each parent keeps one 15-minute heartbeat for its direct child: Epic watches the Issue and the Issue watches the developer; children also push state changes upward. Delete the developer watchdog when P0–P2 are cleared, and delete the Issue watchdog after the Issue is merged.
 
 | Skill | Worker | Highlights |
 | --- | --- | --- |
@@ -171,7 +171,7 @@ Use $fish-audio-speech to synthesize this narration and verify the beginning, mi
 | Grok / Seedance | A capability-specific key, `NEW_API_API_KEY`, or `OPENAI_API_KEY` | Real requests incur cost, so start with one smoke task before scaling up |
 | Suno / Fish Audio | `NEW_API_API_KEY` or `OPENAI_API_KEY` | Real requests consume quota; base tests never call external generation services |
 | Official balance recharge | `AKASHA_RECHARGE_USD` or each script's `--recharge-usd` (default 10 USD) | Official new-api only; at most one QR recharge per command, then one retry; Agent must render `qrPngPath` and offer `publicPageUrl`; never leak keys/tickets |
-| Three-layer Codex App tasks | Epic supervisor, Issue acceptance task, and developer task/worktree | Developer events flow to Issue, then summaries to Epic; one 15-minute watchdog per edge and independent Issue-level full-diff review |
+| Three-layer Codex App tasks | Epic supervisor, Issue acceptance task, and developer task/worktree | Developer events flow to Issue, then summaries to Epic; the Epic→Issue and Issue→developer edges each own one 15-minute watchdog, with independent Issue-level full-diff review |
 | CLI workers | The corresponding local CLI, macOS Terminal, and tmux | Re-check `--version` and `--help` on first use and after upgrades |
 
 ## Validation

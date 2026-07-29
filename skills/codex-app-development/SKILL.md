@@ -47,9 +47,9 @@ developer 启动并在前两个有界等待窗确认链路稳定后，Issue 负�
 
 developer 主动把 `MILESTONE_READY`、`BLOCKED_USER_DECISION`、`SCOPE_DRIFT`、`DELIVERY_READY`、`COMPLETE`、`ERROR` 或 `ABORTED` 推送给 Issue 任务。Issue 任务按 `event_id` 去重，并把需要 Epic 层动作的状态再汇总推送给 Epic 监工；普通执行进度不逐层转发。
 
-Issue 任务通过上述 heartbeat 为 developer 保留唯一的 15 分钟 watchdog，只检查状态、最后更新时间和 cursor。Epic 监工只监控 Issue 任务，不越级为同一 developer 建第二个 watchdog。正常活跃时静默；`failed`、`notLoaded`、异常退出或超过失联阈值时才做最小诊断。
+Issue 任务通过上述 heartbeat 为 developer 保留唯一的 15 分钟 watchdog，只检查状态、最后更新时间和 cursor。Epic 监工另有自己的 15 分钟 watchdog，只监控 Issue 任务，不越级轮询 developer。正常活跃时静默；`failed`、`notLoaded`、异常退出或超过失联阈值时才做最小诊断。
 
-`DELIVERY_READY` 或 worker 完成标记只代表待 Review。Issue 任务独立验收通过、任务取消或不再受监控时才停用 developer watchdog；Issue 关闭后，Epic 监工再停用对应 Issue watchdog。
+`DELIVERY_READY` 或 worker 完成标记只代表待 Review。Issue 任务必须独立 Review 完整 diff；确认 P0–P2 清零后调用 `automation_update(mode="delete")` 删除 developer watchdog。Epic 确认 Issue 已合并并关闭后，再删除对应 Issue watchdog；任务取消或确定不再受监控时也直接删除，不保留暂停的孤儿 automation。
 
 ## 独立验收和原任务返工
 

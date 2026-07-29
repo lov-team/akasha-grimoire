@@ -65,7 +65,7 @@ Graph Engineering 把交付建模为一张可追踪的工作图，而不是一�
 
 | Skill | 适用场景 | 核心能力 |
 | --- | --- | --- |
-| [`agent-task-supervisor`](skills/agent-task-supervisor/) | 用 Spec/Epic/Issue 图谱监工、协调和验收多个任务 | 不限制合理并发；子任务主动推送状态变化，父任务保留唯一的 15 分钟失联 watchdog；同一 sol 模型在状态监工用 low、正式 Review 用 high |
+| [`agent-task-supervisor`](skills/agent-task-supervisor/) | 用 Spec/Epic/Issue 图谱监工、协调和验收多个任务 | 不限制合理并发；Epic 用 15 分钟 watchdog 监控 Issue，Issue 用独立的 15 分钟 watchdog 监控 developer；状态用 sol low、Review 用 high |
 | [`codex-app-development`](skills/codex-app-development/) | 由独立 Issue 验收任务创建 Codex App 开发会话 | Epic 监工 → Issue 验收 → developer 三层分工、隔离 worktree、双向通知、原任务返工与独立 diff Review |
 
 ### 图像、游戏与音频
@@ -81,7 +81,7 @@ Graph Engineering 把交付建模为一张可追踪的工作图，而不是一�
 
 ### App 子任务与 CLI 开发 worker
 
-开发默认采用三层闭环：**Epic 监工 App 找到 ready Issue → 独立 Issue App 负责合同与验收 → 独立 developer 实现 → Issue App Review 并把 P0–P2 发回原 worker → Evidence 回到 Epic**。developer 默认是新的 Codex App task/worktree；指定 Grok、Claude Code、Gemini 或 Codex CLI 时，只把最底层替换为对应 CLI worker。Issue App 始终不写业务代码，并为 developer 创建自己的 15 分钟 heartbeat；Epic heartbeat 只监控 Issue App。
+开发默认采用三层闭环：**Epic 监工 App 找到 ready Issue → 独立 Issue App 负责合同与验收 → 独立 developer 实现 → Issue App Review 并把 P0–P2 发回原 worker → Evidence 回到 Epic**。developer 默认是新的 Codex App task/worktree；指定 Grok、Claude Code、Gemini 或 Codex CLI 时，只把最底层替换为对应 CLI worker。Issue App 始终不写业务代码。两级父任务各自保留唯一的 15 分钟 heartbeat：Epic 监控 Issue，Issue 监控 developer；子任务仍在状态变化时主动上报。P0–P2 清零后删除 developer watchdog，Issue 合并后删除对应 Issue watchdog。
 
 | Skill | Worker | 特点 |
 | --- | --- | --- |
@@ -173,7 +173,7 @@ done
 | Grok / Seedance | 专用 key、`NEW_API_API_KEY` 或 `OPENAI_API_KEY` | 真实调用会计费，先做单个 smoke，再扩大任务规模 |
 | Suno / Fish Audio | `NEW_API_API_KEY` 或 `OPENAI_API_KEY` | 真实调用会消耗额度；基础测试不调用外部服务 |
 | 官方余额不足充值 | `AKASHA_RECHARGE_USD` 或各脚本 `--recharge-usd`（默认 10 USD） | 仅官方 new-api；整次命令最多一次二维码充值，成功后只续跑失败请求一次；Agent 须渲染 `qrPngPath` 并给出 `publicPageUrl`；不泄露 Key/票据 |
-| Codex App 三层任务 | Epic 监工 task、Issue 验收 task、developer task/worktree | developer 通知 Issue，Issue 汇总到 Epic；每条边一个 15 分钟 watchdog，Issue 独立验收完整 diff |
+| Codex App 三层任务 | Epic 监工 task、Issue 验收 task、developer task/worktree | developer 通知 Issue，Issue 汇总到 Epic；Epic→Issue 与 Issue→developer 两条边各有一个 15 分钟 watchdog，Issue 独立验收完整 diff |
 | CLI worker | 本机已安装的对应 CLI、macOS Terminal、tmux | 首次使用或版本变化时重新核对 `--version` 与 `--help` |
 
 ## 验证

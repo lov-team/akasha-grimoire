@@ -51,4 +51,4 @@ Issue 任务每 15 分钟对 developer 做一次紧凑 watchdog；Epic 监工每
 
 Issue 任务创建的 heartbeat 必须附着到自己的 `thread_id`，而不是 Epic 监工 thread；它只监控当前 developer。Epic 监工的 heartbeat 另行附着到 Epic thread，只监控 Issue task。两者名称、target、cursor、event id 和停止条件分别记录，不能共用一个 automation 冒充两条边。
 
-P0–P2 必须由 Issue 任务发回原 developer task 或同一 CLI 会话，返工后由 Issue 任务重新完整验收。Issue 验收通过后停止 developer watchdog 并向 Epic 发送 `COMPLETE`；Epic 关闭 Issue 后停止 Issue watchdog。
+P0–P2 必须由 Issue 任务发回原 developer task 或同一 CLI 会话，返工后由 Issue 任务重新完整验收。确认 P0–P2 清零后，Issue 任务调用 `automation_update(mode="delete")` 删除 developer watchdog，并向 Epic 发送 `COMPLETE`；Epic 确认 Issue 已合并并关闭后，删除对应 Issue watchdog。不得用长期 `PAUSED` 代替生命周期结束时的删除。
