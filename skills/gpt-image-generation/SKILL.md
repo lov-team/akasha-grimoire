@@ -1,6 +1,6 @@
 ---
 name: gpt-image-generation
-description: 通过 OpenAI-compatible GPT Image 端点生成或编辑图像，将 url 或 b64_json 结果安全落盘，并诊断认证、重定向、provider 失败与超时。用户要求用 GPT Image 生图、参考图改图、验证 /v1/images/generations 或 /v1/images/edits、检查图像代理兼容性或排查生成失败时使用。
+description: 通过 OpenAI-compatible GPT Image 端点生成单张或多张输出、单图编辑或多参考图合成图像，将 b64_json 结果安全落盘，并诊断认证、重定向、provider 失败与超时。用户要求用 GPT Image 生图、一次生成多张、参考图改图、上传多张图片合成、验证 /v1/images/generations 或 /v1/images/edits、检查图像代理兼容性或排查生成失败时使用。
 ---
 
 # GPT Image 生图与端点诊断
@@ -21,17 +21,27 @@ description: 通过 OpenAI-compatible GPT Image 端点生成或编辑图像，�
 
 ## 生成图像
 
-优先请求 `b64_json` 并直接写入仓库外 staging：
+生成与编辑固定请求 `b64_json` 并直接写入仓库外 staging：
 
 ```bash
 python3 skills/gpt-image-generation/scripts/generate_openai_image.py \
   --prompt "A tiny red square app icon, clean vector style, no text" \
   --size 1024x1024 \
-  --response-format b64_json \
   --output /tmp/image-smoke.png
 ```
 
-脚本拒绝静默覆盖已存在文件；明确需要覆盖时才传 `--overwrite`。响应为 URL 时，脚本只报告 host 和长度，不打印可能含临时签名的完整 URL；提供 `--output` 时会下载结果并原子落盘。
+脚本拒绝静默覆盖已存在文件；明确需要覆盖时才传 `--overwrite`。成功响应的每个 `data` 项都必须包含非空 `b64_json`；代理若忽略请求并返回 URL，脚本会判为协议不兼容。
+
+一次生成多张时传 `--n`（1–10）。响应数量必须与请求完全一致，多张结果以 `-1`、`-2` 编号落盘：
+
+```bash
+python3 skills/gpt-image-generation/scripts/generate_openai_image.py \
+  --prompt "Two distinct clean vector icon variations, no text" \
+  --n 2 \
+  --output /tmp/variant.png
+```
+
+ChatGPT Subscription（Codex）图片通道只支持单张输出，必须使用 `n=1`；`n>1` 只交给已用 smoke 证明支持完整多输出的上游，不能把 200 但仅返回一项当作成功。
 
 ## 编辑参考图
 
@@ -45,6 +55,18 @@ python3 skills/gpt-image-generation/scripts/generate_openai_image.py \
 ```
 
 固定参考图、角色身份和 freeze-list。不要把一次 edits 成功外推为所有格式、尺寸或多图输入均受支持。
+
+重复传 `--image` 可上传 2–5 张参考图并合成为一张结果。脚本使用重复的 `image[]` multipart 字段；prompt 必须说明每张图要保留的对象、位置和禁止变化项：
+
+```bash
+python3 skills/gpt-image-generation/scripts/generate_openai_image.py \
+  --image /absolute/path/to/first.png \
+  --image /absolute/path/to/second.png \
+  --prompt "Keep the first object on the left and the second on the right, no text" \
+  --output /tmp/image-composite.png
+```
+
+编辑与多参考图合成固定单张输出；脚本拒绝同时使用 `--image` 和 `--n > 1`。
 
 ## 使用项目环境文件
 
@@ -65,7 +87,7 @@ python3 skills/gpt-image-generation/scripts/generate_openai_image.py \
 - `302`、`307` 或 `/login?...`：请求在到达图像路由前被认证层截获，不能当成功。
 - `502`：已到达后端，但上游图像 provider 失败。
 - `504`：provider 轮询超时；生产 smoke 可提高 `--timeout`。
-- 成功必须是 2xx JSON，含 `created` 与非空 `data`，首项含 `url` 或 `b64_json`。
+- 成功必须是 2xx JSON，含 `created` 与非空 `data`；数量等于请求的 `n`，每项都有非空 `b64_json`。
 - 声称生成完成前，读取落盘文件的真实签名、像素、alpha 和内容；API 200 或脚本 `OK` 只证明协议成功。
 
 不要在诊断时输出完整 provider 响应、base64 正文、临时授权 URL 或凭证。真实生图可能计费；未经用户授权时只做 `--help`、语法和本地无网络验证。
