@@ -65,7 +65,7 @@ Every implementation and acceptance task is Issue-driven. Each task maps to an I
 
 | Skill | Best for | What it provides |
 | --- | --- | --- |
-| [`agent-task-supervisor`](skills/agent-task-supervisor/) | Supervising, coordinating, and accepting tasks through a Spec/Epic/Issue graph | Graph nodes, relationship edges, and a compact task board; Codex App waits up to the current 120-second host limit, external Agents use a 240-second silent script, and drill-down occurs only for blockers, drift, formal review, or P0–P2 risks |
+| [`agent-task-supervisor`](skills/agent-task-supervisor/) | Supervising, coordinating, and accepting tasks through a Spec/Epic/Issue graph | Keeps reasonable concurrency unrestricted, assigns one monitoring owner per worker, switches stable execution to a 10-minute heartbeat, stays silent on unchanged state, and drills down only for blockers, drift, formal review, or P0–P2 risks |
 
 ### Image, game, and audio production
 

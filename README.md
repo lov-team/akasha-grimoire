@@ -65,7 +65,7 @@ Graph Engineering 把交付建模为一张可追踪的工作图，而不是一�
 
 | Skill | 适用场景 | 核心能力 |
 | --- | --- | --- |
-| [`agent-task-supervisor`](skills/agent-task-supervisor/) | 用 Spec/Epic/Issue 图谱监工、协调和验收多个任务 | 维护节点、关系边与紧凑任务板；Codex App 按当前 120 秒上限等待，外部 Agent 用 240 秒静默脚本；只在阻塞、偏航、正式 Review 或 P0–P2 时下钻 |
+| [`agent-task-supervisor`](skills/agent-task-supervisor/) | 用 Spec/Epic/Issue 图谱监工、协调和验收多个任务 | 不限制合理并发；同一 worker 只保留一个监控所有者，启动确认后改用 10 分钟 heartbeat，状态不变保持静默，只在阻塞、偏航、正式 Review 或 P0–P2 时下钻 |
 
 ### 图像、游戏与音频
 

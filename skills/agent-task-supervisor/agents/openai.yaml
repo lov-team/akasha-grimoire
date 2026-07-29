@@ -1,4 +1,4 @@
 interface:
   display_name: "Agent 任务轻量监工"
   short_description: "在 Codex App 中以 Spec/Epic/Issue 图谱轻量监工并独立验收"
-  default_prompt: "使用 $agent-task-supervisor 按 Spec、Epic、Issue 和证据关系图监工这些任务，并在交付后独立验收。"
+  default_prompt: "使用 $agent-task-supervisor 按 Spec、Epic、Issue 和证据关系图低频监工这些任务：不限制合理并发，但同一 worker 只保留一个监控所有者；稳定执行阶段使用 10 分钟 heartbeat，状态不变保持静默；同一 gpt-5.6-sol 在监工时用 low、正式 Review 时用 high。"

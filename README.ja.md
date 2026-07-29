@@ -65,7 +65,7 @@ Graph Engineering は、納品作業を一時的な prompt の列ではなく、
 
 | Skill | 主な用途 | 提供する能力 |
 | --- | --- | --- |
-| [`agent-task-supervisor`](skills/agent-task-supervisor/) | Spec/Epic/Issue グラフによる複数 task の監督、調整、受け入れ確認 | node、関係 edge、コンパクトなタスクボード。Codex App は現在の上限である 120 秒単位、外部 Agent は 240 秒の無出力待機スクリプトを使い、ブロック、逸脱、正式 Review、P0–P2 の場合だけ詳細を確認 |
+| [`agent-task-supervisor`](skills/agent-task-supervisor/) | Spec/Epic/Issue グラフによる複数 task の監督、調整、受け入れ確認 | 妥当な並列数には上限を設けず、worker ごとに監視 owner を一つに限定。安定実行後は 10 分 heartbeat に切り替え、状態不変時は無出力とし、ブロック、逸脱、正式 Review、P0–P2 の場合だけ詳細を確認 |
 
 ### 画像・ゲーム・音声制作
 
