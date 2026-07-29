@@ -56,6 +56,8 @@ Issue 任务创建的 heartbeat 必须附着到自己的 `thread_id`，而不是
 
 两级 heartbeat 默认设置 `notificationPolicy=failed_runs_only`，并在 memory 中分别保存 `observed_event_id` 与 `acked_event_id`。发现新 `RED_READY`、`DELIVERY_READY` 或 `COMPLETE` 时，必须成功向负责处理的父 task 投递可执行 follow-up，或确认该 task 已在处理同一事件，之后才能 ack。投递失败不 ack并在下一轮重试。状态、mtime、cursor 与 event id 均未变化时不得输出 commentary/final、发送消息或重复摘要。worker 的交付唤醒 Review，Issue 的 `COMPLETE` 唤醒 Epic 更新图谱并启动 ready Issue；watchdog 不能停在“报告完成”。
 
+新 `BLOCKED_USER_DECISION` 使用独立决策生命周期：父 task 只读取 Issue 合同、既有决策、依赖、最近相关 3–5 个 turn 和最小证据，生成稳定 `decision_fingerprint`。范围内、可逆、无安全或不可逆影响且有明确推荐的事项直接决定并恢复 worker；必须由用户决定的事项去重、消除可推导下游项后合并成一个决策包，每项给出推荐、理由、关键代价和依赖影响。memory 保存 `prompted_decision_id` 与 `resolved_decision_id`；成功呈现后静默等待，不重复提问，直到用户答案写回合同并成功投递给 worker才 resolved。
+
 P0–P2 必须由 Issue 任务发回原 developer task 或同一 CLI 会话，返工后由 Issue 任务重新完整验收。确认 P0–P2 清零后，Issue task 先确认 worker 停止并删除 developer watchdog，再完成 commit、push、远端 SHA 核验、精确 worktree 安全回收和 Issue 关闭，才向 Epic 发送 `COMPLETE`。Epic 核实 Evidence 后删除对应 Issue watchdog并启动新的 ready Issue。不得用长期 `PAUSED` 代替生命周期结束时的删除。
 
 ## 两道验收门

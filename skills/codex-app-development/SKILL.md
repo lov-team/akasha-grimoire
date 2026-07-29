@@ -49,6 +49,8 @@ developer 启动并在前两个有界等待窗确认链路稳定后，Issue 负�
 - memory 分开保存 `observed_event_id` 与 `acked_event_id`；只有 follow-up 明确成功排队，或快照已证明 Issue task 正在处理同一事件，才允许 ack。投递失败不得 ack，下一轮重试。
 - 状态、mtime、cursor 和 event id 都不变时不输出 commentary/final、不发送消息；阻塞、偏航、交付、异常或失联首次出现时才唤醒 Issue 任务。普通状态用 sol low，Review、诊断和 P0–P2 用 sol high。
 - `RED_READY` 必须唤醒 Issue task 进入测试 Review，`DELIVERY_READY` 必须唤醒完整 diff Review；禁止只报告“worker 已完成”。Issue task 已在处理同一事件时只 ack，不重复投递。
+- 新 `BLOCKED_USER_DECISION` 必须用 high reasoning 唤醒 Issue task 做决策辅助：只恢复 Issue 合同、既有决策、依赖和最近相关 turn；可逆且范围内的明确推荐直接决定并恢复 worker，需要用户决定的事项去重、按依赖合并成一个带推荐与取舍的决策包。
+- memory 另存 `decision_fingerprint`、`prompted_decision_id` 和 `resolved_decision_id`。相同决策包成功呈现后静默等待用户，不重复催问；只有答案已写回合同并成功投递给 worker，才标记 resolved。
 - heartbeat 默认设置 `notificationPolicy=failed_runs_only`，避免每 15 分钟向用户重复发送相同状态；推进结果由 Issue task 自身输出。
 - 创建前检查现有 automation，优先更新同一 Issue/developer 的 heartbeat；禁止重复 heartbeat 或与 Issue task 的 active goal 持续等待并存。
 
