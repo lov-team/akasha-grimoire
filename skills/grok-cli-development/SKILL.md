@@ -10,9 +10,16 @@ description: 使用可见 macOS Terminal + tmux 让 Grok CLI 实现边界明确�
 ## 先确认边界
 
 1. 读取项目 `AGENTS.md`、用户需求、相关代码和完整 Git 现场；用户即时指令与项目规则优先于本技能。
-2. 默认一个 Issue、一个 Codex App 任务、一个 worktree、一个 Grok 会话；不得让多个写入者同时修改同一 worktree。
+2. 默认一个 Issue、一个 Codex App 任务、一个 worktree、同一时刻一个 Grok TUI；不得让多个写入者同时修改同一 worktree。正常流程复用原 TUI，异常退出时按下述恢复规则启动唯一替代 TUI。
 3. 产品取舍、UI/协议歧义、破坏性操作、权限凭证不明或未知业务文件出现时，先停止并请求用户决策。
 4. 不把需求理解、真实调用链识别或成功标准制定外包给 Grok。
+
+## 委托后自治与父会话通知
+
+- 任务带有父会话、Epic 监工或其他委托来源时，当前 Issue task 接受委托后独立负责需求对齐、用户决策、Red 审核、返工、验证、Git 交付与异常恢复；不得把普通进度、`DELIVERY_READY`、`REWORK_REQUIRED`、测试失败、worker 退出或可自行处理的阻塞发送给父会话。
+- P0-P2、Red 不合格、截图不合格、日志过期或 diff 偏离都由当前 Issue task 直接驱动 Grok 修正并复验。需要产品选择时直接在当前 Issue task 向用户提问；不得让父会话代为转问、批准或恢复 worker。
+- 只有当前委托真正结束时才通知父会话一次：成功完成发送最终 `COMPLETE`；用户取消或穷尽安全恢复仍无法继续时发送最终失败/阻塞结论。最终通知应包含可核验交付证据，不发送阶段性事件或重复状态。
+- 父会话的存在不降低当前 Issue task 的自主性，也不构成重启异常 worker、继续返工或执行已授权 Git 闭环所需的新权限。
 
 ## 先做开发 Agent 选型
 
@@ -206,7 +213,7 @@ scripts/wait-for-delivery.zsh \
 
 等待 Red 时把 expected status 和 marker 都设为 `GROK_RED_READY`；退出 0 后执行 Red-only 审核并向同一 TUI 继续或返工。等待最终交付时仍使用 `GROK_DELIVERY_COMPLETE`。最终等待退出 0 后保留 Grok TUI，只读一次中文交付文件并从完整累计 diff 开始独立验收。退出 124 时按最后状态做一次决策：`GROK_IMPLEMENTING` 或缺失则重新执行一轮 240 秒或更长的等待；`GROK_PLANNING` 持续超时且有明确安全推荐时才按既有安全方式发送一次 `按推荐执行`，随后重新长等；`GROK_RED_READY` 立即进入 Red 审核，不发送推荐；`GROK_BLOCKED_USER_DECISION` 才请求用户决策；异常状态才做一次最小诊断。
 
-等待期间不检查中间 Git 状态、文件列表、tmux pane、进程、测试进度、思考过程、token 或中间 diff，不发送 `Ctrl-C`。开发中的文件变化留到最终 Review。若发现 P0-P2，向同一个 Grok TUI 提交返工合同后再次使用同一轮询脚本；不重启 Grok、不使用 `--continue`、不新建 tmux session，也不管理 Grok session ID。
+等待期间不检查中间 Git 状态、文件列表、tmux pane、进程、测试进度、思考过程、token 或中间 diff，不发送 `Ctrl-C`。开发中的文件变化留到最终 Review。若发现 P0-P2，向当前 Grok TUI 提交返工合同后再次使用同一轮询脚本；session 正常存活时不得重启、不得使用 `--continue`、不得新建 tmux session，也不管理 Grok session ID。若精确 session 已异常退出，改走下述唯一替代 TUI 恢复，不通知父会话等待批准。
 
 ## 从完整 diff 开始 Review
 
@@ -247,7 +254,7 @@ git ls-files --others --exclude-standard
 - P2：正确性、契约、恢复语义或关键覆盖缺口；
 - P3：非阻断改进。
 
-P0-P2 必须关闭。返工要求必须用中文包含文件/行、违反的要求、实际行为、期望行为、失败命令和限定范围。使用新的 round 交付文件路径，直接向同一个可见 tmux session 中仍打开的 Grok TUI 提交返工 prompt；每轮重新审查完整累计 diff，而不是只看最后补丁。不得退出/重启 Grok、调用 `--continue` 或为同一 Issue 另建第二个 tmux session。
+P0-P2 必须关闭。返工要求必须用中文包含文件/行、违反的要求、实际行为、期望行为、失败命令和限定范围。使用新的 round 交付文件路径，直接向当前可见 tmux session 中仍打开的 Grok TUI 提交返工 prompt；每轮重新审查完整累计 diff，而不是只看最后补丁。session 正常存活时不得退出/重启 Grok、调用 `--continue` 或另建第二个 tmux session。
 
 标记出现前禁止补充 prompt 或干预。标记出现且 Review 确认需要返工后，先把完整中文返工合同写入唯一的仓库外 `/tmp/*.md` 文件；**不得把长篇、多行返工合同本身直接 paste 进 TUI**，避免 bracketed paste / 多行解析造成明显卡顿或提交状态不清。
 
@@ -259,9 +266,17 @@ tmux 只投递一行短指令，内容必须包含该返工文件的绝对路径
 
 将这行短指令写入另一个唯一的仓库外文本文件，再用 `tmux load-buffer` + `tmux paste-buffer` 送入启动时记录的精确 session/pane，最后仅用一次 `tmux send-keys ... Enter` 提交。不得读取或捕获 pane 输出，不得退出/重启 Grok。随后只轮询该轮状态/交付文件；短时间内状态尚未出现属于正常接收延迟，不得重复粘贴。用户正在 TUI 内操作时先避免并发输入。
 
+### Grok TUI 异常退出后的自主恢复
+
+- 状态/交付长等待连续两轮仍缺失或不前进时，只读确认记录的精确 tmux session 是否存在；不得读取 pane。session 仍存在则继续按状态规则等待或处理，禁止重复投递。
+- 若精确 session 已不存在，视为 worker 异常退出。当前 Issue task 不向父会话请求许可、不停在阶段性阻塞，也不自行写业务代码；先审计现有 Git 现场与最后有效交付，确认没有第二个写入者或未确认产品决策。
+- 在同一 worktree、同一分支上启动一个新的唯一可见 Terminal+tmux 替代 TUI。使用新的精确 session 名、runner、状态和交付路径；prompt 必须完整携带原合同、已确认决策、累计 diff、独立 Review 问题、当前阶段和禁止项。不得使用 `--continue`，不得假装恢复原 Grok 内部会话。
+- 替代 TUI 只接续尚未完成的阶段：Red 不合格就先修 Red 并重新交付；Green/Review 返工就只处理已确认 P0-P2；不得重做已通过阶段或扩大需求。任一时刻仍只允许一个 Grok 写入者。
+- 每次异常退出最多自动启动一个替代 TUI；若替代 TUI 再次异常退出，先做最小根因诊断并再选择安全恢复。只有确认环境持续不可用、用户取消或无法在既有授权内继续时，才结束委托并向父会话发送一次最终失败/阻塞结论。
+
 ## 验收通过后关闭 tmux 与专用 Terminal 窗口
 
-启动当前 Issue 的可见 tmux 弹窗时记录唯一精确 session 名，并在 Plan、开发、Review、返工和复验期间始终复用该 session 和仍打开的 Grok TUI。每轮交付文件末行完成标记有效后不得关闭；若需返工，直接在现有 TUI 输入框输入并提交 prompt。全程不管理 Grok session ID。
+启动当前 Issue 的可见 tmux 弹窗时记录唯一精确 session 名，并在 session 存活期间始终复用其 Grok TUI。每轮交付文件末行完成标记有效后不得主动关闭；若需返工，直接在现有 TUI 输入框输入并提交 prompt。session 异常退出则按上一节记录新的唯一替代 session；全程不管理 Grok session ID。
 
 关闭前先用 `tmux list-sessions` 只读确认精确名称仍存在，再对记录的每个 session 单独执行：
 
@@ -269,7 +284,7 @@ tmux 只投递一行短指令，内容必须包含该返工文件的绝对路径
 tmux kill-session -t "$EXACT_SESSION"
 ```
 
-只有完整 diff Review 完成、P0-P2 清零且主 Agent 独立验证全部通过后，才执行关闭。关闭后再次只读确认该精确 session 已不存在。禁止使用 `tmux kill-server`、glob、前缀匹配、模糊匹配或未经记录的 session 名，不得影响用户的其他 tmux 会话。若 session 已自然退出，记录事实即可，不为清理而新建会话。
+只有完整 diff Review 完成、P0-P2 清零且主 Agent 独立验证全部通过后，才主动执行关闭。关闭后再次只读确认该精确 session 已不存在。禁止使用 `tmux kill-server`、glob、前缀匹配、模糊匹配或未经记录的 session 名，不得影响用户的其他 tmux 会话。若 session 已自然退出，记录事实；仍有未完成工作时按异常恢复规则启动替代 TUI，不为单纯清理而新建会话。
 
 `launch-visible-grok.zsh` 必须为本次启动显式创建新的 Terminal 窗口并记录其唯一 window id。精确 tmux session 退出后，wrapper 只在该 window id 仍存在且仍为单标签页时关闭它；若窗口已不存在或用户后来加入了其他标签页，则保留窗口，不得用 `front window`、窗口标题、进程名或模糊匹配强关。关闭结果不影响 tmux 与验收结论。
 
@@ -277,7 +292,7 @@ tmux kill-session -t "$EXACT_SESSION"
 
 默认由主 Agent（在三层拓扑中即 Issue 负责/验收 task）在验收后提交并 push 当前 Issue 分支；Grok 不负责最终 Git 交付。默认授权不包含 PR、合并、强推、发布或生产写入，除非用户或项目规则明确扩大权限。
 
-发生 Git 操作时，独立核对本地 HEAD、远端 SHA、PR 基线与完整 diff、可合并状态和目标分支。提交与 push 成功后按 `codex-app-development` 合同确认 worktree 干净、无未跟踪文件且远端 SHA 一致，再非强制回收精确 worktree、关闭 Issue并向 Epic 上报 `COMPLETE`。任一步失败都保留现场和 Issue。CI 是否为门禁、是否直接合并，以当前项目 `AGENTS.md` 和用户指令为准，不在技能中硬编码。
+发生 Git 操作时，独立核对本地 HEAD、远端 SHA、PR 基线与完整 diff、可合并状态和目标分支。提交与 push 成功后按 `codex-app-development` 合同确认 worktree 干净、无未跟踪文件且远端 SHA 一致，再非强制回收精确 worktree、关闭 Issue。若存在父会话，只在此时发送一次最终 `COMPLETE`；任一步失败都保留现场和 Issue并由当前 Issue task 自行处理，不发送阶段性事件。CI 是否为门禁、是否直接合并，以当前项目 `AGENTS.md` 和用户指令为准，不在技能中硬编码。
 
 只有同时满足以下条件才声称完成：
 
