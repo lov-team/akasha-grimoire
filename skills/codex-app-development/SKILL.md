@@ -29,12 +29,12 @@ description: 在 Codex App 中把开发工作委派给独立子任务与隔离 w
 
 子任务用事件消息主动唤醒父任务，父任务按 `event_id` 去重并更新任务板。`MILESTONE_READY`、`BLOCKED_USER_DECISION`、`SCOPE_DRIFT`、`DELIVERY_READY`、`COMPLETE`、`ERROR` 或 `ABORTED` 等会解锁父任务动作的状态变化必须推送；普通执行进度不推送。
 
-父任务仍为每个 child 保留唯一的低频 watchdog，因为 child 可能异常死亡或漏报。稳定执行后默认每 30 分钟用一次 `wait_threads(timeoutMs: 0)` 或等价紧凑快照，只检查状态、最后更新时间和 cursor：
+父任务仍为每个 child 保留唯一的低频 watchdog，因为 child 可能异常死亡或漏报。稳定执行后默认每 15 分钟用一次 `wait_threads(timeoutMs: 0)` 或等价紧凑快照，只检查状态、最后更新时间和 cursor：
 
 - 正常活跃且无新事件时静默结束；不读完整历史、终端、diff 或测试输出。
 - `failed`、`notLoaded`、异常退出或超过合同中的失联阈值时，才用 `gpt-5.6-sol high` 做一次最小诊断。
 - 同一 child 不得同时存在多个 heartbeat，也不得让 heartbeat 与另一个持续轮询 owner 并存。
-- child 完成、取消或不再受监控时立即停用 watchdog。
+- `DELIVERY_READY` 或 worker 完成标记只代表待 Review；父任务独立验收通过、任务取消或不再受监控时才立即停用 watchdog。
 
 ## 独立验收和原任务返工
 

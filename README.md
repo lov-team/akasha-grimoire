@@ -65,7 +65,7 @@ Graph Engineering 把交付建模为一张可追踪的工作图，而不是一�
 
 | Skill | 适用场景 | 核心能力 |
 | --- | --- | --- |
-| [`agent-task-supervisor`](skills/agent-task-supervisor/) | 用 Spec/Epic/Issue 图谱监工、协调和验收多个任务 | 不限制合理并发；子任务主动推送状态变化，父任务保留唯一的 30 分钟失联 watchdog；同一 sol 模型在状态监工用 low、正式 Review 用 high |
+| [`agent-task-supervisor`](skills/agent-task-supervisor/) | 用 Spec/Epic/Issue 图谱监工、协调和验收多个任务 | 不限制合理并发；子任务主动推送状态变化，父任务保留唯一的 15 分钟失联 watchdog；同一 sol 模型在状态监工用 low、正式 Review 用 high |
 | [`codex-app-development`](skills/codex-app-development/) | 把开发委派给独立 Codex App 子任务和隔离 worktree | 最小上下文合同、父子双向事件通知、原任务返工、父任务独立 diff Review 和风险复测 |
 
 ### 图像、游戏与音频
@@ -173,7 +173,7 @@ done
 | Grok / Seedance | 专用 key、`NEW_API_API_KEY` 或 `OPENAI_API_KEY` | 真实调用会计费，先做单个 smoke，再扩大任务规模 |
 | Suno / Fish Audio | `NEW_API_API_KEY` 或 `OPENAI_API_KEY` | 真实调用会消耗额度；基础测试不调用外部服务 |
 | 官方余额不足充值 | `AKASHA_RECHARGE_USD` 或各脚本 `--recharge-usd`（默认 10 USD） | 仅官方 new-api；整次命令最多一次二维码充值，成功后只续跑失败请求一次；Agent 须渲染 `qrPngPath` 并给出 `publicPageUrl`；不泄露 Key/票据 |
-| Codex App 子任务 | Codex App 项目、task 与隔离 worktree | 子任务主动通知；父任务用 30 分钟 watchdog 防失联，并独立验收完整 diff |
+| Codex App 子任务 | Codex App 项目、task 与隔离 worktree | 子任务主动通知；父任务用 15 分钟 watchdog 防失联，并独立验收完整 diff |
 | CLI worker | 本机已安装的对应 CLI、macOS Terminal、tmux | 首次使用或版本变化时重新核对 `--version` 与 `--help` |
 
 ## 验证

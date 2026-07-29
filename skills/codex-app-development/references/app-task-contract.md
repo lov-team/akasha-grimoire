@@ -37,4 +37,4 @@ action=<expected-parent-action>
 
 父任务用同一事件格式或紧凑返工合同回复 child；P0–P2 返工必须用 `send_message_to_thread` 发送到原 `child_thread_id`，并使用 `gpt-5.6-sol high`。子任务不得为返工另建 task。
 
-父任务每 30 分钟执行一次紧凑 watchdog；只有 child 超过 `lost_contact_threshold`、状态失败或 cursor/状态事实冲突时才下钻。父任务验收通过后停止 watchdog，并在 Issue Evidence 中记录 diff、独立测试和集成结果。
+父任务每 15 分钟执行一次紧凑 watchdog；只有 child 超过 `lost_contact_threshold`、状态失败或 cursor/状态事实冲突时才下钻。父任务验收通过后停止 watchdog，并在 Issue Evidence 中记录 diff、独立测试和集成结果。

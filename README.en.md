@@ -65,7 +65,7 @@ Every implementation and acceptance task is Issue-driven. Each task maps to an I
 
 | Skill | Best for | What it provides |
 | --- | --- | --- |
-| [`agent-task-supervisor`](skills/agent-task-supervisor/) | Supervising, coordinating, and accepting tasks through a Spec/Epic/Issue graph | Keeps reasonable concurrency unrestricted; children push state changes while the parent retains one 30-minute lost-contact watchdog; the same sol model uses low for status and high for formal review |
+| [`agent-task-supervisor`](skills/agent-task-supervisor/) | Supervising, coordinating, and accepting tasks through a Spec/Epic/Issue graph | Keeps reasonable concurrency unrestricted; children push state changes while the parent retains one 15-minute lost-contact watchdog; the same sol model uses low for status and high for formal review |
 | [`codex-app-development`](skills/codex-app-development/) | Delegating implementation to an isolated Codex App task and worktree | Minimal context contracts, bidirectional parent/child events, same-task rework, independent parent diff review, and risk-based retesting |
 
 ### Image, game, and audio production
@@ -171,7 +171,7 @@ Use $fish-audio-speech to synthesize this narration and verify the beginning, mi
 | Grok / Seedance | A capability-specific key, `NEW_API_API_KEY`, or `OPENAI_API_KEY` | Real requests incur cost, so start with one smoke task before scaling up |
 | Suno / Fish Audio | `NEW_API_API_KEY` or `OPENAI_API_KEY` | Real requests consume quota; base tests never call external generation services |
 | Official balance recharge | `AKASHA_RECHARGE_USD` or each script's `--recharge-usd` (default 10 USD) | Official new-api only; at most one QR recharge per command, then one retry; Agent must render `qrPngPath` and offer `publicPageUrl`; never leak keys/tickets |
-| Codex App child tasks | A Codex App project, task, and isolated worktree | Children push state changes; the parent keeps a 30-minute lost-contact watchdog and independently reviews the full diff |
+| Codex App child tasks | A Codex App project, task, and isolated worktree | Children push state changes; the parent keeps a 15-minute lost-contact watchdog and independently reviews the full diff |
 | CLI workers | The corresponding local CLI, macOS Terminal, and tmux | Re-check `--version` and `--help` on first use and after upgrades |
 
 ## Validation
