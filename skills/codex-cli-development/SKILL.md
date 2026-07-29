@@ -53,6 +53,16 @@ scripts/wait-for-delivery.zsh \
 
 退出 0 后只读一次交付文件再 Review。退出 124 时，implementing/missing 重新等待 240 秒或更长，blocked 才请求用户决策，异常状态才做一次最小诊断。不要抓 pane、过程输出、思考、token、进程或中间 diff。正常返工在现有 TUI 中只发送一行读取仓库外返工合同的指令，不调用 `codex resume`。
 
+所有向现有 Codex TUI 的继续、决策或返工输入都必须先写入仓库外的唯一单行文件，再通过统一脚本提交：
+
+```bash
+scripts/submit-to-tmux.zsh \
+  "=$EXACT_SESSION:$WINDOW_INDEX.$PANE_INDEX" \
+  "$SINGLE_LINE_INPUT_FILE"
+```
+
+必须记录启动时的精确 session/window/pane，不能使用模糊 target。该脚本校验目标与单行输入后固定执行 `load-buffer → paste-buffer → 短暂等待 → send-keys Enter`，任一步失败都会返回非零；调用者不得自行拆开这些命令、只粘贴不提交、追加第二次 Enter，或为确认提交而读取 pane。脚本成功后立即恢复状态/交付文件轮询；短时间内状态未变化不代表未提交，不得重复投递。
+
 ## 独立验收
 
 主 Agent 亲自检查完整累计 diff、所有变更文件、真实生产调用链和风险相关测试。问题分 P0-P3；P0-P2 必须在同一 TUI 返工并重新完整验收。worker 自述、测试摘要或完成标记不能替代 Review。
