@@ -22,7 +22,7 @@ description: 在 Codex App 中以 Spec、Epic、Issue 和证据关系图轻量�
 | event | 最近已消费 `event_id`、最后更新时间与失联阈值 |
 | edges | `depends_on`、`blocks`、`produces`、`validates` |
 
-用户明确要求新任务或 Codex App 子任务时才调用 `create_thread`；App 子任务开发按 `codex-app-development` 建立隔离 worktree 和父子合同。普通内部子任务使用宿主的多 Agent 能力，不误建成用户侧新任务。创建 App task 后保存返回的 task id 和 host id，并等待其实际进展。
+用户已明确要求开发采用三层分工。Epic 监工发现 ready Issue 后先调用 `create_thread` 建立独立 Issue 负责/验收 task；Issue task 再按 `codex-app-development` 创建独立 developer。默认 developer 是新的 Codex App task/worktree；用户指定 Grok、Claude Code、Gemini 或 Codex CLI 时只替换最底层 worker。禁止 Epic 监工直接把 developer 当 Issue task，也禁止 Issue task 自己实现再自审。
 
 ## 用 Graph Engineering 驱动交付
 
@@ -31,7 +31,7 @@ description: 在 Codex App 中以 Spec、Epic、Issue 和证据关系图轻量�
 - **Spec**：定义目标、边界、非目标、关键决策和最终验收，是根合同。
 - **Epic**：把 Spec 切成可交付的里程碑子图，维护跨 Issue 依赖与汇总验收。
 - **Issue**：作为最小可执行节点，明确 owner、范围、依赖、输出和验证；每个活跃任务必须映射一个 Issue。
-- **Agent Task**：作为 Issue 在 Codex App 或外部 Agent 中的运行实例，保存 task id、host、worktree 和 cursor，不充当新的事实源。
+- **Agent Task**：分为只读协调/验收的 Issue task 与唯一写入的 developer task，分别保存 task id、host、worktree 和 cursor，不充当新的事实源。
 - **Evidence**：用累计 diff、测试、产物、Review 和远端 SHA 关闭 Issue，再自底向上关闭 Epic 与 Spec。
 
 开始实现前先建立或更新节点与依赖边；没有 Issue 映射的任务不得进入执行。只并行没有未满足依赖的 Issue。范围或方向变化时先更新 Spec/Epic/Issue，再推动原任务；阻塞、决策和验收结论写回对应节点，不另建流水账。
@@ -46,7 +46,8 @@ description: 在 Codex App 中以 Spec、Epic、Issue 和证据关系图轻量�
 
 ## 子任务主动通知
 
-- 创建或委派 child task 时传入父 `thread_id`、`host_id`、Issue、验收合同和通知合同。
+- 通知链固定为 `developer → Issue 负责/验收 task → Epic 监工 task`；每层只汇总会解锁上层动作的状态。
+- 创建或委派 child task 时传入直接父 `thread_id`、`host_id`、Issue、验收合同和通知合同。
 - child 只在 `MILESTONE_READY`、`BLOCKED_USER_DECISION`、`SCOPE_DRIFT`、`DELIVERY_READY`、`COMPLETE`、`ERROR` 或 `ABORTED` 等会解锁父任务动作的状态变化时调用 `send_message_to_thread`；不发送普通 `IMPLEMENTING` 或无变化状态。
 - 事件使用稳定的 `event_id=<issue>:<round>:<state>`；父任务保存 `last_event_id` 并丢弃重复消息。正文只含 child id、state、最小 evidence 和期望动作。
 - 推送是主路径但不是唯一活性证据。父任务必须保留低频 watchdog，防止 child 异常死亡、漏报或通知链路中断。
@@ -54,12 +55,12 @@ description: 在 Codex App 中以 Spec、Epic、Issue 和证据关系图轻量�
 ## 成本与并发边界
 
 - 不对用户可同时运行的任务数量设置硬上限；并发由依赖、写入冲突、资源和用户优先级决定。
-- 无论并发多少，每个外部 worker 只能有一个监控所有者。父任务、Issue task 和 CLI wrapper 不得同时为同一状态文件或同一 child task 建立持续轮询。
+- 无论并发多少，每条父子边只能有一个监控所有者：Issue task 监控 developer，Epic 监工只监控 Issue task；Epic、Issue task 和 CLI wrapper 不得同时轮询同一 developer 或状态文件。
 - 启动、输入投递或异常恢复后的前两个等待窗用于确认链路稳定；进入明确的 `IMPLEMENTING` 或等价稳定状态后，结束当前持续等待 turn，改用默认 15 分钟 watchdog heartbeat。
 - heartbeat 只做一次即时状态读取或 `wait_threads timeoutMs: 0` 紧凑快照，核对状态、最后更新时间、cursor 和失联阈值。状态不变时不发 commentary、不读取历史、不重新执行完整推理链；只有漏报、失联、完成、阻塞或异常才唤醒负责验收的 task。
 - heartbeat 不得与同一目标上的 active `/goal` 自动续跑并存。若同一外部状态等待已重复至少三轮、没有其他可安全推进的就绪节点，且必须等待 worker 或其他外部状态变化，按 goal 合同把 goal 标为 `blocked`，确认 task 已 idle 后再启用 heartbeat；这是真实外部阻塞，不是因任务困难或耗时而暂停。未达到 blocked 条件时 Agent 无权暂停 goal，应只保留 goal 这一名监控所有者，并让新建 heartbeat 保持 `PAUSED`，避免双重唤醒。
 - 已有长会话不得仅为降低监控成本临时切换模型：跨模型会失去原有 prompt cache，首轮可能比继续原模型更贵。默认保持同一个 `gpt-5.6-sol`：纯状态监工 follow-up 使用 `thinking=low`，正式合同判断、累计 diff Review、失败诊断与 P0–P2 闭环使用 `thinking=high`。向既有 task 发送监工或 Review 唤醒消息时显式携带对应 thinking override；自动续跑或 heartbeat 不能设置该参数时，保持原模型并在任务/UI 配置中优先固定监工为 low，不为切 reasoning 重建 worker 或丢失原会话。
-- worker 交付标记只代表待 Review，不等于目标完成；父任务独立验收通过、目标取消或不再需要监控时立即暂停或删除 heartbeat，避免孤儿自动化。
+- worker 交付标记只代表待 Review，不等于目标完成；Issue task 验收 developer 后停止 developer watchdog，Epic 监工关闭 Issue 后停止 Issue watchdog；目标取消或不再需要监控时也立即停用，避免孤儿自动化。
 
 ## 按路径低噪声等待
 
@@ -117,7 +118,7 @@ handoff 只保留任务图、当前 owner、worktree/分支、稳定状态、最
 
 ## 独立验收
 
-worker 宣称完成后：
+developer 宣称完成后，由独立 Issue task 验收；Issue task 不得写或代修业务代码：
 
 1. 对照原始合同、决策和非目标逐条核对。
 2. 读取完整累计 diff 和全部变更文件，沿真实调用链检查是否生效。
@@ -125,4 +126,4 @@ worker 宣称完成后：
 4. 将问题标为 P0-P3；P0-P2 必须回到原任务关闭并重新验收。
 5. 只有证据一致、P0-P2 清零、未验证项已披露时才给出通过结论。
 
-worker 自述、其测试摘要或“命令成功”不能替代 Review。最终汇报任务状态、证据、未验证项、Git/远端事实和已解锁后续工作。
+developer 自述、其测试摘要或“命令成功”不能替代 Review。Issue task 验收通过后把 Evidence 推给 Epic 监工，由 Epic 层关闭图谱并汇报任务状态、未验证项、Git/远端事实和已解锁后续工作。

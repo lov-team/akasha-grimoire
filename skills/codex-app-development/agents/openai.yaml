@@ -1,4 +1,4 @@
 interface:
   display_name: "Codex App 子任务开发"
-  short_description: "用独立 App 子任务与 worktree 实现、通信、返工和验收"
-  default_prompt: "使用 $codex-app-development 在独立 Codex App 子任务中实现这个需求，并由父任务独立验收。"
+  short_description: "由独立 Issue 任务创建开发会话并分离实现与验收"
+  default_prompt: "使用 $codex-app-development 由当前 Issue 验收任务创建独立开发会话，并在交付后独立 Review。"

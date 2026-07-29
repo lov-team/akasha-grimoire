@@ -1,4 +1,4 @@
 interface:
   display_name: "Claude Code 可见 TUI 开发"
-  short_description: "在可见 Terminal 与 tmux 中驱动 Claude Code 并独立验收"
-  default_prompt: "使用 $claude-code-cli-development 在可见 TUI 中驱动 Claude Code 完成开发，再由主 Agent 独立 Review 与验证。"
+  short_description: "由独立 Issue 任务驱动 Claude Code worker 并验收"
+  default_prompt: "使用 $claude-code-cli-development 让当前 Issue 验收任务驱动 Claude Code 完成开发，再独立 Review 与验证。"

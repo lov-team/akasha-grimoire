@@ -1,11 +1,11 @@
 ---
 name: claude-code-cli-development
-description: 使用可见 macOS Terminal + tmux 驱动 Claude Code 在同一交互会话中先给中文计划并自检，再开发、写状态/交付文件并接受主 Agent 独立 Review 与返工。用户要求用 Claude Code、让 Claude 编码、计划后实现、持续监工或复用同一 Claude 会话返工时使用。
+description: 在 Epic 监工 App → Issue 负责/验收 App → developer 三层工作流中，使用可见 macOS Terminal + tmux 驱动 Claude Code 作为最底层唯一写入 worker，先给中文计划并自检，再开发、写状态/交付文件并接受 Issue 任务独立 Review 与同会话返工。用户要求用 Claude Code、让 Claude 编码或复用同一 Claude 会话返工时使用。
 ---
 
 # Claude Code CLI 开发与独立验收
 
-把 Claude Code 当作实现 worker。主 Agent 负责需求解释、范围、用户决策、完整 diff Review、风险复测和 Git 结论。
+把 Claude Code 当作三层工作流最底层的唯一实现 worker。这里的主 Agent 必须是独立 Codex App Issue 负责/验收任务；它负责需求解释、范围、用户决策、完整 diff Review、风险复测和 Git 结论，但不得自己写或代修业务代码。Epic 监工只接收 Issue Evidence，不越级轮询 Claude worker。
 
 ## 读取规则并核对 CLI
 
