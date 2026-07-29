@@ -1,6 +1,6 @@
 ---
 name: agent-task-supervisor
-description: 在 Codex App 中以 Spec、Epic、Issue 和证据关系图轻量监工多个任务或外部 Agent，维护紧凑任务板；优先由子任务向父任务推送状态变化，父任务保留单一所有者的低频失联 watchdog，仅在阻塞、偏航、验收失败、证据冲突、正式 Review 或 P0-P2 风险时唤醒和逐层下钻。用户要求用 Graph Engineering 拆解、监工、协调、等待或验收多个任务，或持续推进 worker 但不代替其实现时使用。
+description: 在 Codex App 中以 Spec、Epic、Issue 和证据关系图轻量监工多个任务或外部 Agent，维护紧凑任务板；由独立 Issue task 在实现前审核 worker 的 Red 测试证据、在交付后审核完整实现，父任务保留单一所有者的低频失联 watchdog。用户要求用 Graph Engineering 拆解、监工、协调、等待或验收多个任务，或持续推进 worker 但不代替其实现时使用。
 ---
 
 # Agent 任务监工
@@ -26,6 +26,8 @@ description: 在 Codex App 中以 Spec、Epic、Issue 和证据关系图轻量�
 
 Issue task 创建 developer 并确认启动稳定后，必须为自己的 thread 创建唯一 15 分钟 heartbeat 来监控 developer；Epic 监工也必须为 Epic thread 创建唯一 15 分钟 heartbeat，只监控其直接管理的 Issue task。两级 watchdog 分别归属各自的父 thread，不能合并、越级或重复；Issue 仍主动上报阻塞、异常、决策和 Evidence。
 
+代码任务默认使用两道验收门：Issue task 先定义验收矩阵，developer 只写测试并交付真实 Red，Issue task 审核通过后才允许同一 developer 进入 Green → Refactor；最终交付后再审完整累计 diff。Issue task 不得亲自写测试或生产实现。纯文档、纯视觉、格式修改或已有精确失败用例的极小修复可以豁免 Red 预审，但必须在 Issue 合同中写明理由。
+
 ## 用 Graph Engineering 驱动交付
 
 把需要执行和验收的工作组织为 `Spec → Epic → Issue → Agent Task → Evidence`：
@@ -50,7 +52,7 @@ Issue task 创建 developer 并确认启动稳定后，必须为自己的 thread
 
 - 通知链固定为 `developer → Issue 负责/验收 task → Epic 监工 task`；每层只汇总会解锁上层动作的状态。
 - 创建或委派 child task 时传入直接父 `thread_id`、`host_id`、Issue、验收合同和通知合同。
-- child 只在 `MILESTONE_READY`、`BLOCKED_USER_DECISION`、`SCOPE_DRIFT`、`DELIVERY_READY`、`COMPLETE`、`ERROR` 或 `ABORTED` 等会解锁父任务动作的状态变化时调用 `send_message_to_thread`；不发送普通 `IMPLEMENTING` 或无变化状态。
+- child 只在 `RED_READY`、`MILESTONE_READY`、`BLOCKED_USER_DECISION`、`SCOPE_DRIFT`、`DELIVERY_READY`、`COMPLETE`、`ERROR` 或 `ABORTED` 等会解锁父任务动作的状态变化时调用 `send_message_to_thread`；不发送普通 `IMPLEMENTING` 或无变化状态。
 - 事件使用稳定的 `event_id=<issue>:<round>:<state>`；父任务保存 `last_event_id` 并丢弃重复消息。正文只含 child id、state、最小 evidence 和期望动作。
 - 推送是主路径但不是唯一活性证据。父任务必须保留低频 watchdog，防止 child 异常死亡、漏报或通知链路中断。
 
@@ -121,7 +123,15 @@ handoff 只保留任务图、当前 owner、worktree/分支、稳定状态、最
 
 ## 独立验收
 
-developer 宣称完成后，由独立 Issue task 验收；Issue task 不得写或代修业务代码：
+代码任务先由独立 Issue task 执行 Red-only 预审：
+
+1. 启动 developer 前把每个核心不变量绑定到真实生产入口、权威 owner、可观察结果、必须失败的负例和测试。
+2. 要求 developer 只修改测试及专用 fixture/support 并跑出目标性失败；生产实现保持未修改，然后发送 `RED_READY` Evidence。
+3. 先用累计变更清单确认生产实现未修改，再审测试 diff、fixture/producer 来源、失败命令与退出码、精确失败断言和必要生产契约。
+4. 确认测试从真实入口进入，Red 因目标行为缺失而失败；拒绝语法、类型、fixture、环境错误，恒真或条件断言，允许零次事件，以及用私有 helper 或 mock 绕过核心逻辑。
+5. 不通过时只要求原 developer 修正 Red；通过后向同一 developer 发送一次明确的 `CONTINUE_GREEN`，再进入正常低噪声监控。
+
+developer 最终交付后，仍由同一独立 Issue task 验收；Issue task 不得写或代修业务代码：
 
 1. 对照原始合同、决策和非目标逐条核对。
 2. 读取完整累计 diff 和全部变更文件，沿真实调用链检查是否生效。
