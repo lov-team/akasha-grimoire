@@ -28,7 +28,7 @@ Epic 监工 App → Issue 负责/验收 App → Codex App 开发任务
 
 Codex App 路径先用 `list_projects` 取得 project id 和 `isGitRepository`，再用 `create_thread` 在与 Issue task 共享状态文件的同一 host 创建干净 task；Git 项目必须使用独立 worktree。不要用 `fork_thread` 复制 Issue 任务历史，只传最小实现合同。仅当实现确实依赖已批准的未提交基线时才使用 `startingState: working-tree`。
 
-创建前由 Issue 任务确定目标、验收条件、非目标、允许/禁止路径、依赖、验证门禁、Git 交付策略，以及唯一绝对状态/交付文件与完成 marker。默认授权 Issue task 在验收后 commit 并 push 当前 Issue 分支；PR、合并、强推、发布或生产写入仍需项目规则或用户明确授权。创建后保存 developer `thread_id`、`host_id` 和精确 worktree；返回 `clientThreadId` 时等待 setup 完成并解析真实 task，不能把它传给要求 `thread_id` 的工具。开发 prompt 必须要求：
+创建前由 Issue 任务确定目标、验收条件、非目标、允许/禁止路径、依赖、验证门禁、Git 交付策略，以及唯一绝对状态/交付文件与完成 marker。默认授权 Issue task 在验收后 commit 并 push 当前 Issue 分支；PR、合并、强推、发布或生产写入仍需项目规则或用户明确授权。创建后保存 developer `thread_id`、`host_id` 和精确 worktree；返回 `clientThreadId` 时等待 setup 完成并解析真实 task，不能把它传给要求 `thread_id` 的工具。需要调用 `wait_threads` 等待 setup 或 task 时，默认显式传 `timeoutMs: 1800000`（30 分钟）和最近 cursor；目标提前完成、需要关注或收到新用户输入时允许提前返回。开发 prompt 必须要求：
 
 1. 先读项目 `AGENTS.md`、相关代码和 Git 现场，再计划并按 Red → Green → Refactor 推进；不得派生新的写入 worker。
 2. 核对并在交付中报告唯一绝对 worktree、base SHA 和 Git 状态，不在 Issue task checkout 或其他 worktree 写入。

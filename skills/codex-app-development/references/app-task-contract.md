@@ -43,6 +43,8 @@ monitor 使用 `wait-for-task-delivery.zsh`，默认 1800 秒、每 20 秒读取
 
 monitor 与同目标的 active goal、automation heartbeat 互斥。宿主若返回运行 session，父任务只用支持的最长等待续接同一进程。状态和 mtime 未变化时不重复投递；只有父向子的下一条指令使用会话消息。
 
+需要使用 `wait_threads` 获取 setup 或 task 状态时，默认显式传 `timeoutMs: 1800000`（30 分钟）；单目标同时传最近 cursor，多目标放在同一次有界等待中。目标完成、需要关注或收到新用户输入时允许提前返回。
+
 新 `BLOCKED_USER_DECISION` 使用独立决策生命周期：父 task 只读取 Issue 合同、既有决策、依赖、最近相关 3–5 个 turn 和最小证据，生成稳定 `decision_fingerprint`。范围内、可逆、无安全或不可逆影响且有明确推荐的事项直接决定并恢复 worker；必须由用户决定的事项去重、消除可推导下游项后合并成一个决策包，每项给出推荐、理由、关键代价和依赖影响。memory 保存 `prompted_decision_id` 与 `resolved_decision_id`；成功呈现后静默等待，不重复提问，直到用户答案写回合同并成功投递给 worker才 resolved。
 
 P0–P2 必须由 Issue 任务下发给原 developer task 或同一 CLI 会话，返工后由 Issue 任务重新完整验收。确认 P0–P2 清零后，Issue task 先确认 worker 与 monitor 停止，再完成 commit、push、远端 SHA 核验、精确 worktree 安全回收和 Issue 关闭，最后写入 `ISSUE_COMPLETE` 与 Evidence。Epic monitor 读到并核实后启动新的 ready Issue。
