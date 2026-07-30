@@ -14,11 +14,11 @@ description: 使用可见 macOS Terminal + tmux 让 Grok CLI 实现边界明确�
 3. 产品取舍、UI/协议歧义、破坏性操作、权限凭证不明或未知业务文件出现时，先停止并请求用户决策。
 4. 不把需求理解、真实调用链识别或成功标准制定外包给 Grok。
 
-## 委托后自治与父会话通知
+## 委托后自治与单向会话通信
 
-- 任务带有父会话、Epic 监工或其他委托来源时，当前 Issue task 接受委托后独立负责需求对齐、用户决策、Red 审核、返工、验证、Git 交付与异常恢复；不得把普通进度、`DELIVERY_READY`、`REWORK_REQUIRED`、测试失败、worker 退出或可自行处理的阻塞发送给父会话。
+- 任务带有父会话、Epic 监工或其他委托来源时，当前 Issue task 接受委托后独立负责需求对齐、用户决策、Red 审核、返工、验证、Git 交付与异常恢复；所有阶段与终态都写状态/交付文件，不向父会话发送消息。
 - P0-P2、Red 不合格、截图不合格、日志过期或 diff 偏离都由当前 Issue task 直接驱动 Grok 修正并复验。需要产品选择时直接在当前 Issue task 向用户提问；不得让父会话代为转问、批准或恢复 worker。
-- 只有当前委托真正结束时才通知父会话一次：成功完成发送最终 `COMPLETE`；用户取消或穷尽安全恢复仍无法继续时发送最终失败/阻塞结论。最终通知应包含可核验交付证据，不发送阶段性事件或重复状态。
+- 会话消息只允许父会话向当前 Issue task 下发任务、决策或返工；当前 Issue task 不向父会话发送消息。它在阶段变化时原子更新父会话指定的单行状态文件，终态另写交付文件，由父会话的长轮询读取。
 - 父会话的存在不降低当前 Issue task 的自主性，也不构成重启异常 worker、继续返工或执行已授权 Git 闭环所需的新权限。
 
 ## 先做开发 Agent 选型
@@ -198,20 +198,20 @@ Red 交付只包含：累计变更清单、新增/修改测试、每个 fixture 
 
 ## 低噪声长轮询状态与最终交付
 
-启动前指定唯一的仓库外状态文件和交付文件。代码任务状态文件只允许单行 `GROK_PLANNING`、`GROK_RED_READY`、`GROK_IMPLEMENTING`、`GROK_BLOCKED_USER_DECISION` 或 `GROK_DELIVERY_COMPLETE`；豁免 Red 的任务不使用 `GROK_RED_READY`。Grok 在阶段切换时原子覆盖，不写思考过程或长日志。
+启动前指定唯一的仓库外状态文件和交付文件。代码任务状态文件只允许单行 `GROK_PLANNING`、`GROK_RED_READY`、`GROK_IMPLEMENTING`、`GROK_BLOCKED_USER_DECISION`、`GROK_SCOPE_DRIFT`、`GROK_ERROR`、`GROK_ABORTED` 或 `GROK_DELIVERY_COMPLETE`；豁免 Red 的任务不使用 `GROK_RED_READY`。Grok 在阶段切换时原子覆盖，不写思考过程或长日志。
 
-tmux 启动成功后立即运行一次长轮询，让脚本在进程内每 5 秒检查，不要由主 Agent 高频调用工具：
+tmux 启动成功后立即运行一次长轮询，让脚本在进程内每 20 秒检查，不要由主 Agent 高频调用工具：
 
 ```bash
 scripts/wait-for-delivery.zsh \
   "$GROK_STATUS" GROK_DELIVERY_COMPLETE \
   "$GROK_HANDOFF" GROK_DELIVERY_COMPLETE \
-  240
+  1800
 ```
 
-默认等待 240 秒；任务明确较长时可提高，但不要用更短等待恢复高频轮询。脚本循环中零输出；仅当状态和交付末行同时完成时输出一行并退出 0，整段超时才输出一次最后状态并退出 124。若宿主先返回仍在运行的 session，使用一次支持的最长等待续接该进程，不要每 5 秒读取文件、轮询 session 或发送状态更新。
+默认等待 1800 秒。脚本循环中零输出；双重完成时退出 0，可动作状态立即退出 3，整段无可动作终态才输出一次最后状态并退出 124。若宿主先返回仍在运行的 session，使用一次支持的最长等待续接该进程，不要轮询文件、session 或发送状态更新。
 
-等待 Red 时把 expected status 和 marker 都设为 `GROK_RED_READY`；退出 0 后执行 Red-only 审核并向同一 TUI 继续或返工。等待最终交付时仍使用 `GROK_DELIVERY_COMPLETE`。最终等待退出 0 后保留 Grok TUI，只读一次中文交付文件并从完整累计 diff 开始独立验收。退出 124 时按最后状态做一次决策：`GROK_IMPLEMENTING` 或缺失则重新执行一轮 240 秒或更长的等待；`GROK_PLANNING` 持续超时且有明确安全推荐时才按既有安全方式发送一次 `按推荐执行`，随后重新长等；`GROK_RED_READY` 立即进入 Red 审核，不发送推荐；`GROK_BLOCKED_USER_DECISION` 才请求用户决策；异常状态才做一次最小诊断。
+等待 Red 时把 expected status 和 marker 都设为 `GROK_RED_READY`；退出 0 后执行 Red-only 审核并向同一 TUI 继续或返工。等待最终交付时仍使用 `GROK_DELIVERY_COMPLETE`。最终等待退出 0 后保留 Grok TUI，只读一次中文交付文件并从完整累计 diff 开始独立验收。退出 3 时按报告状态处理；退出 124 时，`GROK_PLANNING`、`GROK_IMPLEMENTING` 或缺失都不自动输入，确认仍稳定后再启动一轮 30 分钟监控；`GROK_RED_READY` 立即进入 Red 审核；异常状态才做一次最小诊断。
 
 等待期间不检查中间 Git 状态、文件列表、tmux pane、进程、测试进度、思考过程、token 或中间 diff，不发送 `Ctrl-C`。开发中的文件变化留到最终 Review。若发现 P0-P2，向当前 Grok TUI 提交返工合同后再次使用同一轮询脚本；session 正常存活时不得重启、不得使用 `--continue`、不得新建 tmux session，也不管理 Grok session ID。若精确 session 已异常退出，改走下述唯一替代 TUI 恢复，不通知父会话等待批准。
 
@@ -272,7 +272,7 @@ tmux 只投递一行短指令，内容必须包含该返工文件的绝对路径
 - 若精确 session 已不存在，视为 worker 异常退出。当前 Issue task 不向父会话请求许可、不停在阶段性阻塞，也不自行写业务代码；先审计现有 Git 现场与最后有效交付，确认没有第二个写入者或未确认产品决策。
 - 在同一 worktree、同一分支上启动一个新的唯一可见 Terminal+tmux 替代 TUI。使用新的精确 session 名、runner、状态和交付路径；prompt 必须完整携带原合同、已确认决策、累计 diff、独立 Review 问题、当前阶段和禁止项。不得使用 `--continue`，不得假装恢复原 Grok 内部会话。
 - 替代 TUI 只接续尚未完成的阶段：Red 不合格就先修 Red 并重新交付；Green/Review 返工就只处理已确认 P0-P2；不得重做已通过阶段或扩大需求。任一时刻仍只允许一个 Grok 写入者。
-- 每次异常退出最多自动启动一个替代 TUI；若替代 TUI 再次异常退出，先做最小根因诊断并再选择安全恢复。只有确认环境持续不可用、用户取消或无法在既有授权内继续时，才结束委托并向父会话发送一次最终失败/阻塞结论。
+- 每次异常退出最多自动启动一个替代 TUI；若替代 TUI 再次异常退出，先做最小根因诊断并再选择安全恢复。只有确认环境持续不可用、用户取消或无法在既有授权内继续时，才写入最终失败/阻塞状态与交付证据。
 
 ## 验收通过后关闭 tmux 与专用 Terminal 窗口
 
@@ -292,7 +292,7 @@ tmux kill-session -t "$EXACT_SESSION"
 
 默认由主 Agent（在三层拓扑中即 Issue 负责/验收 task）在验收后提交并 push 当前 Issue 分支；Grok 不负责最终 Git 交付。默认授权不包含 PR、合并、强推、发布或生产写入，除非用户或项目规则明确扩大权限。
 
-发生 Git 操作时，独立核对本地 HEAD、远端 SHA、PR 基线与完整 diff、可合并状态和目标分支。提交与 push 成功后按 `codex-app-development` 合同确认 worktree 干净、无未跟踪文件且远端 SHA 一致，再非强制回收精确 worktree、关闭 Issue。若存在父会话，只在此时发送一次最终 `COMPLETE`；任一步失败都保留现场和 Issue并由当前 Issue task 自行处理，不发送阶段性事件。CI 是否为门禁、是否直接合并，以当前项目 `AGENTS.md` 和用户指令为准，不在技能中硬编码。
+发生 Git 操作时，独立核对本地 HEAD、远端 SHA、PR 基线与完整 diff、可合并状态和目标分支。提交与 push 成功后按 `codex-app-development` 合同确认 worktree 干净、无未跟踪文件且远端 SHA 一致，再非强制回收精确 worktree、关闭 Issue。若存在父会话，只在此时写入最终 `ISSUE_COMPLETE` 状态与交付文件；任一步失败都保留现场和 Issue并由当前 Issue task 自行处理，不发送会话消息。CI 是否为门禁、是否直接合并，以当前项目 `AGENTS.md` 和用户指令为准，不在技能中硬编码。
 
 只有同时满足以下条件才声称完成：
 

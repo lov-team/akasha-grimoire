@@ -1,8 +1,8 @@
 #!/bin/zsh
 set -eu
 
-if [[ $# -lt 4 || $# -gt 5 ]]; then
-  print -u2 "usage: $0 <status-file> <expected-status> <delivery-file> <completion-marker> [timeout-seconds>=1]"
+if [[ $# -lt 4 || $# -gt 6 ]]; then
+  print -u2 "usage: $0 <status-file> <expected-status> <delivery-file> <completion-marker> [timeout-seconds>=1] [poll-seconds>=1]"
   exit 64
 fi
 
@@ -10,8 +10,8 @@ status_file="$1"
 expected_status="$2"
 delivery_file="$3"
 completion_marker="$4"
-timeout_seconds="${5:-240}"
-poll_seconds=5
+timeout_seconds="${5:-1800}"
+poll_seconds="${6:-20}"
 
 if [[ "$status_file" != /* || "$delivery_file" != /* ]]; then
   print -u2 "status and delivery files must use absolute paths"
@@ -23,6 +23,10 @@ if [[ -z "$expected_status" || "$expected_status" == *$'\n'* || -z "$completion_
 fi
 if [[ ! "$timeout_seconds" =~ '^[0-9]+$' || "$timeout_seconds" -lt 1 ]]; then
   print -u2 "timeout must be a positive integer"
+  exit 64
+fi
+if [[ ! "$poll_seconds" =~ '^[0-9]+$' || "$poll_seconds" -lt 1 ]]; then
+  print -u2 "poll interval must be a positive integer"
   exit 64
 fi
 
@@ -46,6 +50,13 @@ while true; do
       exit 0
     fi
   fi
+
+  case "$last_status" in
+    (*_BLOCKED_USER_DECISION|*_SCOPE_DRIFT|*_ERROR|*_ABORTED)
+      printf 'CLI_ACTION_REQUIRED\tstatus=%s\n' "$last_status"
+      exit 3
+      ;;
+  esac
 
   if (( SECONDS >= deadline )); then
     printf 'CLI_WAIT_TIMEOUT\tstatus=%s\ttimeout=%s\n' "$last_status" "$timeout_seconds" >&2

@@ -18,17 +18,16 @@ description: 在 Codex App 中以 Spec、Epic、Issue 和证据关系图轻量�
 | graph | Spec、Epic、Issue id 与当前节点 |
 | scope | Issue 交付合同、验收条件、禁止项 |
 | state | 当前阶段、最近一条简短进展、是否需关注 |
-| cursor | 最近已消费 cursor |
-| event | 最近已消费 `event_id`、最后更新时间与失联阈值 |
+| monitor | 状态/交付文件、最近已处理状态与 mtime、监控进程和失联阈值 |
 | edges | `depends_on`、`blocks`、`produces`、`validates` |
 
 用户已明确要求开发采用三层分工。Epic 监工发现 ready Issue 后先调用 `create_thread` 建立独立 Issue 负责/验收 task；Issue task 再按 `codex-app-development` 创建独立 developer。禁止 Epic 监工直接把 developer 当 Issue task，也禁止 Issue task 自己实现再自审。
 
-Issue task 创建 developer 并确认启动稳定后，必须为自己的 thread 创建唯一 15 分钟 heartbeat 来监控 developer；Epic 监工也必须为 Epic thread 创建唯一 15 分钟 heartbeat，只监控其直接管理的 Issue task。两级 watchdog 分别归属各自的父 thread，不能合并、越级或重复；Issue 仍主动上报阻塞、异常、决策和 Evidence。
+Epic 创建 Issue task、Issue task 创建或继续 developer 后，直接父任务都立即启动一个最长 30 分钟、每 20 秒扫描一次的本地监控程序。两级监控分别只读直属 child 的单行状态文件与终态交付文件，不能合并、越级或重复；child 不向父会话主动发送消息。
 
 代码任务默认使用两道验收门：Issue task 先定义验收矩阵，developer 只写测试并交付真实 Red，Issue task 审核通过后才允许同一 developer 进入 Green → Refactor；最终交付后再审完整累计 diff。Issue task 不得亲自写测试或生产实现。纯文档、纯视觉、格式修改或已有精确失败用例的极小修复可以豁免 Red 预审，但必须在 Issue 合同中写明理由。
 
-默认授权 Issue task 在最终验收通过后完成当前 Issue 的 Git 交付：提交、推送当前 Issue 分支并核对远端 SHA。该默认授权不包含新建或合并 PR、改写历史、强推、发布或生产写入；项目规则或用户另有要求时优先。Git 交付成功后由 Issue task 安全回收精确 developer worktree、关闭对应 Issue，再向 Epic 发送 `COMPLETE`。
+默认授权 Issue task 在最终验收通过后完成当前 Issue 的 Git 交付：提交、推送当前 Issue 分支并核对远端 SHA。该默认授权不包含新建或合并 PR、改写历史、强推、发布或生产写入；项目规则或用户另有要求时优先。Git 交付成功后由 Issue task 安全回收精确 developer worktree、关闭对应 Issue，再原子写入 `ISSUE_COMPLETE` 状态与交付 Evidence，供 Epic 的监控程序读取。
 
 ## 选择开发 Agent
 
@@ -49,7 +48,7 @@ Issue task 创建 developer 并确认启动稳定后，必须为自己的 thread
 - **Agent Task**：分为只读协调/验收的 Issue task 与唯一写入的 developer task，分别保存 task id、host、worktree 和 cursor，不充当新的事实源。
 - **Evidence**：用累计 diff、测试、产物、Review 和远端 SHA 关闭 Issue，再自底向上关闭 Epic 与 Spec。
 
-开始实现前先建立或更新节点与依赖边；没有 Issue 映射的任务不得进入执行。只并行没有未满足依赖的 Issue。范围或方向变化时先更新 Spec/Epic/Issue，再推动原任务；阻塞、决策和验收结论写回对应节点，不另建流水账。Epic 收到已关闭 Issue 的 `COMPLETE` 后立即重新计算 ready 集合，按依赖、写入冲突、资源和优先级启动下一个 Issue，或并行启动多个互不冲突的 ready Issue。
+开始实现前先建立或更新节点与依赖边；没有 Issue 映射的任务不得进入执行。只并行没有未满足依赖的 Issue。范围或方向变化时先更新 Spec/Epic/Issue，再推动原任务；阻塞、决策和验收结论写回对应节点，不另建流水账。Epic 监控到已关闭 Issue 的 `ISSUE_COMPLETE` 后立即重新计算 ready 集合，按依赖、写入冲突、资源和优先级启动下一个 Issue，或并行启动多个互不冲突的 ready Issue。
 
 ## 默认保持轻量
 
@@ -59,55 +58,45 @@ Issue task 创建 developer 并确认启动稳定后，必须为自己的 thread
 4. 先推动原任务解决问题；不要因为进展慢就接管代码或另开 worker。
 5. 问题关闭后立即恢复状态级监工。
 
-## 子任务主动通知
+## 单向下发与状态文件
 
-- 通知链固定为 `developer → Issue 负责/验收 task → Epic 监工 task`；每层只汇总会解锁上层动作的状态。
-- 创建或委派 child task 时传入直接父 `thread_id`、`host_id`、Issue、验收合同和通知合同。
-- child 只在 `RED_READY`、`MILESTONE_READY`、`BLOCKED_USER_DECISION`、`SCOPE_DRIFT`、`DELIVERY_READY`、`COMPLETE`、`ERROR` 或 `ABORTED` 等会解锁父任务动作的状态变化时调用 `send_message_to_thread`；不发送普通 `IMPLEMENTING` 或无变化状态。
-- developer 的最高交付状态是 `DELIVERY_READY`；只有 Issue task 完成 Git 交付、worktree 回收和 Issue 关闭后，才可向 Epic 发送 `COMPLETE`。
-- 事件使用稳定的 `event_id=<issue>:<round>:<state>`；父任务保存 `last_event_id` 并丢弃重复消息。正文只含 child id、state、最小 evidence 和期望动作。
-- 推送是主路径但不是唯一活性证据。父任务必须保留低频 watchdog，防止 child 异常死亡、漏报或通知链路中断。
+- 会话消息方向固定为 `Epic → Issue → developer`，只用于初始合同、决策、继续和返工；child 不调用 `send_message_to_thread` 向父层回推状态。
+- child 必须与直接父任务共享同一组绝对路径；创建时传入 Issue、验收合同、唯一绝对 `status_file`、当前阶段唯一 `handoff_file`、完成 marker 和失联阈值。不能共享文件系统时不得伪装成本地 monitor，也不把父 `thread_id` 当作回报地址。
+- child 在阶段切换时原子覆盖单行状态文件，不写轮询流水账。developer 使用 `*_PLANNING`、`*_RED_READY`、`*_IMPLEMENTING`、`*_BLOCKED_USER_DECISION`、`*_SCOPE_DRIFT`、`*_DELIVERY_COMPLETE`、`*_ERROR`、`*_ABORTED`；Issue task 使用 `ISSUE_ACCEPTING`、`ISSUE_REVIEWING`、`ISSUE_BLOCKED_USER_DECISION`、`ISSUE_COMPLETE`、`ISSUE_ERROR`、`ISSUE_ABORTED`。
+- `RED_READY`、`DELIVERY_COMPLETE` 与 `ISSUE_COMPLETE` 必须同时具备末行 marker 正确的交付文件；完成标记只表示待父层处理，不替代独立 Review。
+- 父任务保存最近已处理的状态、mtime 和交付 marker。相同快照只静默等待，不重复投递；只有父层向 child 的输入需要会话消息。
 
-## 用两阶段 ack 保证唤醒
+## 每次下发后启动有界监控
 
-watchdog 是推进触发器，不是状态播报器。memory 必须分开保存 `observed_event_id` 与 `acked_event_id`：
-
-1. 快照首次发现 `RED_READY` 时，若 Issue task 未在执行对应 Review，向原 Issue task 成功投递一次 high-reasoning follow-up，要求立即审核测试并决定打回或发送 `CONTINUE_GREEN`。
-2. 首次发现 `DELIVERY_READY` 时，同样投递一次 high-reasoning follow-up，要求立即审核完整累计 diff、独立复测并闭环 P0–P2；不能只发送“worker 已完成”的摘要。
-3. 只有 `send_message_to_thread` 明确成功排队，或即时快照已证明目标 task 正在执行对应 Review，才写 `acked_event_id`。投递失败不得 ack，下一轮必须重试；旧的 `sent_event_ids` 不能单独视为已唤醒。
-4. 目标 task 已在处理同一事件时只 ack，不再投递。状态、mtime、cursor 与 event_id 都未变化时不输出 commentary/final、不发消息、不复述旧结论，立即静默结束。
-5. Epic 层同理：只有 Issue 的新 `COMPLETE` 已触发依赖图更新和 ready Issue 启动，才能 ack；不能只报告 Issue 已完成。
-6. 新 `BLOCKED_USER_DECISION` 不直接转发原始问题；投递 high-reasoning follow-up，要求父 task 按下述决策辅助协议恢复最小必要上文、合并判断并推进。
+1. 初始委托、`CONTINUE_GREEN`、用户决策或返工输入成功投递后，直接父任务立即启动且只启动一个 30 分钟监控程序；同一 child 同时不得有第二个 monitor。
+2. 程序每 20 秒只读一次状态与交付末行，循环中零输出。目标交付双标记成立时退出 0；`*_BLOCKED_USER_DECISION`、`*_SCOPE_DRIFT`、`*_ERROR`、`*_ABORTED` 时立即退出 3；30 分钟内没有可动作终态则退出 124。
+3. 退出 0 后父任务只读一次交付文件并立即进入对应 Review 或图谱推进；退出 3 后只恢复解决该状态所需的最小上下文；退出 124 且 child 仍稳定执行时可启动下一轮 30 分钟监控，不发送“仍在运行”。
+4. 宿主若先返回运行 session，只用支持的最长等待续接同一进程；不由模型每 20 秒查询 session、状态文件、pane 或完整 task 历史。
+5. 输入投递失败时不启动 monitor；先解决投递失败。监控退出后才允许对同一 child 投递下一条输入并启动新 monitor，避免重复指令与双重消费者。
 
 ## 成本与并发边界
 
 - 不对用户可同时运行的任务数量设置硬上限；并发由依赖、写入冲突、资源和用户优先级决定。
 - 无论并发多少，每条父子边只能有一个监控所有者：Issue task 监控 developer，Epic 监工只监控 Issue task；Epic、Issue task 和 CLI wrapper 不得同时轮询同一 developer 或状态文件。
-- heartbeat 必须附着到被监控目标的直接父任务：developer watchdog 的 `targetThreadId` 是具体 Issue task，Issue watchdog 的 `targetThreadId` 是 Epic 监工 task。
-- 启动、输入投递或异常恢复后的前两个等待窗用于确认链路稳定；进入明确的 `IMPLEMENTING` 或等价稳定状态后，结束当前持续等待 turn，改用默认 15 分钟 watchdog heartbeat。
-- heartbeat 只做一次即时状态读取或 `wait_threads timeoutMs: 0` 紧凑快照，核对状态、mtime、cursor、event id 和失联阈值。状态不变时不发 commentary/final、不读取历史、不重新执行完整推理链；只有新的漏报、失联、完成、阻塞或异常才唤醒负责验收的 task，并按两阶段 ack 确认推进动作成功。
-- heartbeat 不得与同一目标上的 active `/goal` 自动续跑并存。若同一外部状态等待已重复至少三轮、没有其他可安全推进的就绪节点，且必须等待 worker 或其他外部状态变化，按 goal 合同把 goal 标为 `blocked`，确认 task 已 idle 后再启用 heartbeat；这是真实外部阻塞，不是因任务困难或耗时而暂停。未达到 blocked 条件时 Agent 无权暂停 goal，应只保留 goal 这一名监控所有者，并让新建 heartbeat 保持 `PAUSED`，避免双重唤醒。
-- 已有长会话不得仅为降低监控成本临时切换模型：跨模型会失去原有 prompt cache，首轮可能比继续原模型更贵。默认保持同一个 `gpt-5.6-sol`：纯状态监工 follow-up 使用 `thinking=low`，正式合同判断、累计 diff Review、失败诊断与 P0–P2 闭环使用 `thinking=high`。向既有 task 发送监工或 Review 唤醒消息时显式携带对应 thinking override；自动续跑或 heartbeat 不能设置该参数时，保持原模型并在任务/UI 配置中优先固定监工为 low，不为切 reasoning 重建 worker 或丢失原会话。
-- worker 交付标记只代表待 Review，不等于目标完成。Issue task 独立 Review 并确认 P0–P2 清零后，先确认 worker 停止并删除 developer watchdog，再完成 commit、push、远端 SHA 核验、精确 worktree 回收和 Issue 关闭，才向 Epic 主动上报 `COMPLETE`。Epic 验证 Evidence 后删除对应 Issue watchdog并推进新的 ready Issue。目标取消或确定不再需要监控时也直接删除 watchdog，避免保留暂停的孤儿 automation。
+- 监控程序必须由被监控目标的直接父任务启动：Issue task 监控 developer，Epic 监工只监控 Issue task。
+- monitor 不得与同一目标上的 active `/goal` 自动续跑或 automation heartbeat 并存；三者只能保留一个监控所有者。本工作流默认选择上述 30 分钟本地 monitor，不再创建周期 automation。
+- 已有长会话不得仅为降低监控成本临时切换模型：跨模型会失去原有 prompt cache，首轮可能比继续原模型更贵。默认保持同一个 `gpt-5.6-sol`：纯状态与 monitor 结果处理使用 `thinking=low`，正式合同判断、累计 diff Review、失败诊断与 P0–P2 闭环使用 `thinking=high`。向既有 child 下发监工或 Review 输入时显式携带对应 thinking override；不为切 reasoning 重建 worker 或丢失原会话。
+- worker 交付标记只代表待 Review，不等于目标完成。Issue task 独立 Review 并确认 P0–P2 清零后，先确认 worker 停止与 monitor 退出，再完成 commit、push、远端 SHA 核验、精确 worktree 回收和 Issue 关闭，最后写入 `ISSUE_COMPLETE` 与 Evidence。Epic 的 monitor 读到后推进新的 ready Issue。
 
 ## 按路径低噪声等待
 
-监工 Codex App 任务时，启动确认阶段优先一次调用 `wait_threads`，使用宿主允许的最长等待；当前 `timeoutMs` 单次最大为 `120000`。传入最近 `afterCursor`，多任务尽量在同一有界等待中聚合。连续两个 120 秒窗口状态不变且任务仍稳定执行时，不再继续同一 turn 的无限等待链，也不发送“仍在运行”类消息；先依赖 child 状态事件，并由唯一监控所有者建立默认每 15 分钟一次的 thread watchdog。watchdog 每次只取一份即时紧凑快照，状态无变化就静默结束本次检查。
-
-用户明确要求持续监工、稍后检查、保持关注或完成后继续时，使用 Codex App heartbeat automation，而不是让主模型常驻循环。创建前检查现有 automation，优先更新同一目标的既有 heartbeat，避免重复；目标 task、检查对象、完成条件、两阶段 ack 和停止条件必须写清楚。heartbeat 默认使用 `notificationPolicy=failed_runs_only`，正常检查和成功唤醒不另发通知；实际 Review 或推进在目标 task 中呈现。不要把 heartbeat 建成新的用户侧 task，也不要为同一 worker 创建多个 heartbeat。
-
-监工提供单行状态文件和最终交付文件的外部 Agent 时，运行：
+监工 Codex App task 与 CLI worker 都统一要求 child 写单行状态文件和最终交付文件。父任务下发成功后运行：
 
 ```bash
 scripts/wait-for-task-delivery.zsh \
   "$STATUS_FILE" "$DELIVERY_COMPLETE_STATUS" \
   "$HANDOFF_FILE" "$DELIVERY_COMPLETE_MARKER" \
-  240
+  1800
 ```
 
-脚本在自身进程内每 5 秒检查一次，默认 240 秒；循环中零输出，状态与交付末行双重完成时才输出一行并退出 0，整段超时只输出一次最后状态并退出 124。若宿主先返回运行 session，使用一次支持的最长等待续接，不要由主 Agent 高频查询 session 或文件。
+脚本在自身进程内每 20 秒检查一次，默认 1800 秒；循环中零输出，状态与交付末行双重完成时退出 0，可动作状态退出 3，整段超时只输出一次最后状态并退出 124。若宿主先返回运行 session，使用一次支持的最长等待续接，不要由主 Agent 查询文件。
 
-退出 0 后只读一次交付文件并进入验收。退出 124 时：若尚处于启动确认阶段，可再执行一次 240 秒等待；若已经连续两个窗口保持稳定推进，则停止当前 turn 的机械等待，交给唯一 heartbeat 做低频即时检查。阻塞状态才请求决策；异常状态才做一次最小诊断。每个外部任务使用自己的状态、交付路径和监控所有者，避免串读证据。
+退出 0 后只读一次交付文件并进入验收；退出 3 时处理唯一可动作状态；退出 124 且 child 仍稳定推进时可再启动一轮 30 分钟监控。每个任务使用自己的状态、交付路径和监控所有者，避免串读证据。
 
 ## 上下文与输出闸门
 
@@ -135,7 +124,7 @@ handoff 只保留任务图、当前 owner、worktree/分支、稳定状态、最
 
 ## 处理阻塞与决策
 
-收到新的 `BLOCKED_USER_DECISION` 后才进入决策模式；正常 heartbeat 不读取上文。父 task 使用 high reasoning，并按顺序处理：
+收到新的 `BLOCKED_USER_DECISION` 后才进入决策模式；正常 monitor 不读取上文。父 task 使用 high reasoning，并按顺序处理：
 
 1. 从 Issue 合同、已确认决策、依赖边、最近相关 3–5 个 turn 和支持判断的最小代码/证据恢复上下文；先读摘要与精确片段，只有冲突时才扩读，不拉取完整历史或思考过程。
 2. 把新问题规范化并生成 `decision_fingerprint`，去掉重复、已回答、被上游选择蕴含或已被新问题取代的项；按依赖顺序只保留真正阻塞推进的上游决策。
@@ -167,17 +156,17 @@ developer 最终交付后，仍由同一独立 Issue task 验收；Issue task �
 4. 将问题标为 P0-P3；P0-P2 必须回到原任务关闭并重新验收。
 5. 只有证据一致、P0-P2 清零、未验证项已披露时才给出通过结论。
 
-developer 自述、其测试摘要或“命令成功”不能替代 Review。Issue task 验收通过后完成 Git 交付、worktree 回收和 Issue 关闭，再把 Evidence 推给 Epic；Epic 只核实闭环、更新上层图谱并推进已解锁工作。
+developer 自述、其测试摘要或“命令成功”不能替代 Review。Issue task 验收通过后完成 Git 交付、worktree 回收和 Issue 关闭，再写入 `ISSUE_COMPLETE` 与 Evidence；Epic 只核实闭环、更新上层图谱并推进已解锁工作。
 
 ## Issue 交付、关闭与续跑
 
 最终 Review 通过后由 Issue task 按顺序完成：
 
-1. 确认 developer 已完成且不再写入，删除 developer watchdog；关闭对应 CLI/tmux 会话时遵守其精确目标清理合同。
+1. 确认 developer 已完成且不再写入，并确认 developer monitor 已退出；关闭对应 CLI/tmux 会话时遵守其精确目标清理合同。
 2. 检查完整 Git 状态，只提交当前 Issue 已验收的 tracked/untracked 文件；发现来源不明或越界文件就停止关闭。
 3. 默认创建当前 Issue 的提交并推送当前分支，核对本地 HEAD 与目标远端 SHA 完全一致；push 失败时保留 Issue 打开并处理失败。
 4. 仅对记录的精确 developer worktree 执行非强制回收；先确认 Git 状态干净、无未提交或未跟踪文件且提交已在远端，禁止 `--force`、模糊路径或批量删除。任一条件不满足就保留 worktree 和 Issue。
 5. 关闭图谱中的对应 Issue；若该节点绑定远端 Issue，也由 Issue task 按项目工具和权限关闭。
-6. 向 Epic 发送唯一 `COMPLETE`，Evidence 至少包含 commit、remote SHA、验证摘要、worktree 回收结果和 Issue closed 状态。
+6. 原子写入唯一 `ISSUE_COMPLETE` 状态与交付文件，Evidence 至少包含 commit、remote SHA、验证摘要、worktree 回收结果和 Issue closed 状态。
 
-Epic 收到并核实 `COMPLETE` 后删除该 Issue watchdog，更新依赖边并立即启动一个或多个已解锁且互不冲突的 ready Issue。Epic 不重复执行 commit、push、worktree 回收或 Issue 关闭。
+Epic monitor 读到并核实 `ISSUE_COMPLETE` 后退出，更新依赖边并立即启动一个或多个已解锁且互不冲突的 ready Issue。Epic 不重复执行 commit、push、worktree 回收或 Issue 关闭。

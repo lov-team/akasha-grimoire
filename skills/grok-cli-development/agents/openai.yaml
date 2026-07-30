@@ -1,4 +1,4 @@
 interface:
   display_name: "Grok 可见 TUI 开发与视觉生成"
   short_description: "单一可见 TUI 经计划、Red 审核、实现与独立验收完成交付"
-  default_prompt: "使用 $grok-cli-development 在唯一活动的可见 macOS Terminal + tmux TUI 中驱动 Grok：先做任务规模闸门和中文计划，高风险代码先交付 Red 证据供主 Agent 审核，再完成实现或视觉生成并独立验收；TUI 异常退出时由当前任务自主启动唯一替代 TUI。"
+  default_prompt: "使用 $grok-cli-development 在唯一活动的可见 macOS Terminal + tmux TUI 中单向下发任务，以 30 分钟状态文件 monitor 等待 Red 与交付，再独立验收；TUI 异常退出时由当前任务自主启动唯一替代 TUI。"

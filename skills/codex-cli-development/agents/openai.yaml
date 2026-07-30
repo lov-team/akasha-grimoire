@@ -1,4 +1,4 @@
 interface:
   display_name: "Codex CLI 可见 TUI 开发"
   short_description: "由 Issue 任务自治驱动唯一 Codex CLI TUI 完成交付"
-  default_prompt: "使用 $codex-cli-development 驱动唯一活动的 Codex CLI TUI 先交付 Red，审核后继续实现，再由 Issue task 完成 Git 交付、worktree 回收和 Issue 关闭；TUI 异常退出时自主启动唯一替代 TUI，只在委托最终结束时通知父会话。"
+  default_prompt: "使用 $codex-cli-development 单向驱动唯一活动的 Codex CLI TUI，以 30 分钟状态文件 monitor 等待 Red 与最终交付，再由 Issue task 独立验收并完成 Git 闭环；不向父会话回推消息。"

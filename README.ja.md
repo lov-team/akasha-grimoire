@@ -65,8 +65,8 @@ Graph Engineering は、納品作業を一時的な prompt の列ではなく、
 
 | Skill | 主な用途 | 提供する能力 |
 | --- | --- | --- |
-| [`agent-task-supervisor`](skills/agent-task-supervisor/) | Spec/Epic/Issue グラフによる複数 task の監督、調整、受け入れ確認 | 並列数を制限せず、Epic は Issue を、各 Issue は developer を別々の 15 分 watchdog で監視。状態は sol low、Review は high |
-| [`codex-app-development`](skills/codex-app-development/) | 独立 Issue 受け入れ task から Codex App developer を作成 | Epic 監督 → Issue 受け入れ → developer の三層分離、worktree 隔離、双方向 event、同一 worker 修正、独立 diff Review |
+| [`agent-task-supervisor`](skills/agent-task-supervisor/) | Spec/Epic/Issue グラフによる複数 task の監督、調整、受け入れ確認 | 各指示の送信後、直接の親が 30 分間・20 秒間隔のローカル monitor を起動。状態は sol low、Review は high |
+| [`codex-app-development`](skills/codex-app-development/) | 独立 Issue 受け入れ task から Codex App developer を作成 | Epic 監督 → Issue 受け入れ → developer の三層分離、worktree 隔離、一方向指示、状態ファイル監視、同一 worker 修正、独立 diff Review |
 
 ### 画像・ゲーム・音声制作
 
@@ -81,11 +81,11 @@ Graph Engineering は、納品作業を一時的な prompt の列ではなく、
 
 ### App 子 task と CLI 開発 worker
 
-開発は三層ループを使います。**Epic 監督 App が ready Issue を発見 → 独立 Issue App が契約と受け入れを担当 → 別 developer が実装 → Issue App が Review し P0–P2 を元 worker に返却 → Evidence を Epic に返却**。developer の既定は新しい Codex App task/worktree です。Grok、Claude Code、Gemini、Codex CLI を指定した場合は最下層 worker だけを置換します。Issue App は業務コードを書きません。各親 task は直属の子に対して一つの 15 分 heartbeat を持ち、Epic は Issue、Issue は developer を監視します。子 task は状態変化も上位へ push します。P0–P2 解消後は developer watchdog を削除し、Issue の merge 後は対応する Issue watchdog を削除します。
+開発は三層ループを使います。**Epic 監督 App が ready Issue を発見 → 独立 Issue App が契約と受け入れを担当 → 別 developer が実装 → Issue App が Review し P0–P2 を元 worker に返却 → Issue が Evidence を書き、Epic が読み取る**。developer の既定は新しい Codex App task/worktree です。Grok、Claude Code、Gemini、Codex CLI を指定した場合は最下層 worker だけを置換します。Issue App は業務コードを書きません。会話メッセージは `Epic → Issue → developer` の一方向で、各指示の送信後に直接の親が状態・交付ファイルを 20 秒間隔で最大 30 分監視します。
 
 | Skill | Worker | 特徴 |
 | --- | --- | --- |
-| [`codex-app-development`](skills/codex-app-development/) | Codex App developer | 独立 Issue App が作成し、分離 worktree、階層 event、15 分 watchdog、同一 task 修正を提供 |
+| [`codex-app-development`](skills/codex-app-development/) | Codex App developer | 独立 Issue App が作成し、分離 worktree、一方向指示、30 分ローカル monitor、同一 task 修正を提供 |
 | [`grok-cli-development`](skills/grok-cli-development/) | Grok CLI | 開発、画像/動画生成、中国語の計画、自己確認、同一セッションでの修正 |
 | [`gemini-cli-development`](skills/gemini-cli-development/) | Gemini CLI | ローカルで検証した CLI 契約に基づく開発と納品 |
 | [`claude-code-cli-development`](skills/claude-code-cli-development/) | Claude Code | 権限モード、セッション継続、状態納品、独立した受け入れ確認 |
@@ -171,7 +171,7 @@ $fish-audio-speech を使ってナレーションを音声化し、冒頭・中�
 | Grok / Seedance | 専用 key、`NEW_API_API_KEY`、`OPENAI_API_KEY` | 実リクエストは課金対象。規模を広げる前に 1 件の smoke を実行 |
 | Suno / Fish Audio | `NEW_API_API_KEY` または `OPENAI_API_KEY` | 実リクエストはクォータを消費。基本テストでは外部生成サービスを呼び出さない |
 | 公式残高リチャージ | `AKASHA_RECHARGE_USD` または各スクリプトの `--recharge-usd`（既定 10 USD） | 公式 new-api のみ。1 コマンド最大 1 回の QR 充電と失敗 HTTP の 1 回再試行。Agent は `qrPngPath` を表示し `publicPageUrl` を提示。Key/チケットを漏らさない |
-| Codex App 三層 task | Epic 監督、Issue 受け入れ task、developer task/worktree | developer → Issue → Epic の通知、Epic→Issue と Issue→developer の各 edge に一つの 15 分 watchdog、Issue による完全 diff の独立 Review |
+| Codex App 三層 task | Epic 監督、Issue 受け入れ task、developer task/worktree | Epic→Issue→developer の一方向指示、各 edge の 30 分・20 秒間隔 monitor、Issue による完全 diff の独立 Review |
 | CLI worker | 対応するローカル CLI、macOS Terminal、tmux | 初回利用時と更新後に `--version` と `--help` を再確認 |
 
 ## 検証
