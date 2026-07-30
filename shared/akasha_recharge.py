@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Shared LovBrowser official new-api balance recharge helper.
 
-Only the official new-api origin may trigger automatic recharge. Private or
-third-party OpenAI-compatible gateways keep their original error semantics even
-if they forge recharge metadata.
+Only an exact official new-api origin may trigger recharge. Private or third-
+party OpenAI-compatible gateways keep their original error semantics even if
+they forge recharge metadata. Running this module as a CLI starts the same
+recharge protocol proactively, without first manufacturing a quota failure.
 
 Top-level rule: each CLI command creates one RechargeController. At most one
 ticket/session is created for the whole command. After that single recharge,
@@ -15,7 +16,7 @@ Protocol (stable server contract):
   2. POST /v1/tooling/recharge-ticket with Authorization: Bearer <API key>
      against the official HTTPS origin only.
   3. POST lovbrowser_session_endpoint with JSON {"ticket": "..."} only (no key).
-  4. Download qrPngUrl to a unique outside-repo temp path; emit one-line event.
+  4. Emit the clickable LovBrowser public payment page URL in one-line event.
   5. Poll GET session/{publicId} until SUCCEEDED / EXPIRED / FAILED / timeout.
   6. On SUCCEEDED, retry only the failed HTTP closure once.
 
@@ -41,9 +42,15 @@ from typing import Any, Callable, Mapping, TextIO, TypeVar
 
 T = TypeVar("T")
 
-OFFICIAL_NEWAPI_HOST = "newapi.1234bot.com"
+OFFICIAL_NEWAPI_HOSTS = frozenset(
+    {
+        "llmapi.lovbrowser.com",
+        "llmapi-direct.lovbrowser.com",
+        "newapi.1234bot.com",  # legacy public alias
+    }
+)
 OFFICIAL_NEWAPI_BASE_URL = "https://newapi.1234bot.com/v1"
-DEFAULT_FACE_VALUE_USD_CENT = 1000  # product default 10 USD
+DEFAULT_FACE_VALUE_USD_CENT = 100  # product default 1 USD
 MIN_FACE_VALUE_USD_CENT = 100  # 1 USD
 MAX_FACE_VALUE_USD_CENT = 1_000_000  # 10000 USD
 INSUFFICIENT_CODE = "insufficient_user_quota"
@@ -116,7 +123,7 @@ def is_official_newapi_base_url(base_url: str) -> bool:
         return False
     if parsed.username is not None or parsed.password is not None:
         return False
-    if not hostname or hostname.lower() != OFFICIAL_NEWAPI_HOST:
+    if not hostname or hostname.lower() not in OFFICIAL_NEWAPI_HOSTS:
         return False
     if port not in (None, 443):
         return False
@@ -153,7 +160,7 @@ def resolve_face_value_usd_cent(
 ) -> int:
     """Resolve face value cents.
 
-    CLI wins over AKASHA_RECHARGE_USD; default is 10 USD.
+    CLI wins over AKASHA_RECHARGE_USD; default is 1 USD.
     Callers that must preserve private-gateway behavior should only resolve
     environment values when a recharge is actually triggered (use_env=True at
     trigger time). Explicit CLI values may be validated early.
@@ -255,8 +262,8 @@ def build_recharge_event(
 ) -> dict[str, Any]:
     """Structured one-line event fields safe for Agent consumption.
 
-    Intentionally omits payUrl and any ticket/credential fields. Consumers must
-    render qrPngPath in the Codex conversation and offer publicPageUrl.
+    Intentionally omits QR/payUrl and any ticket/credential fields. Consumers
+    must offer publicPageUrl as the only payment action in the conversation.
     """
     return {
         "event": EVENT_NAME,
@@ -265,7 +272,6 @@ def build_recharge_event(
         "faceValueUsdCent": face_value_usd_cent,
         "currency": currency,
         "expireTime": expire_time,
-        "qrPngPath": qr_png_path,
         "publicPageUrl": public_page_url,
         "statusUrl": status_url,
     }
@@ -426,6 +432,12 @@ def _session_from_payload(
     *,
     allow_http: bool = False,
 ) -> RechargeSessionView:
+    # LovBrowser's public controller uses the standard ApiResponse envelope,
+    # while local fixtures and compatible deployments may return the session
+    # object directly. Accept exactly one object-valued ``data`` layer.
+    nested = payload.get("data")
+    if isinstance(nested, dict):
+        payload = nested
     public_id = payload.get("publicId") or payload.get("public_id")
     if not isinstance(public_id, str) or not public_id.strip():
         raise AkashaRechargeError("recharge session response missing publicId")
@@ -525,7 +537,7 @@ def perform_recharge(
     allow_non_official_base: bool = False,
     allow_http_endpoints: bool = False,
 ) -> RechargeSessionView:
-    """Issue ticket, create session, download QR, poll until SUCCEEDED or stop.
+    """Issue ticket, create session, emit public page URL, poll until completion.
 
     allow_http_endpoints / ticket_base_url are test-only injections. Production
     callers must leave them at defaults so official HTTPS is enforced.
@@ -542,12 +554,17 @@ def perform_recharge(
     ):
         raise AkashaRechargeError("recharge face value cents out of allowed range")
 
-    ticket_url = _ticket_url(ticket_endpoint, ticket_base_url=ticket_base_url)
+    # Sign on the same exact official new-api origin that authenticated the API
+    # key. LovBrowser receives only the resulting compact ticket.
+    ticket_url = _ticket_url(
+        ticket_endpoint,
+        ticket_base_url=ticket_base_url or base_url,
+    )
     if not allow_http_endpoints:
         _require_https_url(ticket_url, "ticket URL", allow_http=False)
         # Production ticket host must remain official.
         host = urllib.parse.urlsplit(ticket_url).hostname or ""
-        if host.lower() != OFFICIAL_NEWAPI_HOST:
+        if host.lower() not in OFFICIAL_NEWAPI_HOSTS:
             raise AkashaRechargeError("ticket requests are only allowed against the official new-api origin")
 
     status, ticket_payload, _raw = _http_json(
@@ -592,27 +609,20 @@ def perform_recharge(
         )
 
     view = _session_from_payload(session_payload, session_endpoint, allow_http=allow_http_endpoints)
-    view.qr_png_path = _download_qr_png(
-        view.qr_png_url,
-        view.public_id,
-        qr_parent_dir,
-        urlopen,
-        allow_http=allow_http_endpoints,
-    )
     event = build_recharge_event(
         public_id=view.public_id,
         status=view.status,
         face_value_usd_cent=view.face_value_usd_cent,
         currency=view.currency,
         expire_time=view.expire_time,
-        qr_png_path=view.qr_png_path,
+        qr_png_path=None,
         public_page_url=view.public_page_url,
         status_url=view.status_url,
     )
     emit_recharge_event(event, file=event_file)
     print(
         f"AKASHA_RECHARGE status={view.status} publicId={view.public_id} "
-        f"qrPngPath={view.qr_png_path} publicPageUrl={view.public_page_url} "
+        f"publicPageUrl={view.public_page_url} "
         f"statusUrl={view.status_url}",
         file=event_file if event_file is not None else sys.stderr,
         flush=True,
@@ -643,14 +653,13 @@ def perform_recharge(
                 f"{_safe_links(view)}"
             )
         view = _session_from_payload(polled, session_endpoint, allow_http=allow_http_endpoints)
-        view.qr_png_path = event["qrPngPath"]  # type: ignore[assignment]
         progress = build_recharge_event(
             public_id=view.public_id,
             status=view.status,
             face_value_usd_cent=view.face_value_usd_cent,
             currency=view.currency,
             expire_time=view.expire_time,
-            qr_png_path=view.qr_png_path,
+            qr_png_path=None,
             public_page_url=view.public_page_url,
             status_url=view.status_url,
         )
@@ -892,9 +901,10 @@ def add_recharge_argument(parser: Any, *, suppress_default: bool = False) -> Non
     kwargs: dict[str, Any] = {
         "dest": "recharge_usd",
         "help": (
-            "USD face value for automatic official new-api recharge when balance is "
-            "insufficient (default: 10, or AKASHA_RECHARGE_USD). CLI overrides env. "
-            "With subcommands, place before or after the subcommand name."
+            "USD face value for official new-api recharge: automatic when balance is "
+            "insufficient, or proactive when running shared/akasha_recharge.py "
+            "(default: 1, or AKASHA_RECHARGE_USD). CLI overrides env. With "
+            "subcommands, place before or after the subcommand name."
         ),
     }
     if suppress_default:
@@ -912,3 +922,64 @@ def recharge_parent_parser() -> Any:
     # SUPPRESS so root-level --recharge-usd is kept when subcommand is parsed.
     add_recharge_argument(parent, suppress_default=True)
     return parent
+
+
+def _direct_api_key(environ: Mapping[str, str] | None = None) -> str:
+    values = os.environ if environ is None else environ
+    for name in ("IMAGE_PROXY_API_KEY", "NEW_API_API_KEY", "OPENAI_API_KEY"):
+        value = values.get(name, "")
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return ""
+
+
+def direct_recharge_main(argv: list[str] | None = None) -> int:
+    """Proactively create one official recharge session and emit its event."""
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description=(
+            "Create an Akasha/LovBrowser recharge session directly; no quota "
+            "failure is required. The API key is read from the environment."
+        )
+    )
+    parser.add_argument(
+        "--base-url",
+        default=OFFICIAL_NEWAPI_BASE_URL,
+        help=f"official new-api base URL (default: {OFFICIAL_NEWAPI_BASE_URL})",
+    )
+    add_recharge_argument(parser)
+    parser.add_argument("--poll-timeout", type=float, default=900.0)
+    parser.add_argument("--request-timeout", type=float, default=60.0)
+    parser.add_argument("--qr-parent-dir")
+    args = parser.parse_args(argv)
+
+    try:
+        validate_cli_recharge_usd(args.recharge_usd)
+        face_value_usd_cent = resolve_face_value_usd_cent(args.recharge_usd, use_env=True)
+        api_key = _direct_api_key()
+        if not api_key:
+            raise AkashaRechargeError(
+                "missing API key: set IMAGE_PROXY_API_KEY, NEW_API_API_KEY, or OPENAI_API_KEY"
+            )
+        view = perform_recharge(
+            api_key=api_key,
+            base_url=args.base_url,
+            face_value_usd_cent=face_value_usd_cent,
+            poll_timeout=args.poll_timeout,
+            request_timeout=args.request_timeout,
+            qr_parent_dir=args.qr_parent_dir,
+        )
+        print(
+            f"AKASHA_RECHARGE_COMPLETE status={view.status} publicId={view.public_id}",
+            file=sys.stderr,
+            flush=True,
+        )
+        return 0
+    except AkashaRechargeError as exc:
+        print(f"AKASHA_RECHARGE_FAIL {exc}", file=sys.stderr, flush=True)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(direct_recharge_main())

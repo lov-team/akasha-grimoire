@@ -36,10 +36,10 @@ def _require_module() -> Any:
 
 
 class ResolveAmountTests(unittest.TestCase):
-    def test_default_is_10_usd_cents(self) -> None:
+    def test_default_is_1_usd_cents(self) -> None:
         mod = _require_module()
         with mock.patch.dict(os.environ, {}, clear=True):
-            self.assertEqual(mod.resolve_face_value_usd_cent(None), 1000)
+            self.assertEqual(mod.resolve_face_value_usd_cent(None), 100)
 
     def test_env_and_cli_priority(self) -> None:
         mod = _require_module()
@@ -60,7 +60,7 @@ class ResolveAmountTests(unittest.TestCase):
     def test_env_not_read_when_use_env_false(self) -> None:
         mod = _require_module()
         with mock.patch.dict(os.environ, {"AKASHA_RECHARGE_USD": "not-a-number"}, clear=True):
-            self.assertEqual(mod.resolve_face_value_usd_cent(None, use_env=False), 1000)
+            self.assertEqual(mod.resolve_face_value_usd_cent(None, use_env=False), 100)
             mod.validate_cli_recharge_usd(None)
             with self.assertRaises(mod.AkashaRechargeError):
                 mod.validate_cli_recharge_usd("bad")
@@ -70,6 +70,8 @@ class OfficialOriginTests(unittest.TestCase):
     def test_official_origin_allowed_variants(self) -> None:
         mod = _require_module()
         for value in (
+            "https://llmapi.lovbrowser.com/v1",
+            "https://llmapi-direct.lovbrowser.com/v1",
             "https://newapi.1234bot.com/v1",
             "https://newapi.1234bot.com",
             "https://newapi.1234bot.com/v1/",
@@ -90,8 +92,20 @@ class OfficialOriginTests(unittest.TestCase):
             "https://private.example/v1",
             "https://1234bot.com/v1",
             "https://newapi.1234bot.com.attacker/v1",
+            "https://llmapi.lovbrowser.com.evil.example/v1",
+            "https://user:pass@llmapi.lovbrowser.com/v1",
         ):
             self.assertFalse(mod.is_official_newapi_base_url(value), value)
+
+    def test_ticket_url_follows_selected_official_origin(self) -> None:
+        mod = _require_module()
+        self.assertEqual(
+            mod._ticket_url(
+                "/v1/tooling/recharge-ticket",
+                ticket_base_url="https://llmapi.lovbrowser.com/v1",
+            ),
+            "https://llmapi.lovbrowser.com/v1/tooling/recharge-ticket",
+        )
 
 
 class TriggerDetectionTests(unittest.TestCase):
@@ -170,12 +184,12 @@ class SensitiveEventTests(unittest.TestCase):
             if forbidden not in {"ticket"}:  # statusUrl path may contain tooling words only
                 pass
         self.assertNotIn("payUrl", encoded)
+        self.assertNotIn("qrPngPath", encoded)
         self.assertEqual(event["publicId"], "pub_abc")
-        self.assertEqual(event["qrPngPath"], "/tmp/akasha-recharge-x/pub_abc.png")
         self.assertEqual(event["publicPageUrl"], "https://lovbrowser.example/pay/pub_abc")
         self.assertEqual(event["statusUrl"], "https://lovbrowser.example/api/v1/tooling/api-recharge-sessions/pub_abc")
-        # Fields required for Codex to render QR + offer public page
-        for key in ("qrPngPath", "publicPageUrl", "statusUrl", "publicId", "status", "faceValueUsdCent"):
+        # Fields required for Codex to offer the public checkout page and monitor status.
+        for key in ("publicPageUrl", "statusUrl", "publicId", "status", "faceValueUsdCent"):
             self.assertIn(key, event)
 
     def test_safe_error_message_never_echoes_server_secrets(self) -> None:
@@ -330,15 +344,18 @@ class _RechargeHandler(BaseHTTPRequestHandler):
             self._json(
                 200,
                 {
-                    "publicId": "pub_test_1",
-                    "status": "PENDING_PAYMENT",
-                    "faceValueUsdCent": 1000,
-                    "currency": "USD",
-                    "expireTime": 1_700_000_000,
-                    "publicPageUrl": f"{host}/pay/pub_test_1",
-                    "payUrl": f"{host}/pay/pub_test_1/checkout?sig=SECRET_PAY",
-                    "qrPngUrl": f"{host}/qr/pub_test_1.png",
-                    "message": "scan to pay ticket=COMPACT_TICKET_SECRET",
+                    "code": 200,
+                    "data": {
+                        "publicId": "pub_test_1",
+                        "status": "PENDING_PAYMENT",
+                        "faceValueUsdCent": 1000,
+                        "currency": "USD",
+                        "expireTime": 1_700_000_000,
+                        "publicPageUrl": f"{host}/pay/pub_test_1",
+                        "payUrl": f"{host}/pay/pub_test_1/checkout?sig=SECRET_PAY",
+                        "qrPngUrl": f"{host}/qr/pub_test_1.png",
+                        "message": "scan to pay ticket=COMPACT_TICKET_SECRET",
+                    },
                 },
             )
             return
@@ -406,15 +423,18 @@ class _RechargeHandler(BaseHTTPRequestHandler):
             self._json(
                 200,
                 {
-                    "publicId": "pub_test_1",
-                    "status": status,
-                    "faceValueUsdCent": 1000,
-                    "currency": "USD",
-                    "expireTime": 1_700_000_000,
-                    "publicPageUrl": f"{host}/pay/pub_test_1",
-                    "payUrl": f"{host}/pay/pub_test_1/checkout?sig=SECRET_PAY",
-                    "qrPngUrl": f"{host}/qr/pub_test_1.png",
-                    "message": f"{status} ticket=COMPACT_TICKET_SECRET",
+                    "code": 200,
+                    "data": {
+                        "publicId": "pub_test_1",
+                        "status": status,
+                        "faceValueUsdCent": 1000,
+                        "currency": "USD",
+                        "expireTime": 1_700_000_000,
+                        "publicPageUrl": f"{host}/pay/pub_test_1",
+                        "payUrl": f"{host}/pay/pub_test_1/checkout?sig=SECRET_PAY",
+                        "qrPngUrl": f"{host}/qr/pub_test_1.png",
+                        "message": f"{status} ticket=COMPACT_TICKET_SECRET",
+                    },
                 },
             )
             return
@@ -532,7 +552,7 @@ class FakeHttpE2ETests(unittest.TestCase):
             self.assertEqual(_RechargeHTTPState.gen_calls, 2)
             self.assertEqual(_RechargeHTTPState.ticket_calls, 1)
             self.assertEqual(_RechargeHTTPState.session_posts, 1)
-            self.assertEqual(_RechargeHTTPState.qr_calls, 1)
+            self.assertEqual(_RechargeHTTPState.qr_calls, 0)
             self.assertEqual(_RechargeHTTPState.ticket_auths, ["Bearer test-key-secret"])
             self.assertEqual(_RechargeHTTPState.session_auths, [None])
             self.assertEqual(_RechargeHTTPState.ticket_face_values, [1000])
@@ -546,7 +566,7 @@ class FakeHttpE2ETests(unittest.TestCase):
             self.assertNotIn("payUrl", emitted)
             self.assertIn("akasha.recharge", emitted)
             self.assertIn("pub_test_1", emitted)
-            self.assertIn("qrPngPath", emitted)
+            self.assertNotIn("qrPngPath", emitted)
             self.assertIn("publicPageUrl", emitted)
             # No ResourceWarning about HTTPError cleanup
             for w in caught:
@@ -734,12 +754,55 @@ class LazyEnvAmountTests(unittest.TestCase):
         mod = _require_module()
         with mock.patch.dict(os.environ, {"AKASHA_RECHARGE_USD": "not-a-number"}, clear=True):
             # No recharge triggered: resolving with use_env=False (private/success path) is fine
-            self.assertEqual(mod.resolve_face_value_usd_cent(None, use_env=False), 1000)
+            self.assertEqual(mod.resolve_face_value_usd_cent(None, use_env=False), 100)
             # CLI validation does not read env
             mod.validate_cli_recharge_usd(None)
             # Trigger-time resolution fails only when recharge actually needs env
             with self.assertRaises(mod.AkashaRechargeError):
                 mod.resolve_face_value_usd_cent(None, use_env=True)
+
+
+class DirectRechargeCliTests(unittest.TestCase):
+    def test_direct_cli_creates_session_without_quota_failure(self) -> None:
+        mod = _require_module()
+        view = mod.RechargeSessionView(
+            public_id="pub_direct",
+            status="SUCCEEDED",
+            face_value_usd_cent=100,
+            currency="USD",
+            expire_time=1_700_000_000,
+            public_page_url="https://lovbrowser.example/tooling/recharge/pub_direct",
+            status_url="https://lovbrowser.example/api/v1/tooling/api-recharge-sessions/pub_direct",
+        )
+        with mock.patch.dict(os.environ, {"NEW_API_API_KEY": "test-key"}, clear=True):
+            with mock.patch.object(mod, "perform_recharge", return_value=view) as perform:
+                with mock.patch.object(mod.sys, "stderr", io.StringIO()):
+                    self.assertEqual(
+                        mod.direct_recharge_main(
+                            [
+                                "--base-url",
+                                "https://llmapi.lovbrowser.com/v1",
+                                "--recharge-usd",
+                                "1",
+                                "--poll-timeout",
+                                "12",
+                            ]
+                        ),
+                        0,
+                    )
+        kwargs = perform.call_args.kwargs
+        self.assertEqual(kwargs["api_key"], "test-key")
+        self.assertEqual(kwargs["base_url"], "https://llmapi.lovbrowser.com/v1")
+        self.assertEqual(kwargs["face_value_usd_cent"], 100)
+        self.assertEqual(kwargs["poll_timeout"], 12.0)
+
+    def test_direct_cli_requires_environment_key(self) -> None:
+        mod = _require_module()
+        with mock.patch.dict(os.environ, {}, clear=True):
+            with mock.patch.object(mod, "perform_recharge") as perform:
+                with mock.patch.object(mod.sys, "stderr", io.StringIO()):
+                    self.assertEqual(mod.direct_recharge_main(["--recharge-usd", "1"]), 1)
+                perform.assert_not_called()
 
 
 class LoaderSingletonTests(unittest.TestCase):

@@ -168,11 +168,11 @@ done
 
 | 能力 | 配置来源 | 约定 |
 | --- | --- | --- |
-| 默认 new-api | `https://newapi.1234bot.com/v1` | 无需配置 Base URL；私有部署才用 `NEW_API_BASE_URL` 或 `--base-url` 覆盖 |
+| 默认 new-api | `https://newapi.1234bot.com/v1` | 无需配置 Base URL；充值签票也支持 `llmapi.lovbrowser.com` 与 `llmapi-direct.lovbrowser.com` 官方入口；私有部署才用 `NEW_API_BASE_URL` 或 `--base-url` 覆盖 |
 | GPT Image | `IMAGE_PROXY_API_KEY`、`NEW_API_API_KEY` 或 `OPENAI_API_KEY` | 不把 key 写进命令参数、prompt、日志或仓库 |
 | Grok / Seedance | 专用 key、`NEW_API_API_KEY` 或 `OPENAI_API_KEY` | 真实调用会计费，先做单个 smoke，再扩大任务规模 |
 | Suno / Fish Audio | `NEW_API_API_KEY` 或 `OPENAI_API_KEY` | 真实调用会消耗额度；基础测试不调用外部服务 |
-| 官方余额不足充值 | `AKASHA_RECHARGE_USD` 或各脚本 `--recharge-usd`（默认 10 USD） | 仅官方 new-api；整次命令最多一次二维码充值，成功后只续跑失败请求一次；Agent 须渲染 `qrPngPath` 并给出 `publicPageUrl`；不泄露 Key/票据 |
+| 官方主动/余额不足充值 | 运行 `python3 shared/akasha_recharge.py` 创建支付会话；金额在 LovBrowser 页面选择 | 主动充值不需要余额不足；仅官方 new-api；Agent 只给出可点击的 `publicPageUrl`，不显示二维码；不泄露 Key/票据 |
 | Codex App 三层任务 | Epic 监工 task、Issue 验收 task、developer task/worktree | Epic→Issue→developer 单向下发；两条边每次下发后各启动一个 20 分钟、20 秒间隔 monitor，Issue 独立验收完整 diff |
 | CLI worker | 本机已安装的对应 CLI、macOS Terminal、tmux | 首次使用或版本变化时重新核对 `--version` 与 `--help` |
 

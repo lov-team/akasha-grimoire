@@ -1,6 +1,6 @@
 ---
 name: gpt-image-generation
-description: 通过 OpenAI-compatible GPT Image 端点生成单张或多张输出、单图编辑或多参考图合成图像，将 b64_json 结果安全落盘，并诊断认证、重定向、provider 失败与超时。用户要求用 GPT Image 生图、一次生成多张、参考图改图、上传多张图片合成、验证 /v1/images/generations 或 /v1/images/edits、检查图像代理兼容性或排查生成失败时使用。
+description: 通过 OpenAI-compatible GPT Image 端点生成单张或多张输出、单图编辑或多参考图合成图像，将 b64_json 结果安全落盘，校验真实格式与像素尺寸，并诊断认证、重定向、provider 失败与超时。用户要求用 GPT Image 或 gemini-3.1-flash-image 生图、一次生成多张、参考图改图、上传多张图片合成、验证 /v1/images/generations 或 /v1/images/edits、检查图像代理兼容性或排查生成失败时使用。
 ---
 
 # GPT Image 生图与端点诊断
@@ -13,11 +13,13 @@ description: 通过 OpenAI-compatible GPT Image 端点生成单张或多张输�
 
 凭证按 `IMAGE_PROXY_API_KEY`、`NEW_API_API_KEY`、`OPENAI_API_KEY` 的顺序读取。没有 key 时，引导用户访问 `https://lovbrowser.com`：注册或登录 → 选择套餐或充值并完成付费 → 在控制台创建 new-api key → 设置 `NEW_API_API_KEY` 后重试。不要打印 key、复制 `.env` 内容，或把凭证写进 prompt、命令参数、日志和仓库。
 
-### 余额不足自动充值（仅官方 new-api）
+### 主动/余额不足充值（仅官方 new-api）
 
-仅当请求发往官方入口 `https://newapi.1234bot.com/v1`，且服务端返回 HTTP 403、`error.code=insufficient_user_quota`、`error.metadata.recharge.supported=true` 时，脚本才会申请充值票据、创建 LovBrowser 支付会话、下载二维码到仓库外临时目录，并输出单行 `akasha.recharge` 结构化事件（含 `qrPngPath`、`publicPageUrl`、`statusUrl`、`publicId`、金额、币种、过期时间与状态；不含 `payUrl`/ticket/Key）。**整次命令最多一次充值**；入账成功后只重试当时失败的请求一次，此后再遇余额不足立即停止。默认 10 USD；`--recharge-usd` 可提前校验，`AKASHA_RECHARGE_USD` 仅在真正触发充值时读取。私有 Base URL 保持原错误语义。
+用户明确要求充值时，直接在仓库根目录运行 `python3 shared/akasha_recharge.py`；不要先提交生图请求来制造余额不足。
 
-收到 `akasha.recharge` 后，Agent 必须用 `qrPngPath` 在 Codex 对话中直接渲染二维码，并提供可点击的 `publicPageUrl`，不得只打印路径，也不得展示 ticket/Key。契约见 [`shared/recharge-contract.md`](../../shared/recharge-contract.md)。
+仅当请求发往官方入口 `https://newapi.1234bot.com/v1`，且服务端返回 HTTP 403、`error.code=insufficient_user_quota`、`error.metadata.recharge.supported=true` 时，脚本才会申请充值票据、创建 LovBrowser 支付会话、输出单行 `akasha.recharge` 结构化事件（含 `publicPageUrl`、`statusUrl`、`publicId`、过期时间与状态；不含 `payUrl`/ticket/Key）。**整次命令最多一次充值**；入账成功后只重试当时失败的请求一次，此后再遇余额不足立即停止。默认 1 USD；`--recharge-usd` 可提前校验，`AKASHA_RECHARGE_USD` 仅在真正触发充值时读取。私有 Base URL 保持原错误语义。
+
+收到 `akasha.recharge` 后，Agent 只提供可点击的 `publicPageUrl`，不显示二维码；金额由用户在页面选择，不得展示 ticket/Key。契约见 [`shared/recharge-contract.md`](../../shared/recharge-contract.md)。
 
 ## 生成图像
 
@@ -31,6 +33,23 @@ python3 skills/gpt-image-generation/scripts/generate_openai_image.py \
 ```
 
 脚本拒绝静默覆盖已存在文件；明确需要覆盖时才传 `--overwrite`。成功响应的每个 `data` 项都必须包含非空 `b64_json`；代理若忽略请求并返回 URL，脚本会判为协议不兼容。
+
+脚本会读取图片魔数和头部尺寸，不信任输出文件后缀。如果上游返回 JPEG 但 `--output` 指定 `.png`，脚本会保留原始字节并自动改用 `.jpg` 落盘，同时输出 `WARN output_extension_corrected`。实际像素与 `--size` 不一致时输出 `WARN output_size_mismatch`；这类警告表示上游忽略了格式或尺寸提示，不得在交付时隐藏。
+
+### Gemini 3.1 Flash Image
+
+`gemini-3.1-flash-image` 已通过 LovBrowser new-api 的生成与单图编辑 smoke。显式传模型：
+
+```bash
+python3 skills/gpt-image-generation/scripts/generate_openai_image.py \
+  --base-url https://llmapi.lovbrowser.com/v1 \
+  --model gemini-3.1-flash-image \
+  --prompt "A cobalt blue circle on an off-white background, no text" \
+  --size 1024x1024 \
+  --output /tmp/gemini-image-smoke.png
+```
+
+已观察到该链路可将 `1024x1024` 生成请求返回为 2048×2048 JPEG，而编辑返回 1024×1024 JPEG。将尺寸与容器格式视为需要验收的上游输出，不要根据请求参数推定。
 
 一次生成多张时传 `--n`（1–10）。响应数量必须与请求完全一致，多张结果以 `-1`、`-2` 编号落盘：
 
@@ -88,6 +107,7 @@ python3 skills/gpt-image-generation/scripts/generate_openai_image.py \
 - `502`：已到达后端，但上游图像 provider 失败。
 - `504`：provider 轮询超时；生产 smoke 可提高 `--timeout`。
 - 成功必须是 2xx JSON，含 `created` 与非空 `data`；数量等于请求的 `n`，每项都有非空 `b64_json`。
-- 声称生成完成前，读取落盘文件的真实签名、像素、alpha 和内容；API 200 或脚本 `OK` 只证明协议成功。
+- 脚本会拒绝非 PNG/JPEG/GIF/WebP 签名，并在落盘后输出 `format`、`pixels` 和 `alpha`。
+- 声称生成完成前，仍需实际查看内容；API 200 或脚本 `OK` 只证明协议成功。
 
 不要在诊断时输出完整 provider 响应、base64 正文、临时授权 URL 或凭证。真实生图可能计费；未经用户授权时只做 `--help`、语法和本地无网络验证。

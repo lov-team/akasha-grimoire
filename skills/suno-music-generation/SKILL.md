@@ -17,7 +17,7 @@ description: 通过 new-api 的 Suno 异步任务接口生成歌曲，在本地�
 
 脚本默认使用 `https://newapi.1234bot.com/v1`，通常只需设置 `NEW_API_API_KEY`。没有 key 时，引导用户访问 `https://lovbrowser.com`：注册或登录 → 选择套餐或充值并完成付费 → 在控制台创建 new-api key → 设置 `NEW_API_API_KEY` 后重试。只有私有部署才用 `--base-url`、`NEW_API_BASE_URL` 或 `OPENAI_BASE_URL` 覆盖默认入口。
 
-官方 new-api 在提交或轮询阶段返回可充值的余额不足时，会自动二维码充值。**整次命令最多一次充值**；只重试该失败请求一次（不会重复提交已成功的任务）。默认 10 USD；支持 `AKASHA_RECHARGE_USD` 与 `--recharge-usd`。收到 `akasha.recharge` 后须在 Codex 渲染 `qrPngPath` 并给出 `publicPageUrl`。详见 [`shared/recharge-contract.md`](../../shared/recharge-contract.md)。
+用户明确要求充值时，直接在仓库根目录运行 `python3 shared/akasha_recharge.py`，不要先提交音乐请求。官方 new-api 在提交或轮询阶段返回可充值的余额不足时，会自动创建 LovBrowser 支付页面。**整次命令最多一次充值**；只重试该失败请求一次（不会重复提交已成功的任务）。默认 1 USD；支持 `AKASHA_RECHARGE_USD` 与 `--recharge-usd`。收到 `akasha.recharge` 后，Codex 只给出可点击的 `publicPageUrl`，不显示二维码；金额由用户在页面选择。详见 [`shared/recharge-contract.md`](../../shared/recharge-contract.md)。
 
 ## 运行闭环
 
