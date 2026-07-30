@@ -1,4 +1,4 @@
 interface:
   display_name: "Gemini CLI 可见 TUI 开发"
   short_description: "由 Issue 任务自治驱动唯一 Gemini TUI 并独立验收"
-  default_prompt: "使用 $gemini-cli-development 在唯一活动的可见 TUI 中单向驱动 Gemini CLI，以 30 分钟状态文件 monitor 等待交付，再由主 Agent 独立 Review 与验证；不向父会话回推消息。"
+  default_prompt: "使用 $gemini-cli-development 在唯一活动的可见 TUI 中单向驱动 Gemini CLI，以 20 分钟状态文件 monitor 等待交付，再由主 Agent 独立 Review 与验证；不向父会话回推消息。"

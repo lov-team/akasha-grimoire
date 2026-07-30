@@ -23,7 +23,7 @@ description: 在 Codex App 中以 Spec、Epic、Issue 和证据关系图轻量�
 
 用户已明确要求开发采用三层分工。Epic 监工发现 ready Issue 后先调用 `create_thread` 建立独立 Issue 负责/验收 task；Issue task 再按 `codex-app-development` 创建独立 developer。禁止 Epic 监工直接把 developer 当 Issue task，也禁止 Issue task 自己实现再自审。
 
-Epic 创建 Issue task、Issue task 创建或继续 developer 后，直接父任务都立即启动一个最长 30 分钟、每 20 秒扫描一次的本地监控程序。两级监控分别只读直属 child 的单行状态文件与终态交付文件，不能合并、越级或重复；child 不向父会话主动发送消息。
+Epic 创建 Issue task、Issue task 创建或继续 developer 后，直接父任务都立即启动一个最长 20 分钟、每 20 秒扫描一次的本地监控程序。两级监控分别只读直属 child 的单行状态文件与终态交付文件，不能合并、越级或重复；child 不向父会话主动发送消息。
 
 代码任务默认使用两道验收门：Issue task 先定义验收矩阵，developer 只写测试并交付真实 Red，Issue task 审核通过后才允许同一 developer 进入 Green → Refactor；最终交付后再审完整累计 diff。Issue task 不得亲自写测试或生产实现。纯文档、纯视觉、格式修改或已有精确失败用例的极小修复可以豁免 Red 预审，但必须在 Issue 合同中写明理由。
 
@@ -52,7 +52,7 @@ Epic 创建 Issue task、Issue task 创建或继续 developer 后，直接父任
 
 ## 默认保持轻量
 
-1. 调用 `wait_threads` 时默认显式传 `timeoutMs: 1800000`（30 分钟）并使用紧凑快照；单任务传最近 cursor，多任务在一次有界等待中聚合。目标提前完成、需要关注或收到新用户输入时允许提前返回。
+1. 调用 `wait_threads` 时默认显式传 `timeoutMs: 1200000`（20 分钟）并使用紧凑快照；单任务传最近 cursor，多任务在一次有界等待中聚合。目标提前完成、需要关注或收到新用户输入时允许提前返回。
 2. 正常推进时只关注阶段、最新短进展、完成或需用户注意，不重复播报不变状态。
 3. 不常规读取完整历史、pane、过程输出、日志、diff、测试明细或思考过程。
 4. 先推动原任务解决问题；不要因为进展慢就接管代码或另开 worker。
@@ -68,9 +68,9 @@ Epic 创建 Issue task、Issue task 创建或继续 developer 后，直接父任
 
 ## 每次下发后启动有界监控
 
-1. 初始委托、`CONTINUE_GREEN`、用户决策或返工输入成功投递后，直接父任务立即启动且只启动一个 30 分钟监控程序；同一 child 同时不得有第二个 monitor。
-2. 程序每 20 秒只读一次状态与交付末行，循环中零输出。目标交付双标记成立时退出 0；`*_BLOCKED_USER_DECISION`、`*_SCOPE_DRIFT`、`*_ERROR`、`*_ABORTED` 时立即退出 3；30 分钟内没有可动作终态则退出 124。
-3. 退出 0 后父任务只读一次交付文件并立即进入对应 Review 或图谱推进；退出 3 后只恢复解决该状态所需的最小上下文；退出 124 且 child 仍稳定执行时可启动下一轮 30 分钟监控，不发送“仍在运行”。
+1. 初始委托、`CONTINUE_GREEN`、用户决策或返工输入成功投递后，直接父任务立即启动且只启动一个 20 分钟监控程序；同一 child 同时不得有第二个 monitor。
+2. 程序每 20 秒只读一次状态与交付末行，循环中零输出。目标交付双标记成立时退出 0；`*_BLOCKED_USER_DECISION`、`*_SCOPE_DRIFT`、`*_ERROR`、`*_ABORTED` 时立即退出 3；20 分钟内没有可动作终态则退出 124。
+3. 退出 0 后父任务只读一次交付文件并立即进入对应 Review 或图谱推进；退出 3 后只恢复解决该状态所需的最小上下文；退出 124 且 child 仍稳定执行时可启动下一轮 20 分钟监控，不发送“仍在运行”。
 4. 宿主若先返回运行 session，只用支持的最长等待续接同一进程；不由模型每 20 秒查询 session、状态文件、pane 或完整 task 历史。
 5. 输入投递失败时不启动 monitor；先解决投递失败。监控退出后才允许对同一 child 投递下一条输入并启动新 monitor，避免重复指令与双重消费者。
 
@@ -79,7 +79,7 @@ Epic 创建 Issue task、Issue task 创建或继续 developer 后，直接父任
 - 不对用户可同时运行的任务数量设置硬上限；并发由依赖、写入冲突、资源和用户优先级决定。
 - 无论并发多少，每条父子边只能有一个监控所有者：Issue task 监控 developer，Epic 监工只监控 Issue task；Epic、Issue task 和 CLI wrapper 不得同时轮询同一 developer 或状态文件。
 - 监控程序必须由被监控目标的直接父任务启动：Issue task 监控 developer，Epic 监工只监控 Issue task。
-- monitor 不得与同一目标上的 active `/goal` 自动续跑或 automation heartbeat 并存；三者只能保留一个监控所有者。本工作流默认选择上述 30 分钟本地 monitor，不再创建周期 automation。
+- monitor 不得与同一目标上的 active `/goal` 自动续跑或 automation heartbeat 并存；三者只能保留一个监控所有者。本工作流默认选择上述 20 分钟本地 monitor，不再创建周期 automation。
 - 已有长会话不得仅为降低监控成本临时切换模型：跨模型会失去原有 prompt cache，首轮可能比继续原模型更贵。默认保持同一个 `gpt-5.6-sol`：纯状态与 monitor 结果处理使用 `thinking=low`，正式合同判断、累计 diff Review、失败诊断与 P0–P2 闭环使用 `thinking=high`。向既有 child 下发监工或 Review 输入时显式携带对应 thinking override；不为切 reasoning 重建 worker 或丢失原会话。
 - worker 交付标记只代表待 Review，不等于目标完成。Issue task 独立 Review 并确认 P0–P2 清零后，先确认 worker 停止与 monitor 退出，再完成 commit、push、远端 SHA 核验、精确 worktree 回收和 Issue 关闭，最后写入 `ISSUE_COMPLETE` 与 Evidence。Epic 的 monitor 读到后推进新的 ready Issue。
 
@@ -91,12 +91,12 @@ Epic 创建 Issue task、Issue task 创建或继续 developer 后，直接父任
 scripts/wait-for-task-delivery.zsh \
   "$STATUS_FILE" "$DELIVERY_COMPLETE_STATUS" \
   "$HANDOFF_FILE" "$DELIVERY_COMPLETE_MARKER" \
-  1800
+  1200
 ```
 
-脚本在自身进程内每 20 秒检查一次，默认 1800 秒；循环中零输出，状态与交付末行双重完成时退出 0，可动作状态退出 3，整段超时只输出一次最后状态并退出 124。若宿主先返回运行 session，使用一次支持的最长等待续接，不要由主 Agent 查询文件。
+脚本在自身进程内每 20 秒检查一次，默认 1200 秒；循环中零输出，状态与交付末行双重完成时退出 0，可动作状态退出 3，整段超时只输出一次最后状态并退出 124。若宿主先返回运行 session，使用一次支持的最长等待续接，不要由主 Agent 查询文件。
 
-退出 0 后只读一次交付文件并进入验收；退出 3 时处理唯一可动作状态；退出 124 且 child 仍稳定推进时可再启动一轮 30 分钟监控。每个任务使用自己的状态、交付路径和监控所有者，避免串读证据。
+退出 0 后只读一次交付文件并进入验收；退出 3 时处理唯一可动作状态；退出 124 且 child 仍稳定推进时可再启动一轮 20 分钟监控。每个任务使用自己的状态、交付路径和监控所有者，避免串读证据。
 
 ## 上下文与输出闸门
 

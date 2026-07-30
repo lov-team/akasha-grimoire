@@ -51,12 +51,12 @@ claude --permission-mode bypassPermissions \
 scripts/wait-for-delivery.zsh \
   "$STATUS_FILE" CLAUDE_DELIVERY_COMPLETE \
   "$HANDOFF_FILE" CLAUDE_DELIVERY_COMPLETE \
-  1800
+  1200
 ```
 
-让脚本在进程内固定每 20 秒检查一次，单轮最长 30 分钟。循环中零输出：双重完成退出 0；阻塞、偏航、错误或取消等可动作状态立即退出 3；整段无可动作终态才输出一次最后状态并退出 124。若宿主先返回运行 session，使用一次支持的最长等待续接，不要由主 Agent 轮询文件。
+让脚本在进程内固定每 20 秒检查一次，单轮最长 20 分钟。循环中零输出：双重完成退出 0；阻塞、偏航、错误或取消等可动作状态立即退出 3；整段无可动作终态才输出一次最后状态并退出 124。若宿主先返回运行 session，使用一次支持的最长等待续接，不要由主 Agent 轮询文件。
 
-退出 0 后只读一次交付文件再 Review。退出 3 时按报告状态处理；退出 124 时，implementing/missing 再启动一轮 30 分钟监控，异常状态才做一次最小诊断。不要抓 pane、过程输出、思考、token、进程或中间 diff。正常返工直接在当前 TUI 提交一行读取仓库外返工合同的指令；session 正常存活时不得重启或使用 `--continue/--resume`。若精确 session 已异常退出，改走下述唯一替代 TUI 恢复，不通知父会话等待批准。
+退出 0 后只读一次交付文件再 Review。退出 3 时按报告状态处理；退出 124 时，implementing/missing 再启动一轮 20 分钟监控，异常状态才做一次最小诊断。不要抓 pane、过程输出、思考、token、进程或中间 diff。正常返工直接在当前 TUI 提交一行读取仓库外返工合同的指令；session 正常存活时不得重启或使用 `--continue/--resume`。若精确 session 已异常退出，改走下述唯一替代 TUI 恢复，不通知父会话等待批准。
 
 ### Claude Code TUI 异常退出后的自主恢复
 

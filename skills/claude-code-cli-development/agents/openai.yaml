@@ -1,4 +1,4 @@
 interface:
   display_name: "Claude Code 可见 TUI 开发"
   short_description: "由独立 Issue 任务自治驱动 Claude Code worker 并验收"
-  default_prompt: "使用 $claude-code-cli-development 让当前 Issue 验收任务单向驱动唯一活动的 Claude Code TUI，以 30 分钟状态文件 monitor 等待交付，再独立 Review 与验证；不向父会话回推消息。"
+  default_prompt: "使用 $claude-code-cli-development 让当前 Issue 验收任务单向驱动唯一活动的 Claude Code TUI，以 20 分钟状态文件 monitor 等待交付，再独立 Review 与验证；不向父会话回推消息。"

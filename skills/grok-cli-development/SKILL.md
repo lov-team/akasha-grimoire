@@ -206,12 +206,12 @@ tmux 启动成功后立即运行一次长轮询，让脚本在进程内每 20 �
 scripts/wait-for-delivery.zsh \
   "$GROK_STATUS" GROK_DELIVERY_COMPLETE \
   "$GROK_HANDOFF" GROK_DELIVERY_COMPLETE \
-  1800
+  1200
 ```
 
-默认等待 1800 秒。脚本循环中零输出；双重完成时退出 0，可动作状态立即退出 3，整段无可动作终态才输出一次最后状态并退出 124。若宿主先返回仍在运行的 session，使用一次支持的最长等待续接该进程，不要轮询文件、session 或发送状态更新。
+默认等待 1200 秒。脚本循环中零输出；双重完成时退出 0，可动作状态立即退出 3，整段无可动作终态才输出一次最后状态并退出 124。若宿主先返回仍在运行的 session，使用一次支持的最长等待续接该进程，不要轮询文件、session 或发送状态更新。
 
-等待 Red 时把 expected status 和 marker 都设为 `GROK_RED_READY`；退出 0 后执行 Red-only 审核并向同一 TUI 继续或返工。等待最终交付时仍使用 `GROK_DELIVERY_COMPLETE`。最终等待退出 0 后保留 Grok TUI，只读一次中文交付文件并从完整累计 diff 开始独立验收。退出 3 时按报告状态处理；退出 124 时，`GROK_PLANNING`、`GROK_IMPLEMENTING` 或缺失都不自动输入，确认仍稳定后再启动一轮 30 分钟监控；`GROK_RED_READY` 立即进入 Red 审核；异常状态才做一次最小诊断。
+等待 Red 时把 expected status 和 marker 都设为 `GROK_RED_READY`；退出 0 后执行 Red-only 审核并向同一 TUI 继续或返工。等待最终交付时仍使用 `GROK_DELIVERY_COMPLETE`。最终等待退出 0 后保留 Grok TUI，只读一次中文交付文件并从完整累计 diff 开始独立验收。退出 3 时按报告状态处理；退出 124 时，`GROK_PLANNING`、`GROK_IMPLEMENTING` 或缺失都不自动输入，确认仍稳定后再启动一轮 20 分钟监控；`GROK_RED_READY` 立即进入 Red 审核；异常状态才做一次最小诊断。
 
 等待期间不检查中间 Git 状态、文件列表、tmux pane、进程、测试进度、思考过程、token 或中间 diff，不发送 `Ctrl-C`。开发中的文件变化留到最终 Review。若发现 P0-P2，向当前 Grok TUI 提交返工合同后再次使用同一轮询脚本；session 正常存活时不得重启、不得使用 `--continue`、不得新建 tmux session，也不管理 Grok session ID。若精确 session 已异常退出，改走下述唯一替代 TUI 恢复，不通知父会话等待批准。
 

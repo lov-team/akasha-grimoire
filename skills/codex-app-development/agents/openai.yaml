@@ -1,4 +1,4 @@
 interface:
   display_name: "Codex App 子任务开发"
   short_description: "由 Issue 双重验收、Git 交付、回收现场并关闭任务"
-  default_prompt: "使用 $codex-app-development 为复杂需求创建独立 Codex App developer；使用单向下发与 30 分钟状态文件 monitor，最后由 Issue 独立验收并完成交付与关闭。"
+  default_prompt: "使用 $codex-app-development 为复杂需求创建独立 Codex App developer；使用单向下发与 20 分钟状态文件 monitor，最后由 Issue 独立验收并完成交付与关闭。"

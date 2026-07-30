@@ -35,15 +35,15 @@ Issue 任务传给 developer 的最小字段：
 - `DELIVERY_COMPLETE` 只表示待 Final Review；Issue task 必须独立读取完整累计 diff、调用链与验证事实。
 - Issue task 状态使用 `ISSUE_ACCEPTING`、`ISSUE_REVIEWING`、`ISSUE_BLOCKED_USER_DECISION`、`ISSUE_COMPLETE`、`ISSUE_ERROR`、`ISSUE_ABORTED`。只有 Git 交付、远端 SHA、worktree 回收和 Issue 关闭全部完成后才能写 `ISSUE_COMPLETE`，并同步写入末行 marker 有效的 Evidence。
 
-## 两级 30 分钟 monitor
+## 两级 20 分钟 monitor
 
 Issue task 每次成功下发 developer 输入后启动一个 monitor；Epic 每次成功下发 Issue 输入后也启动一个 monitor。每条父子边只有一个监控 owner，不允许 Epic 越级读取 developer 文件。
 
-monitor 使用 `wait-for-task-delivery.zsh`，默认 1800 秒、每 20 秒读取一次状态与交付末行。目标双标记成立时退出 0；阻塞、偏航、错误或取消时退出 3；30 分钟无可动作终态时退出 124。循环中不输出状态，不读取会话历史、pane、过程日志或中间 diff。退出 124 且 child 仍稳定执行时可启动下一轮 30 分钟 monitor，不创建周期 automation，也不发送“仍在运行”。
+monitor 使用 `wait-for-task-delivery.zsh`，默认 1200 秒、每 20 秒读取一次状态与交付末行。目标双标记成立时退出 0；阻塞、偏航、错误或取消时退出 3；20 分钟无可动作终态时退出 124。循环中不输出状态，不读取会话历史、pane、过程日志或中间 diff。退出 124 且 child 仍稳定执行时可启动下一轮 20 分钟 monitor，不创建周期 automation，也不发送“仍在运行”。
 
 monitor 与同目标的 active goal、automation heartbeat 互斥。宿主若返回运行 session，父任务只用支持的最长等待续接同一进程。状态和 mtime 未变化时不重复投递；只有父向子的下一条指令使用会话消息。
 
-需要使用 `wait_threads` 获取 setup 或 task 状态时，默认显式传 `timeoutMs: 1800000`（30 分钟）；单目标同时传最近 cursor，多目标放在同一次有界等待中。目标完成、需要关注或收到新用户输入时允许提前返回。
+需要使用 `wait_threads` 获取 setup 或 task 状态时，默认显式传 `timeoutMs: 1200000`（20 分钟）；单目标同时传最近 cursor，多目标放在同一次有界等待中。目标完成、需要关注或收到新用户输入时允许提前返回。
 
 新 `BLOCKED_USER_DECISION` 使用独立决策生命周期：父 task 只读取 Issue 合同、既有决策、依赖、最近相关 3–5 个 turn 和最小证据，生成稳定 `decision_fingerprint`。范围内、可逆、无安全或不可逆影响且有明确推荐的事项直接决定并恢复 worker；必须由用户决定的事项去重、消除可推导下游项后合并成一个决策包，每项给出推荐、理由、关键代价和依赖影响。memory 保存 `prompted_decision_id` 与 `resolved_decision_id`；成功呈现后静默等待，不重复提问，直到用户答案写回合同并成功投递给 worker才 resolved。
 

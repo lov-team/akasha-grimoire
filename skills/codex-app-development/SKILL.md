@@ -1,6 +1,6 @@
 ---
 name: codex-app-development
-description: 由独立的 Codex App Issue 负责/验收任务创建隔离开发任务与 worktree，使用父到子的单向会话下发和 30 分钟本地状态轮询，审核 Red 与最终实现，默认由 Issue task 完成 commit、push、worktree 回收和 Issue 关闭。用户要求用 Codex App 子会话开发、让另一个 Codex 实现、为 Issue 单独开开发会话、隔离实现与 Review 上下文或简化父子任务通信时使用；用户指定 Grok、Claude Code、Gemini 或 Codex CLI 时保留相同三层职责，只替换最底层 worker。
+description: 由独立的 Codex App Issue 负责/验收任务创建隔离开发任务与 worktree，使用父到子的单向会话下发和 20 分钟本地状态轮询，审核 Red 与最终实现，默认由 Issue task 完成 commit、push、worktree 回收和 Issue 关闭。用户要求用 Codex App 子会话开发、让另一个 Codex 实现、为 Issue 单独开开发会话、隔离实现与 Review 上下文或简化父子任务通信时使用；用户指定 Grok、Claude Code、Gemini 或 Codex CLI 时保留相同三层职责，只替换最底层 worker。
 ---
 
 # Codex App 独立开发任务
@@ -28,7 +28,7 @@ Epic 监工 App → Issue 负责/验收 App → Codex App 开发任务
 
 Codex App 路径先用 `list_projects` 取得 project id 和 `isGitRepository`，再用 `create_thread` 在与 Issue task 共享状态文件的同一 host 创建干净 task；Git 项目必须使用独立 worktree。不要用 `fork_thread` 复制 Issue 任务历史，只传最小实现合同。仅当实现确实依赖已批准的未提交基线时才使用 `startingState: working-tree`。
 
-创建前由 Issue 任务确定目标、验收条件、非目标、允许/禁止路径、依赖、验证门禁、Git 交付策略，以及唯一绝对状态/交付文件与完成 marker。默认授权 Issue task 在验收后 commit 并 push 当前 Issue 分支；PR、合并、强推、发布或生产写入仍需项目规则或用户明确授权。创建后保存 developer `thread_id`、`host_id` 和精确 worktree；返回 `clientThreadId` 时等待 setup 完成并解析真实 task，不能把它传给要求 `thread_id` 的工具。需要调用 `wait_threads` 等待 setup 或 task 时，默认显式传 `timeoutMs: 1800000`（30 分钟）和最近 cursor；目标提前完成、需要关注或收到新用户输入时允许提前返回。开发 prompt 必须要求：
+创建前由 Issue 任务确定目标、验收条件、非目标、允许/禁止路径、依赖、验证门禁、Git 交付策略，以及唯一绝对状态/交付文件与完成 marker。默认授权 Issue task 在验收后 commit 并 push 当前 Issue 分支；PR、合并、强推、发布或生产写入仍需项目规则或用户明确授权。创建后保存 developer `thread_id`、`host_id` 和精确 worktree；返回 `clientThreadId` 时等待 setup 完成并解析真实 task，不能把它传给要求 `thread_id` 的工具。需要调用 `wait_threads` 等待 setup 或 task 时，默认显式传 `timeoutMs: 1200000`（20 分钟）和最近 cursor；目标提前完成、需要关注或收到新用户输入时允许提前返回。开发 prompt 必须要求：
 
 1. 先读项目 `AGENTS.md`、相关代码和 Git 现场，再计划并按 Red → Green → Refactor 推进；不得派生新的写入 worker。
 2. 核对并在交付中报告唯一绝对 worktree、base SHA 和 Git 状态，不在 Issue task checkout 或其他 worktree 写入。
@@ -41,11 +41,11 @@ Codex App 路径先用 `list_projects` 取得 project id 和 `isGitRepository`�
 
 ## 由 Issue 会话启动本地监控
 
-developer 初始合同、`CONTINUE_GREEN`、决策或返工成功投递后，Issue task 立即运行 `agent-task-supervisor/scripts/wait-for-task-delivery.zsh`，默认 1800 秒、每 20 秒扫描。App developer 与 CLI developer 使用同一状态/交付文件合同，不再为这条 edge 创建 automation heartbeat：
+developer 初始合同、`CONTINUE_GREEN`、决策或返工成功投递后，Issue task 立即运行 `agent-task-supervisor/scripts/wait-for-task-delivery.zsh`，默认 1200 秒、每 20 秒扫描。App developer 与 CLI developer 使用同一状态/交付文件合同，不再为这条 edge 创建 automation heartbeat：
 
 - 同一 developer 同时只允许一个 monitor；Issue task 是唯一监控 owner，Epic 不越级读取 developer 文件。
-- 目标双标记成立时脚本退出 0，Issue task 只读一次交付并进入 Red 或完整 diff Review；阻塞、偏航、错误或取消时退出 3；30 分钟无可动作终态时退出 124。
-- 退出 124 且 developer 仍稳定执行时，可再启动一轮 30 分钟 monitor，不发送“仍在运行”；失联才做一次最小进程/task 诊断。
+- 目标双标记成立时脚本退出 0，Issue task 只读一次交付并进入 Red 或完整 diff Review；阻塞、偏航、错误或取消时退出 3；20 分钟无可动作终态时退出 124。
+- 退出 124 且 developer 仍稳定执行时，可再启动一轮 20 分钟 monitor，不发送“仍在运行”；失联才做一次最小进程/task 诊断。
 - 宿主先返回运行 session 时，只用支持的最长等待续接该进程，不由模型每 20 秒查询文件、thread、pane 或历史。
 - monitor 不与同目标的 active goal 或 heartbeat 并存；输入失败时先修复投递，不启动监控。
 - `BLOCKED_USER_DECISION` 只恢复 Issue 合同、既有决策、依赖和最小证据；可逆且范围内的明确推荐直接决定并下发，需要用户决定的事项去重并合并成一个决策包。
@@ -65,7 +65,7 @@ Issue task 在创建 developer 前先建立验收矩阵，把每个核心不变�
 
 ## 单向下发，状态文件回收结果
 
-会话消息只从 Epic 到 Issue、从 Issue 到 developer。developer 通过状态/交付文件暴露 `RED_READY`、`BLOCKED_USER_DECISION`、`SCOPE_DRIFT`、`DELIVERY_COMPLETE`、`ERROR` 或 `ABORTED`，不主动回推。Issue task 同样只写 `ISSUE_ACCEPTING`、`ISSUE_REVIEWING`、`ISSUE_BLOCKED_USER_DECISION`、`ISSUE_COMPLETE`、`ISSUE_ERROR` 或 `ISSUE_ABORTED`，由 Epic 的 30 分钟 monitor 读取。
+会话消息只从 Epic 到 Issue、从 Issue 到 developer。developer 通过状态/交付文件暴露 `RED_READY`、`BLOCKED_USER_DECISION`、`SCOPE_DRIFT`、`DELIVERY_COMPLETE`、`ERROR` 或 `ABORTED`，不主动回推。Issue task 同样只写 `ISSUE_ACCEPTING`、`ISSUE_REVIEWING`、`ISSUE_BLOCKED_USER_DECISION`、`ISSUE_COMPLETE`、`ISSUE_ERROR` 或 `ISSUE_ABORTED`，由 Epic 的 20 分钟 monitor 读取。
 
 worker 完成标记只代表待 Review。Issue 任务必须独立 Review 完整 diff；确认 P0–P2 清零后先确认 worker 停止且 developer monitor 已退出，再完成 Git 交付、安全回收精确 worktree并关闭 Issue，最后原子写入 `ISSUE_COMPLETE` 与 Evidence。Epic monitor 读到后启动新的 ready Issue。
 

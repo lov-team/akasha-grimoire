@@ -55,14 +55,14 @@ codex -C "$TASK_WORKTREE" \
 scripts/wait-for-delivery.zsh \
   "$STATUS_FILE" "$EXPECTED_STATUS" \
   "$HANDOFF_FILE" "$EXPECTED_MARKER" \
-  1800
+  1200
 ```
 
-让脚本在进程内固定每 20 秒检查一次，单轮最长 30 分钟。循环中零输出：双重完成退出 0，可动作状态立即退出 3，整段无可动作终态才输出一次最后状态并退出 124。若宿主先返回运行 session，使用一次支持的最长等待续接，不要由主 Agent 轮询文件。
+让脚本在进程内固定每 20 秒检查一次，单轮最长 20 分钟。循环中零输出：双重完成退出 0，可动作状态立即退出 3，整段无可动作终态才输出一次最后状态并退出 124。若宿主先返回运行 session，使用一次支持的最长等待续接，不要由主 Agent 轮询文件。
 
 启用 Red 预审时，第一阶段把 expected status 和 marker 都设为 `CODEX_RED_READY`。主 Agent 在三层拓扑内即 Issue 负责/验收 task；它先用累计变更清单确认生产实现未修改，再审测试 diff、fixture/producer、失败日志相关片段和必要生产契约，确认测试从真实入口进入、Red 因目标行为缺失失败、断言精确且核心逻辑未被 mock 或私有 helper 绕过。不通过时只要求同一 Codex TUI 修正测试；通过后投递单行 `Red 证据已审核通过，请继续 Green → Refactor，并按最终交付合同完成。`，再把 expected status 和 marker 都设为 `CODEX_DELIVERY_COMPLETE` 等待最终交付。
 
-每阶段退出 0 后只读一次对应交付文件并进入该阶段 Review。退出 3 时按报告状态处理；退出 124 时 planning/implementing/missing 再启动一轮 30 分钟监控，Red ready 立即进入 Red Review，异常状态才做一次最小诊断。不要抓 pane、过程输出、思考、token、进程或中间 diff。正常返工在当前 TUI 中只发送一行读取仓库外返工合同的指令；session 正常存活时不得重启或调用 `codex resume`。若精确 session 已异常退出，改走下述唯一替代 TUI 恢复，不通知父会话等待批准。
+每阶段退出 0 后只读一次对应交付文件并进入该阶段 Review。退出 3 时按报告状态处理；退出 124 时 planning/implementing/missing 再启动一轮 20 分钟监控，Red ready 立即进入 Red Review，异常状态才做一次最小诊断。不要抓 pane、过程输出、思考、token、进程或中间 diff。正常返工在当前 TUI 中只发送一行读取仓库外返工合同的指令；session 正常存活时不得重启或调用 `codex resume`。若精确 session 已异常退出，改走下述唯一替代 TUI 恢复，不通知父会话等待批准。
 
 所有向现有 Codex TUI 的继续、决策或返工输入都必须先写入仓库外的唯一单行文件，再通过统一脚本提交：
 

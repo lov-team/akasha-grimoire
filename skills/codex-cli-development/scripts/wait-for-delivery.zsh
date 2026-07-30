@@ -10,7 +10,7 @@ status_file="$1"
 expected_status="$2"
 delivery_file="$3"
 completion_marker="$4"
-timeout_seconds="${5:-1800}"
+timeout_seconds="${5:-1200}"
 poll_seconds="${6:-20}"
 
 if [[ "$status_file" != /* || "$delivery_file" != /* ]]; then

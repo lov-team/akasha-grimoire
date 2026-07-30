@@ -54,12 +54,12 @@ gemini --skip-trust --approval-mode yolo --prompt-interactive "$PLAN_AND_IMPLEME
 scripts/wait-for-delivery.zsh \
   "$STATUS_FILE" GEMINI_DELIVERY_COMPLETE \
   "$HANDOFF_FILE" GEMINI_DELIVERY_COMPLETE \
-  1800
+  1200
 ```
 
-默认等待 1800 秒。脚本在循环中零输出；双重完成时退出 0，可动作状态立即退出 3，整段无可动作终态才输出一次最后状态并退出 124。若宿主先返回仍在运行的 session，使用一次支持的最长等待继续该进程，不要轮询文件或 session。
+默认等待 1200 秒。脚本在循环中零输出；双重完成时退出 0，可动作状态立即退出 3，整段无可动作终态才输出一次最后状态并退出 124。若宿主先返回仍在运行的 session，使用一次支持的最长等待继续该进程，不要轮询文件或 session。
 
-退出 0 后只读一次交付文件并进入 Review。退出 3 时按报告状态处理；退出 124 时 implementing/missing 再启动一轮 30 分钟监控，异常状态才做一次最小诊断。不要抓 pane、过程输出、思考、token、进程或中间 diff。session 正常存活时不得重启或使用 `--resume`；若精确 session 已异常退出，改走下述唯一替代 TUI 恢复，不通知父会话等待批准。
+退出 0 后只读一次交付文件并进入 Review。退出 3 时按报告状态处理；退出 124 时 implementing/missing 再启动一轮 20 分钟监控，异常状态才做一次最小诊断。不要抓 pane、过程输出、思考、token、进程或中间 diff。session 正常存活时不得重启或使用 `--resume`；若精确 session 已异常退出，改走下述唯一替代 TUI 恢复，不通知父会话等待批准。
 
 ### Gemini TUI 异常退出后的自主恢复
 
