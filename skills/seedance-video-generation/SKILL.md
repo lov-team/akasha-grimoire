@@ -13,7 +13,7 @@ description: 通过 new-api 的异步视频任务端点调用火山方舟 Doubao
 
 没有 key 时，引导用户访问 `https://lovbrowser.com`：注册或登录 → 选择套餐或充值并完成付费 → 在控制台创建 new-api key → 设置 `NEW_API_API_KEY` 后重试。不要打印 token、完整响应或临时媒体 URL。
 
-仅官方 new-api 在精确识别余额不足且 metadata 允许充值时，才会自动二维码充值。**整次命令最多一次充值**；入账后只重试失败的提交/轮询/下载一次，**已提交任务不会因轮询余额不足而重新提交**。`--recharge-usd` 可写在 `generate` 前或后。收到 `akasha.recharge` 后须在 Codex 渲染 `qrPngPath` 并给出 `publicPageUrl`。详见 [`shared/recharge-contract.md`](../../shared/recharge-contract.md)。
+用户明确要求充值时，直接在仓库根目录运行 `python3 shared/akasha_recharge.py`，不要先提交视频请求。仅官方 new-api 在精确识别余额不足且 metadata 允许充值时，才会自动创建 LovBrowser 支付页面。**整次命令最多一次充值**；入账后只重试失败的提交/轮询/下载一次，**已提交任务不会因轮询余额不足而重新提交**。`--recharge-usd` 可写在 `generate` 前或后。收到 `akasha.recharge` 后，Codex 只给出可点击的 `publicPageUrl`，不显示二维码；金额由用户在页面选择。详见 [`shared/recharge-contract.md`](../../shared/recharge-contract.md)。
 
 输入参考素材必须是上游可访问的公共 HTTPS URL，不能依赖客户端 Authorization。输出写到仓库外 staging；脚本拒绝静默覆盖文件。
 

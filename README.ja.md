@@ -170,7 +170,7 @@ $fish-audio-speech を使ってナレーションを音声化し、冒頭・中�
 | GPT Image | `IMAGE_PROXY_API_KEY`、`NEW_API_API_KEY`、`OPENAI_API_KEY` | key をコマンド引数、prompt、ログ、リポジトリに保存しない |
 | Grok / Seedance | 専用 key、`NEW_API_API_KEY`、`OPENAI_API_KEY` | 実リクエストは課金対象。規模を広げる前に 1 件の smoke を実行 |
 | Suno / Fish Audio | `NEW_API_API_KEY` または `OPENAI_API_KEY` | 実リクエストはクォータを消費。基本テストでは外部生成サービスを呼び出さない |
-| 公式残高リチャージ | `AKASHA_RECHARGE_USD` または各スクリプトの `--recharge-usd`（既定 10 USD） | 公式 new-api のみ。1 コマンド最大 1 回の QR 充電と失敗 HTTP の 1 回再試行。Agent は `qrPngPath` を表示し `publicPageUrl` を提示。Key/チケットを漏らさない |
+| 公式の手動／残高不足リチャージ | `python3 shared/akasha_recharge.py` で決済ページを作成し、金額は LovBrowser ページで選択 | 手動リチャージは残高不足を必要としない。Agent はクリック可能な `publicPageUrl` のみ提示し、QR コードは表示しない。Key/チケットを漏らさない |
 | Codex App 三層 task | Epic 監督、Issue 受け入れ task、developer task/worktree | Epic→Issue→developer の一方向指示、各 edge の 20 分・20 秒間隔 monitor、Issue による完全 diff の独立 Review |
 | CLI worker | 対応するローカル CLI、macOS Terminal、tmux | 初回利用時と更新後に `--version` と `--help` を再確認 |
 
