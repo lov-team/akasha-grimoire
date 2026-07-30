@@ -81,13 +81,13 @@ Graph Engineering 把交付建模为一张可追踪的工作图，而不是一�
 
 ### App 子任务与 CLI 开发 worker
 
-开发默认采用三层闭环：**Epic 监工 App 找到 ready Issue → 独立 Issue App 负责合同与验收 → 独立 developer 实现 → Issue App Review 并把 P0–P2 发回原 worker → Issue 写 Evidence 供 Epic 读取**。developer 默认是新的 Codex App task/worktree；指定 Grok、Claude Code、Gemini 或 Codex CLI 时，只把最底层替换为对应 CLI worker。Issue App 始终不写业务代码。会话消息严格按 `Epic → Issue → developer` 单向下发；每次下发后直接父层启动一个最长 20 分钟、每 20 秒扫描状态/交付文件的 monitor，完成、阻塞或异常才恢复处理。
+开发默认采用三层闭环：**Epic 监工 App 找到 ready Issue → 独立 Issue App 负责合同与验收 → 独立 developer 实现 → Issue App Review 并把 P0–P2 发回原 worker → Issue 写 Evidence 供 Epic 读取**。前端开发默认优先使用 Gemini CLI；边界明确的小型非前端代码可使用 Grok CLI；复杂后端、协议/schema、并发、安全与架构工作默认使用 Codex App task/worktree。纯媒体生成仍使用对应媒体技能；全栈任务可安全拆分时，前端 Issue 交给 Gemini、后端 Issue 交给 Codex App。用户点名其他 CLI 时遵从指定，只替换最底层 worker。Issue App 始终不写业务代码。每次单向下发后，直接父层启动一个最长 20 分钟、每 20 秒扫描状态/交付文件的 monitor。
 
 | Skill | Worker | 特点 |
 | --- | --- | --- |
-| [`codex-app-development`](skills/codex-app-development/) | Codex App developer | 由独立 Issue App 创建，使用隔离 worktree、单向下发、20 分钟本地 monitor 和同任务返工 |
-| [`grok-cli-development`](skills/grok-cli-development/) | Grok CLI | 开发、图像/视频生成、中文计划、自检与同会话返工 |
-| [`gemini-cli-development`](skills/gemini-cli-development/) | Gemini CLI | 依据本机真实 CLI 合同执行开发与交付闭环 |
+| [`gemini-cli-development`](skills/gemini-cli-development/) | Gemini CLI | 前端开发默认优先：组件、交互、表单、前端路由、响应式、可访问性、动效与测试 |
+| [`grok-cli-development`](skills/grok-cli-development/) | Grok CLI | 边界明确的小型非前端代码，或用户点名的 Grok/内置媒体任务 |
+| [`codex-app-development`](skills/codex-app-development/) | Codex App developer | 复杂后端、协议/schema、迁移、并发、安全与架构工作的默认 worker |
 | [`claude-code-cli-development`](skills/claude-code-cli-development/) | Claude Code | 权限模式、会话续接、状态交付与独立验收 |
 | [`codex-cli-development`](skills/codex-cli-development/) | Codex CLI | 在独立交互 TUI 中实施，不与 Codex App 任务管理混用 |
 

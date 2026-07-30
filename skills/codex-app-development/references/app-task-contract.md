@@ -8,7 +8,7 @@
 | Issue 负责/验收 App | 解释合同、审核 Red 与最终实现、Git 交付、回收 worktree、关闭 Issue | 不写或代修测试与业务代码；可写 Git 元数据 |
 | Developer worker | 在唯一隔离现场中先交付 Red，获批后实现、测试、返工 | 唯一代码写入者 |
 
-复杂需求默认使用新的 Codex App task/worktree。单模块或单一状态 owner、不超过 5 个文件和 300 行、核心不变量不超过 3 个，且不涉及协议/schema、迁移、事务、恢复、并发、安全边界或架构决策的小需求可使用 Grok CLI。简单网页/UI 修改也可用 Grok，但只能局部调整现有页面或组件，不能新增跨组件状态、路由、API 数据流、复杂表单、权限、拖拽、复杂动效或系统性响应式改造，并必须做视觉验证。超出任一条件就使用 Codex App developer。Issue 任务始终独立验收，禁止同时实现和自审。
+前端开发（React/Vue/Svelte、HTML/CSS/JS/TS、组件、交互状态、表单、前端路由、响应式、可访问性、动效和前端测试）默认优先使用 Gemini CLI。边界明确的小型非前端代码（不超过 5 个文件和 300 行、核心不变量不超过 3 个，且无协议/schema、迁移、事务、恢复、并发或安全边界）可使用 Grok CLI；用户点名 Grok 或需要其内置媒体能力时也可使用。复杂后端、协议/schema、迁移、事务、恢复、并发、安全边界或架构决策默认使用 Codex App developer。全栈任务在可安全分拆时拆成前端 Issue（Gemini CLI）与后端 Issue（Codex App）；不可安全分拆时按高风险路径选择并写明理由。Issue 任务始终独立验收，禁止同时实现和自审。
 
 ## Developer 创建合同
 

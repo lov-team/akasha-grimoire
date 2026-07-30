@@ -31,12 +31,13 @@ Epic 创建 Issue task、Issue task 创建或继续 developer 后，直接父任
 
 ## 选择开发 Agent
 
-按以下优先级选择最底层 worker：
+按以下规则与优先级选择最底层 worker：
 
-1. 小需求默认可用 Grok CLI：范围和验收明确、单模块或单一状态 owner、预计不超过 5 个文件和 300 行、核心不变量不超过 3 个，且不涉及协议/schema、迁移、事务、恢复、并发、安全边界或架构决策。
-2. 简单网页/UI 修改也可用 Grok CLI：只调整现有页面或组件的文案、颜色、间距、尺寸、局部布局、简单样式或轻量展示逻辑，不新增跨组件状态、路由、API 数据流、复杂表单、权限、拖拽、复杂动效或系统性响应式改造，并能做截图或主路径视觉验证。
-3. 任一条件超出上述小需求边界即视为复杂需求，使用新的 Codex App developer/worktree。跨模块、跨状态 owner、状态机、协议、事务、恢复、并发、复杂数据流，或 UI 涉及新交互状态、跨组件协作、路由/API、设计系统和多页面重构时直接归入复杂需求，不先让 Grok 试错。
-4. 用户在当前任务明确指定 Claude Code、Gemini 或 Codex CLI 时只替换最底层 worker；实现与验收职责仍保持分离。
+1. 前端开发默认优先使用 Gemini CLI (`gemini-cli-development`)：覆盖 React/Vue/Svelte、HTML/CSS/JS/TS、组件、交互状态、表单、前端路由、响应式、可访问性、动效和前端测试。纯图片、视频、声音等素材生成仍走相应媒体技能。
+2. 边界明确的小型非前端代码可使用 Grok CLI (`grok-cli-development`)：范围和验收明确、单模块或单一状态 owner、预计不超过 5 个文件和 300 行、核心不变量不超过 3 个，且不涉及协议/schema、迁移、事务、恢复、并发、安全边界或架构决策。用户点名 Grok 或需要其内置媒体能力时也可使用。
+3. 复杂后端、协议/schema、迁移、事务、恢复、并发、安全边界或架构决策默认使用 Codex App developer (`codex-app-development`)。
+4. 全栈任务分拆与路由：在能保持单一 owner 与依赖清晰时拆分为前端 Issue（Gemini CLI）与后端 Issue（Codex App）；不能安全拆分时按高风险路径选择（如后端/架构风险高则选 Codex App），并写明理由。
+5. 用户在当前任务明确指定 Claude Code、Grok、Gemini 或 Codex CLI 时遵从指定，只替换最底层 worker；实现与验收职责仍保持分离。
 
 ## 用 Graph Engineering 驱动交付
 

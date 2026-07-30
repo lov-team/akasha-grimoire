@@ -19,10 +19,11 @@ Epic 监工 App → Issue 负责/验收 App → Codex App 开发任务
 - Issue 任务解释需求、确认范围和用户决策，再创建新的开发 task/worktree；Issue 任务对测试和业务文件保持只读验收视角。
 - 开发任务是该 Issue 的唯一写入者，负责先交付 Red 测试、获批后实现、测试和返工。
 - Issue 任务不写业务代码，但默认负责验收后的 Git 提交与推送、精确 worktree 回收和 Issue 关闭。
-- 复杂需求使用新的 Codex App developer/worktree。跨模块、跨状态 owner、状态机、协议、事务、恢复、并发、复杂数据流、架构歧义，以及涉及新交互状态、跨组件协作、路由/API、设计系统或多页面重构的 UI 都归入复杂需求。
-- 小需求默认可改用 `grok-cli-development`：范围明确、单模块或单一状态 owner、不超过 5 个文件和 300 行、核心不变量不超过 3 个，且不涉及协议/schema、迁移、事务、恢复、并发、安全边界或架构决策。
-- 简单网页/UI 修改也可用 Grok：只调整现有页面或组件的文案、颜色、间距、尺寸、局部布局、简单样式或轻量展示逻辑，不新增跨组件状态、路由、API 数据流、复杂表单、权限、拖拽、复杂动效或系统性响应式改造，并能执行截图或主路径视觉验证。
-- 超出任一小需求边界即使用 Codex App developer。用户明确指定 Claude Code、Gemini 或 Codex CLI/TUI 时分别使用对应技能，只替换最底层 worker，不合并 Issue 与开发职责。
+- 前端开发（React/Vue/Svelte、HTML/CSS/JS/TS、组件、交互状态、表单、前端路由、响应式、可访问性、动效和前端测试）默认优先使用 `gemini-cli-development`。
+- 边界明确的小型非前端代码可改用 `grok-cli-development`：范围与验收明确、单模块或单一状态 owner、不超过 5 个文件和 300 行、核心不变量不超过 3 个，且无协议/schema/迁移/事务/恢复/并发/安全边界。用户点名 Grok 或需要其内置媒体能力时也可使用。
+- 复杂后端、协议/schema、迁移、事务、恢复、并发、安全边界或架构决策默认使用 Codex App developer (`codex-app-development`)。
+- 全栈任务在能保持单一 owner 与依赖清晰时分拆为前端 Issue（Gemini CLI）与后端 Issue（Codex App）；无法安全分拆时按高风险路径选择并写明理由。
+- 用户明确指定 Claude Code、Grok、Gemini 或 Codex CLI/TUI 时遵从指定，只替换最底层 worker，不合并 Issue 与开发职责。
 
 ## 创建隔离开发任务
 

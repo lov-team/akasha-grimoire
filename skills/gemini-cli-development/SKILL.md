@@ -1,11 +1,11 @@
 ---
 name: gemini-cli-development
-description: 使用可见 macOS Terminal + tmux 驱动 Gemini CLI 在同一交互会话中先给中文计划并自检，再开发、写状态/交付文件并接受主 Agent 独立 Review 与返工。用户要求用 Gemini CLI、让 Gemini 编码、计划后实现、持续监工或复用同一 Gemini 会话返工时使用。
+description: 前端开发默认优先使用的 implementation worker，覆盖 React、Vue、Svelte、HTML、CSS、JavaScript、TypeScript、组件、交互、表单、前端路由、响应式、可访问性、动效和前端测试。使用可见 macOS Terminal + tmux 驱动 Gemini CLI，在同一 TUI 完成中文计划、Red 门、实现、状态交付和返工，并由主 Agent 独立验收。用户点名 Gemini CLI、让 Gemini 编码或复用原 Gemini 会话时也使用。
 ---
 
 # Gemini CLI 开发与独立验收
 
-把 Gemini 当作实现 worker。主 Agent 负责需求解释、范围、用户决策、完整 diff Review、风险复测和 Git 结论。
+把 Gemini 当作前端开发的默认优先实现 worker。纯图片、视频、声音等素材生成仍走对应媒体技能；复杂后端、协议、迁移、并发、安全或架构工作默认交给 Codex App developer。主 Agent 负责需求解释、范围、用户决策、完整 diff Review、风险复测和 Git 结论。
 
 ## 读取规则并核对 CLI
 
@@ -21,16 +21,23 @@ description: 使用可见 macOS Terminal + tmux 驱动 Gemini CLI 在同一交�
 - 会话消息只允许父会话向当前 Issue task 下发任务、决策或返工；当前 Issue task 不向父会话发送消息。它在阶段变化时原子更新父会话指定的单行状态文件，终态另写交付文件，由父会话的长轮询读取。
 - 父会话的存在不降低当前 Issue task 的自主性，也不构成重启异常 worker、继续返工或执行已授权 Git 闭环所需的新权限。
 
-## 建立 prompt contract
+## 建立 prompt contract 与前端实现约束
 
-写明中文要求、目标与逐条验收、已确认决策、非目标、唯一 worktree、允许/禁止路径、TDD/验证门禁、Git 权限、状态与交付文件路径。要求 Gemini：
+写明中文要求、目标与逐条验收、已确认决策、非目标、唯一 worktree、允许/禁止路径、TDD/验证门禁、Git 权限、状态与交付文件路径。把每个行为不变量绑定到真实页面入口、状态 owner、可观察结果、必须失败的负例和测试。要求 Gemini：
 
-- 先输出中文计划并自检需求、边界、Red → Green → Refactor、验证与风险，再在同一 TUI 原地实现；
+- 先输出中文计划并自检需求、边界、Red → Green → Refactor、验证与风险；启用 Red 门时先只修改测试和专用 fixture/support，写出真实 Red 交付并暂停，收到继续指令后才在同一 TUI 实现；
 - 不派生其他写入者，不采集或输出思考过程；
 - 阶段切换时原子覆盖单行状态文件；
 - 只有实现与自测结束后才写中文交付文件，末行写 `GEMINI_DELIVERY_COMPLETE`。
 
-状态仅允许 `GEMINI_PLANNING`、`GEMINI_IMPLEMENTING`、`GEMINI_BLOCKED_USER_DECISION`、`GEMINI_SCOPE_DRIFT`、`GEMINI_ERROR`、`GEMINI_ABORTED`、`GEMINI_DELIVERY_COMPLETE`。交付包含文件、需求映射、测试命令与结果、未验证项、风险和 Git 状态。
+### 前端实现与验收约束（组件/网页/UI）
+
+1. **设计系统复用**：优先复用现有设计 token、CSS 变量、基础组件和交互惯例；没有合同依据不得重写设计系统、全局样式、依赖体系或引入重复组件库。
+2. **两道门与 Red 豁免**：组件行为、状态、表单、路由和数据流改动默认执行 `验收矩阵 → GEMINI_RED_READY → Red Review → Green → Refactor → Final Review`。纯文档、纯视觉样式或已有精确失败用例的极小修改可豁免 Red，但 prompt 必须记录理由，并提供截图或主路径视觉证据。
+3. **风险裁剪的前端验证**：先确认目标 viewport 与浏览器；按风险检查响应式断点、键盘操作、焦点顺序、语义与可访问名称、loading/empty/error/disabled 状态、console/runtime error，并运行相关 lint、typecheck、单元、组件或 E2E。只执行与改动相关的检查，交付中披露未验证项及原因。
+4. **视觉证据可复现**：截图必须注明页面/路由、viewport、状态和生成时间；动态交互至少覆盖用户主路径和一个失败或边界状态。主 Agent 必须独立查看产物，不能只接受 Gemini 的描述。
+
+状态仅允许 `GEMINI_PLANNING`、`GEMINI_RED_READY`、`GEMINI_IMPLEMENTING`、`GEMINI_BLOCKED_USER_DECISION`、`GEMINI_SCOPE_DRIFT`、`GEMINI_ERROR`、`GEMINI_ABORTED`、`GEMINI_DELIVERY_COMPLETE`。启用 Red 门时为 Red 和最终阶段分别指定唯一仓库外交付文件：Red 交付末行写 `GEMINI_RED_READY`，并包含测试 diff、fixture/producer 来源、完整命令、退出码、精确失败断言和短日志路径；最终交付包含变更文件、需求映射、Red/Green/Refactor、视觉与测试证据、未验证项、风险和 Git 状态。
 
 ## 在可见 Terminal + tmux 启动
 
@@ -46,27 +53,37 @@ gemini --skip-trust --approval-mode yolo --prompt-interactive "$PLAN_AND_IMPLEME
 
 完全批准只免除工具逐项确认，不扩大路径、Git 或需求权限。不得用 `-p/--prompt` 的 headless 单轮模式冒充持续 TUI；不得在隐藏 PTY 或 Codex 右侧终端启动。启动器拒绝复用同名 tmux session，并开启 mouse 与足够 scrollback。
 
-## 低噪声长轮询
+## 低噪声长轮询与同会话返工
 
 启动成功后立即运行轮询脚本，让脚本在进程内每 20 秒检查一次，不要由主 Agent 高频调用工具：
 
 ```bash
 scripts/wait-for-delivery.zsh \
-  "$STATUS_FILE" GEMINI_DELIVERY_COMPLETE \
-  "$HANDOFF_FILE" GEMINI_DELIVERY_COMPLETE \
+  "$STATUS_FILE" "$EXPECTED_STATUS" \
+  "$HANDOFF_FILE" "$EXPECTED_MARKER" \
   1200
 ```
 
 默认等待 1200 秒。脚本在循环中零输出；双重完成时退出 0，可动作状态立即退出 3，整段无可动作终态才输出一次最后状态并退出 124。若宿主先返回仍在运行的 session，使用一次支持的最长等待继续该进程，不要轮询文件或 session。
 
-退出 0 后只读一次交付文件并进入 Review。退出 3 时按报告状态处理；退出 124 时 implementing/missing 再启动一轮 20 分钟监控，异常状态才做一次最小诊断。不要抓 pane、过程输出、思考、token、进程或中间 diff。session 正常存活时不得重启或使用 `--resume`；若精确 session 已异常退出，改走下述唯一替代 TUI 恢复，不通知父会话等待批准。
+启用 Red 门时先以 `GEMINI_RED_READY` 为 expected status/marker。主 Agent 独立确认生产实现未改，再审测试入口、fixture 来源、失败断言和日志；不通过就只要求原 TUI 修正 Red，通过后投递单行继续指令，并以 `GEMINI_DELIVERY_COMPLETE` 等待最终交付。每阶段退出 0 后只读一次对应交付文件；退出 3 时处理报告状态；退出 124 时 planning/implementing/missing 再启动一轮 20 分钟监控。不要抓 pane、过程输出、思考、token、进程或中间 diff。
+
+所有继续、决策或返工输入先写入仓库外唯一单行文件，再使用统一脚本提交到启动时记录的精确 pane：
+
+```bash
+scripts/submit-to-tmux.zsh \
+  "=$EXACT_SESSION:$WINDOW_INDEX.$PANE_INDEX" \
+  "$SINGLE_LINE_INPUT_FILE"
+```
+
+脚本校验精确 target 与单行输入，固定执行 `load-buffer → paste-buffer → send-keys Enter`。任一步失败都停止；不得自行拆开命令、补第二次 Enter、读取 pane 猜测是否提交，或因状态短时间未变化重复投递。session 正常存活时不得重启或使用 `--resume`；若精确 session 已异常退出，改走下述唯一替代 TUI 恢复。
 
 ### Gemini TUI 异常退出后的自主恢复
 
 - 状态/交付长等待连续两轮仍缺失或不前进时，只读确认记录的精确 tmux session 是否存在；不得读取 pane。session 仍存在则继续按状态规则等待或处理，禁止重复投递。
 - 若精确 session 已不存在，视为 worker 异常退出。当前 Issue task 不向父会话请求许可、不停在阶段性阻塞，也不自行写业务代码；先审计现有 Git 现场与最后有效交付，确认没有第二个写入者或未确认产品决策。
 - 在同一 worktree、同一分支上启动一个新的唯一可见 Terminal+tmux 替代 TUI。使用新的精确 session 名、runner、状态和交付路径；prompt 必须完整携带原合同、已确认决策、累计 diff、独立 Review 问题、当前阶段和禁止项。不得使用 `--resume`，不得假装恢复原 Gemini 内部会话。
-- 替代 TUI 只接续尚未完成的阶段；Review 返工只处理已确认 P0-P2，不得重做已通过阶段或扩大需求。任一时刻仍只允许一个 Gemini 写入者。
+- 替代 TUI 只接续尚未完成的阶段：Red 不合格就先修 Red；Green 或 Review 返工只处理已确认 P0-P2。不得重做已通过阶段或扩大需求，任一时刻仍只允许一个 Gemini 写入者。
 - 每次异常退出最多自动启动一个替代 TUI；若替代 TUI 再次异常退出，先做最小根因诊断并再选择安全恢复。只有确认环境持续不可用、用户取消或无法在既有授权内继续时，才写入最终失败/阻塞状态与交付证据。
 
 ## 独立 Review 与返工
