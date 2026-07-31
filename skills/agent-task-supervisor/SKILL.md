@@ -39,6 +39,8 @@ Epic 创建 Issue task、Issue task 创建或继续 developer 后，直接父任
 4. 全栈任务分拆与路由：在能保持单一 owner 与依赖清晰时拆分为前端 Issue（Gemini CLI）与后端 Issue（Codex App）；不能安全拆分时按高风险路径选择（如后端/架构风险高则选 Codex App），并写明理由。
 5. 用户在当前任务明确指定 Claude Code、Grok、Gemini 或 Codex CLI 时遵从指定，只替换最底层 worker；实现与验收职责仍保持分离。
 
+当同一执行框架支持多个底座模型，需要按知识工作、工程、企业自动化、吞吐、成本或私有部署进行模型路由时，读取 [生产模型路由参考](references/production-model-routing.md)。它只用于模型候选、升级和验收，不覆盖用户明确指定、已有长会话粘性、项目固定模型或本 Skill 已规定的状态/Review 档位。
+
 ## 用 Graph Engineering 驱动交付
 
 把需要执行和验收的工作组织为 `Spec → Epic → Issue → Agent Task → Evidence`：
