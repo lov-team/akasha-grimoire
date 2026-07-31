@@ -4,7 +4,7 @@
 
 **把一次成功的 Agent 协作，沉淀成团队可以反复调用的能力。**
 
-[![Agent Skills](https://img.shields.io/badge/Agent_Skills-10-6C5CE7?style=flat-square)](#能力目录)
+[![Agent Skills](https://img.shields.io/badge/Agent_Skills-16-6C5CE7?style=flat-square)](#能力目录)
 [![Best on Codex App](https://img.shields.io/badge/Best_on-Codex_App-111827?style=flat-square)](#graph-engineering)
 [![Languages](https://img.shields.io/badge/Languages-中文_·_English_·_日本語-2D9CDB?style=flat-square)](#)
 [![Source of Truth](https://img.shields.io/badge/Source_of_Truth-Git-2EA44F?style=flat-square)](#设计原则)
@@ -61,6 +61,14 @@ Graph Engineering 把交付建模为一张可追踪的工作图，而不是一�
 | --- | --- | --- |
 | [`agent-task-supervisor`](skills/agent-task-supervisor/) | 用 Spec/Epic/Issue 图谱监工、协调和验收多个任务 | 不限制合理并发；每次下发后由直接父层启动 20 分钟、每 20 秒扫描的本地 monitor；状态用 sol low、Review 用 high |
 | [`codex-app-development`](skills/codex-app-development/) | 由独立 Issue 验收任务创建 Codex App 开发会话 | Epic 监工 → Issue 验收 → developer 三层分工、隔离 worktree、单向下发、状态文件监控与独立 diff Review |
+
+### 内容生产
+
+| Skill | 适用场景 | 核心能力 |
+| --- | --- | --- |
+| [`content-pipeline`](skills/content-pipeline/) | 把中文想法、文章、资料或中断任务制作成小红书式图文内容包 | 内容合同、来源研究、原文忠实度、文案、内容地图、HTML/CSS 卡片、按需生图和移动端 QA |
+
+单独安装 `content-pipeline` 可完成纯文字 HTML/CSS 卡片；需要生成照片或插画时，同时安装 `gpt-image-generation` 和 `akasha-key-setup`。
 
 ### 图像、游戏与音频
 
@@ -148,6 +156,8 @@ done
 使用 $agent-task-supervisor 把这份 Spec 拆成 Epic/Issue 依赖图，在 Codex App 中只启动已就绪的 Issue，并用证据自底向上关闭整张图。
 
 使用 $codex-app-development 让当前 Issue 验收任务再创建独立 Codex App 开发会话；开发会话只实现，Issue 任务独立 Review 并把 P0–P2 发回原会话。
+
+使用 $content-pipeline 把这篇中文文章制作成一套小红书图文；保留原意，先确认封面方向，最后交付可恢复的本地内容包。
 
 使用 $game-asset-forge 为 2D 游戏制作一套透明背景角色动画帧，先 smoke 再批量。
 

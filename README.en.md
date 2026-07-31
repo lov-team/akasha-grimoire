@@ -4,7 +4,7 @@
 
 **Turn successful Agent collaboration into reusable team capabilities.**
 
-[![Agent Skills](https://img.shields.io/badge/Agent_Skills-10-6C5CE7?style=flat-square)](#capability-catalog)
+[![Agent Skills](https://img.shields.io/badge/Agent_Skills-16-6C5CE7?style=flat-square)](#capability-catalog)
 [![Best on Codex App](https://img.shields.io/badge/Best_on-Codex_App-111827?style=flat-square)](#graph-engineering)
 [![Languages](https://img.shields.io/badge/Languages-中文_·_English_·_日本語-2D9CDB?style=flat-square)](#)
 [![Source of Truth](https://img.shields.io/badge/Source_of_Truth-Git-2EA44F?style=flat-square)](#design-principles)
@@ -61,6 +61,14 @@ Every implementation and acceptance task is Issue-driven. Each task maps to an I
 | --- | --- | --- |
 | [`agent-task-supervisor`](skills/agent-task-supervisor/) | Supervising, coordinating, and accepting tasks through a Spec/Epic/Issue graph | After each dispatch, the direct parent starts a 20-minute local monitor that scans every 20 seconds; sol low handles status and high handles review |
 | [`codex-app-development`](skills/codex-app-development/) | Having an independent Issue acceptance task create a Codex App developer | Epic supervisor → Issue acceptance → developer separation, isolated worktrees, one-way dispatch, status-file monitoring, same-worker rework, and independent diff review |
+
+### Content production
+
+| Skill | Best for | What it provides |
+| --- | --- | --- |
+| [`content-pipeline`](skills/content-pipeline/) | Turning Chinese ideas, articles, sources, or paused work into Xiaohongshu-style image-post packages | Content contracts, sourced research, source fidelity, copy, content maps, HTML/CSS cards, optional image generation, and mobile QA |
+
+A standalone `content-pipeline` install covers text-only HTML/CSS cards. Install `gpt-image-generation` and `akasha-key-setup` as well when the workflow needs generated photos or illustrations.
 
 ### Image, game, and audio production
 
@@ -146,6 +154,8 @@ Use $agent-task-supervisor to monitor these tasks lightly and independently acce
 Use $agent-task-supervisor to turn this Spec into an Epic/Issue dependency graph, start only ready Issues in Codex App, and close the graph bottom-up with evidence.
 
 Use $codex-app-development from the Issue acceptance task to create a separate Codex App developer; the developer only implements, while the Issue task independently reviews and returns P0–P2 to the same worker.
+
+Use $content-pipeline to turn this Chinese article into a Xiaohongshu image post, preserve its argument, confirm the cover direction first, and deliver a recoverable local package.
 
 Use $game-asset-forge to create transparent character animation frames for a 2D game, starting with a smoke batch.
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "中文图文内容流水线"
+  short_description: "把中文内容想法稳定生产为可追溯、可验收的图文内容包"
+  default_prompt: "使用 $content-pipeline 把这个想法或素材整理成完整中文图文内容包，先锁定内容与视觉合同，再完成研究、文案、卡片和 QA。"
