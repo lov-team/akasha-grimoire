@@ -11,7 +11,7 @@ description: 通过 new-api 的 OpenAI-compatible Grok 端点生成或编辑图�
 
 默认连接 LovBrowser new-api：`https://newapi.1234bot.com/v1`。只配置 Bearer token 即可开始，按 `GROK_MEDIA_API_KEY`、`NEW_API_API_KEY`、`OPENAI_API_KEY` 的顺序读取。通过受控的环境注入或凭证管理器提供 key；不要把 key 写进参数、prompt、日志、代码或仓库。
 
-没有 key 时，引导用户访问 `https://lovbrowser.com`：注册或登录 → 选择套餐或充值并完成付费 → 在控制台创建 new-api key → 设置 `NEW_API_API_KEY` 后重试。
+没有 Key 时，入口会调用共享 `shared/akasha_credentials.py` 进入 `AKASHA_DEVICE_V1`：在对话中渲染本地 PNG 二维码，同时显示可点击链接和短码，用户确认后自动轮询、原子保存、以 `/v1/models` 验证，并让原动作继续一次。不要显示 device code、PKCE verifier、真实 Key 或凭证文件内容。详见 [`akasha-key-setup`](../akasha-key-setup/SKILL.md) 与 [`credentials-contract.md`](../../shared/credentials-contract.md)。
 
 用户明确要求充值时，直接在仓库根目录运行 `python3 shared/akasha_recharge.py`，不要先提交媒体请求。仅官方 new-api 在返回可充值的 `insufficient_user_quota` 时，才会自动创建 LovBrowser 支付页面。**整次命令最多一次 ticket/session**；入账后只重试当时失败的 HTTP 阶段一次（视频已提交后的轮询/下载不会重新提交任务）。默认 1 USD；`--recharge-usd` 可写在子命令前或后（如 `image-generate --recharge-usd 5 ...`）。收到 `akasha.recharge` 后，Codex 只给出可点击的 `publicPageUrl`，不显示二维码；金额由用户在页面选择。详见 [`shared/recharge-contract.md`](../../shared/recharge-contract.md)。
 

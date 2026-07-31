@@ -162,7 +162,7 @@ class GrokMediaScriptTest(unittest.TestCase):
                 "--output",
                 str(output),
             ],
-            env={},
+            env={"AKASHA_DISABLE_AUTO_BOOTSTRAP": "1"},
             text=True,
             capture_output=True,
             check=False,

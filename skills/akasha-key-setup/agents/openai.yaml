@@ -1,0 +1,4 @@
+interface:
+  display_name: "Akasha Key Setup"
+  short_description: "通过 LovBrowser 扫码配置共享 new-api 凭证"
+  default_prompt: "使用 $akasha-key-setup 配置或检查 Akasha 共享 new-api 凭证。"

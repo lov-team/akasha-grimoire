@@ -803,6 +803,7 @@ def raise_quota_if_applicable(
 _STABLE_MODULE_NAME = "akasha_grimoire_shared_akasha_recharge"
 # Process-level path -> module cache (identity-stable across skill entry loaders).
 _PATH_MODULE_CACHE: dict[str, Any] = {}
+_CREDENTIALS_MODULE_CACHE: dict[str, Any] = {}
 
 
 def resolve_akasha_recharge_path(caller_file: str | Path) -> Path:
@@ -886,6 +887,35 @@ def load_akasha_recharge_module(caller_file: str | Path | None = None):
     if isinstance(path_cache, dict):
         path_cache[key] = module
     _PATH_MODULE_CACHE[key] = module
+    return module
+
+
+def load_akasha_credentials_module(caller_file: str | Path | None = None):
+    """Load the sibling shared credential module without changing sys.path."""
+    import importlib.util
+
+    recharge_path = (
+        Path(__file__).resolve()
+        if caller_file is None
+        else resolve_akasha_recharge_path(caller_file)
+    )
+    path = recharge_path.with_name("akasha_credentials.py")
+    if not path.is_file():
+        raise AkashaRechargeError(
+            "shared akasha_credentials helper not found; install shared/ with the media Skill"
+        )
+    key = str(path.resolve())
+    cached = _CREDENTIALS_MODULE_CACHE.get(key)
+    if cached is not None and _module_file_matches(cached, path):
+        return cached
+    module_name = f"akasha_grimoire_shared_credentials_{abs(hash(key)) & 0xFFFFFFFF:x}"
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    if spec is None or spec.loader is None:
+        raise AkashaRechargeError("unable to load shared Akasha credential helper")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    _CREDENTIALS_MODULE_CACHE[key] = module
     return module
 
 

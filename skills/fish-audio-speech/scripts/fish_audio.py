@@ -109,27 +109,26 @@ def _load_akasha_recharge() -> Any:
 
 
 def _api_key() -> str:
-    return os.environ.get("NEW_API_API_KEY") or os.environ.get("OPENAI_API_KEY") or ""
+    credentials = _load_akasha_recharge().load_akasha_credentials_module(Path(__file__))
+    found = credentials.discover_credential(("FISH_AUDIO_API_KEY",))
+    if found is None:
+        try:
+            found = credentials.bootstrap(specialized_names=("FISH_AUDIO_API_KEY",))
+        except credentials.CredentialError as exc:
+            raise SystemExit(str(exc)) from exc
+    return found.api_key
 
 
 def _base_url(value: str | None) -> str:
-    return (
-        value
-        or os.environ.get("NEW_API_BASE_URL")
-        or os.environ.get("OPENAI_BASE_URL")
-        or DEFAULT_BASE_URL
+    credentials = _load_akasha_recharge().load_akasha_credentials_module(Path(__file__))
+    return credentials.resolve_base_url(
+        ("FISH_AUDIO_BASE_URL",), explicit=value, default=DEFAULT_BASE_URL
     )
 
 
 def _missing_key_message() -> str:
-    return (
-        "missing API key. Get started with LovBrowser:\n"
-        "1. Visit https://lovbrowser.com and register or sign in.\n"
-        "2. Choose a plan or top up your balance and complete payment.\n"
-        "3. Create a new-api key in the console.\n"
-        "4. Set NEW_API_API_KEY, then run this command again.\n"
-        "Default API: https://newapi.1234bot.com/v1. Never commit your key."
-    )
+    credentials = _load_akasha_recharge().load_akasha_credentials_module(Path(__file__))
+    return credentials.bootstrap_instructions()
 
 
 def _parsed_base_url(value: str) -> urllib.parse.SplitResult:
@@ -785,8 +784,6 @@ def main(argv: list[str] | None = None) -> int:
         _bind_character(args)
         return 0
     api_key = _api_key()
-    if not api_key:
-        raise SystemExit(_missing_key_message())
     base_url = _base_url(args.base_url)
     recharge = _load_akasha_recharge()
     try:

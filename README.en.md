@@ -22,18 +22,12 @@ Akasha Grimoire is a shared collection of Agent Skills, designed to work best in
 
 ## Get started in one minute
 
-1. Open [lovbrowser.com](https://lovbrowser.com), then register or sign in.
-2. Choose a plan or top up your balance and complete payment as instructed on the site.
-3. Open API Key management, create a new-api key, and copy it.
-4. Store the key through an environment variable or credential manager:
+1. Ask Codex to run a media task with GPT Image, Grok, Seedance, Fish Audio, or Suno.
+2. When no key exists, the Agent generates a LovBrowser device-authorization QR code plus a clickable link and short code.
+3. Scan it, register or sign in, and confirm the matching code. The local client polls, stores the credential, and validates it through `/v1/models`.
+4. After validation, the original media action continues once. The real key never passes through chat, clipboard, or command arguments.
 
-   ```bash
-   export NEW_API_API_KEY="<your-new-api-key>"
-   ```
-
-5. Ask Codex to generate an image with GPT Image, a video with Grok or Seedance, speech with Fish Audio, or music with Suno. The matching Skill uses the default endpoint automatically.
-
-Never put the key in prompts, command arguments, logs, or the repository. Set `NEW_API_BASE_URL` or pass `--base-url` only for a private deployment.
+You can also run `python3 shared/akasha_credentials.py status|start|finish|cancel|rollback`. Credentials default to `~/.config/akasha/credentials.env`. Existing environment variables remain compatible; priority is capability-specific variable > `NEW_API_API_KEY` > user credential > `OPENAI_API_KEY`.
 
 ## Design principles
 

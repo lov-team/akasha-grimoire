@@ -145,8 +145,8 @@ class FishAudioTests(unittest.TestCase):
     def test_missing_key_message_links_lovbrowser_and_payment_flow(self) -> None:
         message = fish_audio._missing_key_message()
         self.assertIn("https://lovbrowser.com", message)
-        self.assertIn("payment", message)
-        self.assertIn("NEW_API_API_KEY", message)
+        self.assertIn("QR code", message)
+        self.assertIn("akasha_credentials.py finish", message)
 
     def test_tts_with_reference_audio_saves_binary(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir, mock.patch.dict(

@@ -19,7 +19,7 @@ description: 通过 new-api 调用 Fish Audio 完成 TTS、STT、私人声线克
 
 ## 接入 LovBrowser
 
-脚本默认使用 `https://newapi.1234bot.com/v1`，通常只需设置 `NEW_API_API_KEY`。没有 key 时，引导用户访问 `https://lovbrowser.com`：注册或登录 → 选择套餐或充值并完成付费 → 在控制台创建 new-api key → 设置 `NEW_API_API_KEY` 后重试。只有私有部署才用 `--base-url`、`NEW_API_BASE_URL` 或 `OPENAI_BASE_URL` 覆盖默认入口。不要把 key 写入命令参数、日志或仓库。
+没有 Key 时，入口会调用共享 `shared/akasha_credentials.py` 进入 `AKASHA_DEVICE_V1`：在对话中渲染本地 PNG 二维码，同时显示可点击链接和短码，用户确认后自动轮询、原子保存、以 `/v1/models` 验证，并让原动作继续一次。不要显示 device code、PKCE verifier、真实 Key 或凭证文件内容。详见 [`akasha-key-setup`](../akasha-key-setup/SKILL.md) 与 [`credentials-contract.md`](../../shared/credentials-contract.md)。
 
 用户明确要求充值时，直接在仓库根目录运行 `python3 shared/akasha_recharge.py`，不要先提交音频请求。TTS/STT/克隆等鉴权请求在官方 new-api 返回可充值的 `insufficient_user_quota` 时，会走共享自动充值（整次命令最多一次 ticket/session + 单次续跑）。默认 1 USD；`--recharge-usd` 可写在子命令前或后。收到 `akasha.recharge` 后，Codex 只给出可点击的 `publicPageUrl`，不显示二维码；金额由用户在页面选择。公开音色搜索不经过 new-api，不触发充值。详见 [`shared/recharge-contract.md`](../../shared/recharge-contract.md)。
 

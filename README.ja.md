@@ -22,18 +22,12 @@ Akasha Grimoire は、**Codex App** での利用に最適化された、チー�
 
 ## 1 分で利用開始
 
-1. [lovbrowser.com](https://lovbrowser.com) を開き、登録またはログインします。
-2. プランを選択するか残高をチャージし、サイトの案内に従って支払いを完了します。
-3. API Key 管理画面で new-api key を作成してコピーします。
-4. 環境変数または認証情報マネージャーで安全に設定します。
+1. Codex に GPT Image、Grok、Seedance、Fish Audio、Suno のメディア処理を依頼します。
+2. Key がない場合、Agent は LovBrowser のデバイス認証 QR、クリック可能なリンク、短いコードを表示します。
+3. スキャンして登録またはログインし、同じコードを確認します。ローカルクライアントが自動でポーリングし、認証情報を保存して `/v1/models` で検証します。
+4. 検証後、元のメディア処理を一度だけ続行します。実際の Key はチャット、クリップボード、コマンド引数を通りません。
 
-   ```bash
-   export NEW_API_API_KEY="<your-new-api-key>"
-   ```
-
-5. Codex に GPT Image の画像生成、Grok/Seedance の動画生成、Fish Audio の音声合成、Suno の音楽生成を依頼します。対応する Skill が既定 endpoint を自動的に使用します。
-
-key を prompt、コマンド引数、ログ、リポジトリに保存しないでください。プライベート環境に接続する場合のみ `NEW_API_BASE_URL` または `--base-url` を使用します。
+`python3 shared/akasha_credentials.py status|start|finish|cancel|rollback` でも管理できます。既定の保存先は `~/.config/akasha/credentials.env` です。優先順位は専用環境変数 > `NEW_API_API_KEY` > ユーザー認証情報 > `OPENAI_API_KEY` です。
 
 ## 設計原則
 

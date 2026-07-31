@@ -96,14 +96,13 @@ class SeedanceVideoScriptTest(unittest.TestCase):
             )
 
     def test_missing_key_message_links_lovbrowser_and_payment_flow(self) -> None:
-        with patch.dict(os.environ, {}, clear=True), self.assertRaises(
+        with patch.dict(os.environ, {"AKASHA_DISABLE_AUTO_BOOTSTRAP": "1"}, clear=True), self.assertRaises(
             SEEDANCE_VIDEO.SeedanceVideoError
         ) as caught:
             SEEDANCE_VIDEO.read_api_key()
         message = str(caught.exception)
         self.assertIn("https://lovbrowser.com", message)
-        self.assertIn("payment", message)
-        self.assertIn("NEW_API_API_KEY", message)
+        self.assertIn("akasha_credentials.py start", message)
 
     @classmethod
     def setUpClass(cls) -> None:

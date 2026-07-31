@@ -22,18 +22,12 @@ Akasha Grimoire 是团队共享的 Agent Skill 合集，最佳使用环境是 **
 
 ## 一分钟开通
 
-1. 打开 [lovbrowser.com](https://lovbrowser.com)，注册并登录账号。
-2. 在站内选择适合的套餐或充值额度，按页面提示完成付费。
-3. 进入 API Key 管理页面，创建并复制一把 new-api Key。
-4. 通过环境变量或凭证管理器安全配置 Key：
+1. 在 Codex 中直接要求 GPT Image、Grok、Seedance、Fish Audio 或 Suno 执行媒体任务。
+2. 首次缺少 Key 时，Agent 会生成 LovBrowser 设备授权二维码，并同时显示可点击链接与短码。
+3. 用手机扫码，注册或登录后确认同一短码；本机随后自动轮询、保存凭证并用 `/v1/models` 验证。
+4. 验证成功后，最初的媒体任务自动继续一次。真实 Key 不经过对话、剪贴板或命令参数。
 
-   ```bash
-   export NEW_API_API_KEY="<your-new-api-key>"
-   ```
-
-5. 在 Codex 中直接说“用 GPT Image 生成图片”“用 Grok/Seedance 生成视频”“用 Fish Audio 配音”或“用 Suno 生成音乐”。对应 Skill 会自动使用默认入口。
-
-不要把 Key 写入 prompt、命令参数、日志或仓库。需要连接私有部署时，才设置 `NEW_API_BASE_URL` 或显式传 `--base-url`。
+也可运行 `python3 shared/akasha_credentials.py status|start|finish|cancel|rollback` 管理配置。凭证默认保存到 `~/.config/akasha/credentials.env`。已有环境变量仍兼容，优先级为专用变量 > `NEW_API_API_KEY` > 用户凭证 > `OPENAI_API_KEY`。
 
 ## 为什么使用
 

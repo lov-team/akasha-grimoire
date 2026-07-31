@@ -58,8 +58,8 @@ class RequestFormatTest(unittest.TestCase):
     def test_missing_key_message_links_lovbrowser_and_payment_flow(self) -> None:
         message = MODULE._missing_key_message()
         self.assertIn("https://lovbrowser.com", message)
-        self.assertIn("payment", message)
-        self.assertIn("NEW_API_API_KEY", message)
+        self.assertIn("QR code", message)
+        self.assertIn("akasha_credentials.py finish", message)
 
     def test_generation_request_is_always_b64_json(self) -> None:
         args = argparse.Namespace(

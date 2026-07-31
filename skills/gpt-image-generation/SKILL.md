@@ -11,7 +11,7 @@ description: 通过 OpenAI-compatible GPT Image 端点生成单张或多张输�
 
 明确模型、prompt、尺寸、参考图、输出格式、仓库外 staging 路径和验收标准。脚本默认使用 LovBrowser new-api：`https://newapi.1234bot.com/v1`。只有需要切换私有部署时才按 `--base-url`、`IMAGE_PROXY_BASE_URL`、`NEW_API_BASE_URL`、`OPENAI_BASE_URL` 的顺序覆盖。base URL 可传 host 根或 `/v1` API 根，不允许 query、fragment 或 userinfo。
 
-凭证按 `IMAGE_PROXY_API_KEY`、`NEW_API_API_KEY`、`OPENAI_API_KEY` 的顺序读取。没有 key 时，引导用户访问 `https://lovbrowser.com`：注册或登录 → 选择套餐或充值并完成付费 → 在控制台创建 new-api key → 设置 `NEW_API_API_KEY` 后重试。不要打印 key、复制 `.env` 内容，或把凭证写进 prompt、命令参数、日志和仓库。
+没有 Key 时，入口会调用共享 `shared/akasha_credentials.py` 进入 `AKASHA_DEVICE_V1`：在对话中渲染本地 PNG 二维码，同时显示可点击链接和短码，用户确认后自动轮询、原子保存、以 `/v1/models` 验证，并让原动作继续一次。不要显示 device code、PKCE verifier、真实 Key 或凭证文件内容。详见 [`akasha-key-setup`](../akasha-key-setup/SKILL.md) 与 [`credentials-contract.md`](../../shared/credentials-contract.md)。
 
 ### 主动/余额不足充值（仅官方 new-api）
 

@@ -109,32 +109,24 @@ class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
 
 
 def _api_key() -> str:
-    return (
-        os.environ.get("IMAGE_PROXY_API_KEY")
-        or os.environ.get("NEW_API_API_KEY")
-        or os.environ.get("OPENAI_API_KEY")
-        or ""
-    )
+    credentials = _load_akasha_recharge().load_akasha_credentials_module(Path(__file__))
+    found = credentials.discover_credential(("IMAGE_PROXY_API_KEY",))
+    if found is None:
+        try:
+            found = credentials.bootstrap(specialized_names=("IMAGE_PROXY_API_KEY",))
+        except credentials.CredentialError as exc:
+            raise SystemExit(str(exc)) from exc
+    return found.api_key
 
 
 def _base_url() -> str:
-    return (
-        os.environ.get("IMAGE_PROXY_BASE_URL")
-        or os.environ.get("NEW_API_BASE_URL")
-        or os.environ.get("OPENAI_BASE_URL")
-        or DEFAULT_BASE_URL
-    )
+    credentials = _load_akasha_recharge().load_akasha_credentials_module(Path(__file__))
+    return credentials.resolve_base_url(("IMAGE_PROXY_BASE_URL",), default=DEFAULT_BASE_URL)
 
 
 def _missing_key_message() -> str:
-    return (
-        "missing API key. Get started with LovBrowser:\n"
-        "1. Visit https://lovbrowser.com and register or sign in.\n"
-        "2. Choose a plan or top up your balance and complete payment.\n"
-        "3. Create a new-api key in the console.\n"
-        "4. Set NEW_API_API_KEY, then run this command again.\n"
-        "Default API: https://newapi.1234bot.com/v1. Never commit your key."
-    )
+    credentials = _load_akasha_recharge().load_akasha_credentials_module(Path(__file__))
+    return credentials.bootstrap_instructions()
 
 
 def _load_env_file(path_value: str | None) -> None:
@@ -243,10 +235,8 @@ def _multipart_body(args: argparse.Namespace) -> tuple[bytes, str]:
     return b"".join(chunks), f"multipart/form-data; boundary={boundary}"
 
 
-def _build_request(args: argparse.Namespace) -> urllib.request.Request:
-    key = _api_key()
-    if not key:
-        raise SystemExit(_missing_key_message())
+def _build_request(args: argparse.Namespace, key: str | None = None) -> urllib.request.Request:
+    key = key or _api_key()
 
     endpoint = "edits" if args.image else "generations"
     if args.image:
@@ -415,6 +405,7 @@ def main() -> int:
         parser.error("--n greater than 1 is only supported for image generations")
 
     _load_env_file(args.env_file)
+    api_key = _api_key()
     args.base_url = args.base_url or _base_url()
     try:
         # Explicit CLI amount only; env is resolved lazily if/when recharge triggers.
@@ -423,8 +414,7 @@ def main() -> int:
         print(f"FAIL error=AkashaRechargeError message={_one_line(exc)}")
         return 1
 
-    request = _build_request(args)
-    api_key = _api_key()
+    request = _build_request(args, api_key)
     opener = urllib.request.build_opener(NoRedirectHandler)
     print(f"POST {request.full_url}")
     controller = recharge_mod.RechargeController(

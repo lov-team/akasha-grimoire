@@ -127,8 +127,8 @@ class SunoMusicTests(unittest.TestCase):
     def test_missing_key_message_links_lovbrowser_and_payment_flow(self) -> None:
         message = suno_music._missing_key_message()
         self.assertIn("https://lovbrowser.com", message)
-        self.assertIn("payment", message)
-        self.assertIn("NEW_API_API_KEY", message)
+        self.assertIn("QR code", message)
+        self.assertIn("akasha_credentials.py finish", message)
 
     def test_submit_wait_and_download_stay_quiet_until_success(self) -> None:
         _SunoHandler.polls = 0

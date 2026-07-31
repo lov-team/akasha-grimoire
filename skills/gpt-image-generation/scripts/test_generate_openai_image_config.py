@@ -56,8 +56,8 @@ class ImageConfigTest(unittest.TestCase):
     def test_missing_key_message_links_lovbrowser_and_payment_flow(self) -> None:
         message = MODULE._missing_key_message()
         self.assertIn("https://lovbrowser.com", message)
-        self.assertIn("payment", message)
-        self.assertIn("NEW_API_API_KEY", message)
+        self.assertIn("QR code", message)
+        self.assertIn("akasha_credentials.py finish", message)
 
     def test_shared_recharge_helper_loads_and_exposes_flag(self) -> None:
         recharge = MODULE._load_akasha_recharge()

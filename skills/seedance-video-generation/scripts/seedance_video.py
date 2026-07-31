@@ -166,33 +166,22 @@ def normalize_base_url(raw: str) -> str:
 
 
 def resolve_base_url(explicit: str | None) -> str:
-    raw = (
-        explicit
-        or os.environ.get("SEEDANCE_VIDEO_BASE_URL")
-        or os.environ.get("NEW_API_BASE_URL")
-        or os.environ.get("OPENAI_BASE_URL")
-        or DEFAULT_BASE_URL
+    credentials = _load_akasha_recharge().load_akasha_credentials_module(Path(__file__))
+    raw = credentials.resolve_base_url(
+        ("SEEDANCE_VIDEO_BASE_URL",), explicit=explicit, default=DEFAULT_BASE_URL
     )
     return normalize_base_url(raw)
 
 
 def read_api_key() -> str:
-    key = (
-        os.environ.get("SEEDANCE_VIDEO_API_KEY")
-        or os.environ.get("NEW_API_API_KEY")
-        or os.environ.get("OPENAI_API_KEY")
-        or ""
-    )
-    if not key.strip():
-        raise SeedanceVideoError(
-            "missing API key. Get started with LovBrowser:\n"
-            "1. Visit https://lovbrowser.com and register or sign in.\n"
-            "2. Choose a plan or top up your balance and complete payment.\n"
-            "3. Create a new-api key in the console.\n"
-            "4. Set NEW_API_API_KEY, then run this command again.\n"
-            "Default API: https://newapi.1234bot.com/v1. Never commit your key."
-        )
-    return key.strip()
+    credentials = _load_akasha_recharge().load_akasha_credentials_module(Path(__file__))
+    found = credentials.discover_credential(("SEEDANCE_VIDEO_API_KEY",))
+    if found is None:
+        try:
+            found = credentials.bootstrap(specialized_names=("SEEDANCE_VIDEO_API_KEY",))
+        except credentials.CredentialError as exc:
+            raise SeedanceVideoError(str(exc)) from exc
+    return found.api_key
 
 
 def read_response(response: object) -> tuple[bytes, str]:
@@ -392,8 +381,8 @@ def resolve_model(args: argparse.Namespace) -> tuple[str, dict]:
 
 
 def run_generate(args: argparse.Namespace) -> None:
-    base_url = resolve_base_url(args.base_url)
     api_key = read_api_key()
+    base_url = resolve_base_url(args.base_url)
     recharge = _load_akasha_recharge()
     recharge.validate_cli_recharge_usd(getattr(args, "recharge_usd", None))
     controller = recharge.RechargeController(
