@@ -4,7 +4,7 @@
 
 **一度きりの成功した Agent 協働を、チームが繰り返し使える能力へ。**
 
-[![Agent Skills](https://img.shields.io/badge/Agent_Skills-10-6C5CE7?style=flat-square)](#スキル一覧)
+[![Agent Skills](https://img.shields.io/badge/Agent_Skills-16-6C5CE7?style=flat-square)](#スキル一覧)
 [![Best on Codex App](https://img.shields.io/badge/Best_on-Codex_App-111827?style=flat-square)](#graph-engineering)
 [![Languages](https://img.shields.io/badge/Languages-中文_·_English_·_日本語-2D9CDB?style=flat-square)](#)
 [![Source of Truth](https://img.shields.io/badge/Source_of_Truth-Git-2EA44F?style=flat-square)](#設計原則)
@@ -61,6 +61,14 @@ Graph Engineering は、納品作業を一時的な prompt の列ではなく、
 | --- | --- | --- |
 | [`agent-task-supervisor`](skills/agent-task-supervisor/) | Spec/Epic/Issue グラフによる複数 task の監督、調整、受け入れ確認 | 各指示の送信後、直接の親が 20 分間・20 秒間隔のローカル monitor を起動。状態は sol low、Review は high |
 | [`codex-app-development`](skills/codex-app-development/) | 独立 Issue 受け入れ task から Codex App developer を作成 | Epic 監督 → Issue 受け入れ → developer の三層分離、worktree 隔離、一方向指示、状態ファイル監視、同一 worker 修正、独立 diff Review |
+
+### コンテンツ制作
+
+| Skill | 主な用途 | 提供する能力 |
+| --- | --- | --- |
+| [`content-pipeline`](skills/content-pipeline/) | 中国語のアイデア、記事、資料、中断した作業を小紅書形式の画像投稿パッケージへ変換 | コンテンツ契約、出典調査、原文忠実度、コピー、内容マップ、HTML/CSS カード、必要時の画像生成、モバイル QA |
+
+`content-pipeline` 単体ではテキスト中心の HTML/CSS カードを制作できます。写真やイラストの生成が必要な場合は、`gpt-image-generation` と `akasha-key-setup` もインストールしてください。
 
 ### 画像・ゲーム・音声制作
 
@@ -146,6 +154,8 @@ $agent-task-supervisor を使ってタスクを低ノイズで監督し、納品
 $agent-task-supervisor を使ってこの Spec を Epic/Issue の依存グラフに分解し、Codex App では準備済み Issue だけを開始し、Evidence で末端からグラフ全体を閉じてください。
 
 $codex-app-development を Issue 受け入れ task から使って別 Codex App developer を作成し、developer は実装のみ、Issue task は独立 Review と P0–P2 の差し戻しを担当してください。
+
+$content-pipeline を使って中国語の記事を小紅書形式の画像投稿に変換し、原文の主張を保ち、先に表紙方針を確認して、再開可能なローカルパッケージを納品してください。
 
 $game-asset-forge を使って 2D ゲーム用の透明背景キャラクターアニメーションを作り、smoke 後に一括生成してください。
 
