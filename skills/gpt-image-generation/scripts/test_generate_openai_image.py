@@ -8,7 +8,10 @@ import json
 import os
 import tempfile
 import unittest
+import base64
+import io
 from pathlib import Path
+from contextlib import redirect_stdout
 from unittest.mock import patch
 
 
@@ -17,6 +20,21 @@ SPEC = importlib.util.spec_from_file_location("generate_openai_image", SCRIPT_PA
 assert SPEC is not None and SPEC.loader is not None
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
+
+PNG_1X1 = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+)
+
+
+def fake_jpeg(width: int, height: int) -> bytes:
+    return (
+        b"\xff\xd8"
+        + b"\xff\xc0\x00\x11\x08"
+        + height.to_bytes(2, "big")
+        + width.to_bytes(2, "big")
+        + b"\x03\x01\x11\x00\x02\x11\x00\x03\x11\x00"
+        + b"\xff\xd9"
+    )
 
 
 class RequestFormatTest(unittest.TestCase):
@@ -146,8 +164,8 @@ class RequestFormatTest(unittest.TestCase):
 
     def test_multiple_results_are_saved_with_numbered_names(self) -> None:
         payload = [
-            {"b64_json": "Zmlyc3Q="},
-            {"b64_json": "c2Vjb25k"},
+            {"b64_json": base64.b64encode(PNG_1X1).decode()},
+            {"b64_json": base64.b64encode(PNG_1X1).decode()},
         ]
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "result.png"
@@ -159,8 +177,44 @@ class RequestFormatTest(unittest.TestCase):
                 saved,
                 [resolved_directory / "result-1.png", resolved_directory / "result-2.png"],
             )
-            self.assertEqual(saved[0].read_bytes(), b"first")
-            self.assertEqual(saved[1].read_bytes(), b"second")
+            self.assertEqual(saved[0].read_bytes(), PNG_1X1)
+            self.assertEqual(saved[1].read_bytes(), PNG_1X1)
+
+    def test_jpeg_payload_corrects_png_extension_and_warns_on_size(self) -> None:
+        payload = [{"b64_json": base64.b64encode(fake_jpeg(2048, 2048)).decode()}]
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "result.png"
+            captured = io.StringIO()
+
+            with redirect_stdout(captured):
+                saved = MODULE._save_results(
+                    payload, str(output), overwrite=False, requested_size="1024x1024"
+                )
+
+            self.assertEqual(saved, [Path(directory).resolve() / "result.jpg"])
+            self.assertTrue(saved[0].is_file())
+            self.assertFalse(output.exists())
+            self.assertIn("output_extension_corrected", captured.getvalue())
+            self.assertIn("output_size_mismatch", captured.getvalue())
+
+    def test_unknown_image_signature_is_rejected(self) -> None:
+        payload = [{"b64_json": base64.b64encode(b"not-an-image").decode()}]
+
+        with self.assertRaisesRegex(SystemExit, "unsupported or invalid signature"):
+            MODULE._save_results(payload, "/tmp/unused.png", overwrite=False)
+
+    def test_webp_vp8x_signature_and_dimensions_are_supported(self) -> None:
+        data = (
+            b"RIFF"
+            + (22).to_bytes(4, "little")
+            + b"WEBPVP8X"
+            + (10).to_bytes(4, "little")
+            + b"\x10\x00\x00\x00"
+            + (639).to_bytes(3, "little")
+            + (479).to_bytes(3, "little")
+        )
+
+        self.assertEqual(MODULE._image_info(data), ("webp", 640, 480, True))
 
 
 if __name__ == "__main__":

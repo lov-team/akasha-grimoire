@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gemini Omni 视频生成"
+  short_description: "通过 new-api 生成、编辑并验收 Gemini Omni 视频"
+  default_prompt: "Use $gemini-omni-video-generation to generate or edit a Gemini Omni video and verify the downloaded MP4."

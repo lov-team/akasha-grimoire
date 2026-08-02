@@ -27,6 +27,14 @@ RESPONSE_FORMAT = "b64_json"
 MAX_EDIT_IMAGES = 5
 MAX_GENERATION_IMAGES = 10
 
+IMAGE_EXTENSIONS = {
+    "png": {".png"},
+    "jpeg": {".jpg", ".jpeg"},
+    "gif": {".gif"},
+    "webp": {".webp"},
+}
+PREFERRED_IMAGE_EXTENSION = {"png": ".png", "jpeg": ".jpg", "gif": ".gif", "webp": ".webp"}
+
 
 def _load_akasha_recharge() -> Any:
     """Process-level path-verified singleton for shared/akasha_recharge.py."""
@@ -301,25 +309,10 @@ def _summarize_success(
 
 
 def _save_results(
-    results: list[dict[str, Any]], output_value: str, overwrite: bool
+    results: list[dict[str, Any]], output_value: str, overwrite: bool, requested_size: str = "auto"
 ) -> list[Path]:
-    output_path = Path(output_value).expanduser().resolve()
-    if len(results) == 1:
-        output_paths = [output_path]
-    else:
-        output_paths = [
-            output_path.with_name(f"{output_path.stem}-{index}{output_path.suffix}")
-            for index in range(1, len(results) + 1)
-        ]
-
-    existing_paths = [path for path in output_paths if path.exists()]
-    if existing_paths and not overwrite:
-        raise SystemExit(
-            "output already exists; pass --overwrite to replace it: "
-            + ", ".join(str(path) for path in existing_paths)
-        )
-
     decoded_results: list[bytes] = []
+    image_infos: list[tuple[str, int, int, bool]] = []
     for index, result in enumerate(results, start=1):
         try:
             image_bytes = base64.b64decode(str(result["b64_json"]), validate=True)
@@ -328,6 +321,39 @@ def _save_results(
         if not image_bytes:
             raise SystemExit(f"generated image payload is empty at item {index}")
         decoded_results.append(image_bytes)
+        try:
+            image_infos.append(_image_info(image_bytes))
+        except ValueError as exc:
+            raise SystemExit(f"generated image payload has an unsupported or invalid signature at item {index}: {exc}") from exc
+
+    requested_path = Path(output_value).expanduser().resolve()
+    requested_paths = (
+        [requested_path]
+        if len(results) == 1
+        else [
+            requested_path.with_name(f"{requested_path.stem}-{index}{requested_path.suffix}")
+            for index in range(1, len(results) + 1)
+        ]
+    )
+    output_paths: list[Path] = []
+    for path, (image_format, _width, _height, _alpha) in zip(requested_paths, image_infos):
+        valid_suffixes = IMAGE_EXTENSIONS[image_format]
+        if path.suffix.lower() in valid_suffixes:
+            output_paths.append(path)
+            continue
+        corrected = path.with_suffix(PREFERRED_IMAGE_EXTENSION[image_format])
+        print(
+            f"WARN output_extension_corrected requested={path} actual_format={image_format} "
+            f"saved_as={corrected}"
+        )
+        output_paths.append(corrected)
+
+    existing_paths = [path for path in output_paths if path.exists()]
+    if existing_paths and not overwrite:
+        raise SystemExit(
+            "output already exists; pass --overwrite to replace it: "
+            + ", ".join(str(path) for path in existing_paths)
+        )
 
     temporary_paths: list[Path] = []
     try:
@@ -343,9 +369,88 @@ def _save_results(
             if temporary_path.exists():
                 temporary_path.unlink()
 
-    for output_path, image_bytes in zip(output_paths, decoded_results):
-        print(f"saved_output={output_path} bytes={len(image_bytes)}")
+    for output_path, image_bytes, image_info in zip(output_paths, decoded_results, image_infos):
+        image_format, width, height, alpha = image_info
+        print(
+            f"saved_output={output_path} bytes={len(image_bytes)} format={image_format} "
+            f"pixels={width}x{height} alpha={'yes' if alpha else 'no'}"
+        )
+        if requested_size != "auto" and requested_size != f"{width}x{height}":
+            print(
+                f"WARN output_size_mismatch requested={requested_size} "
+                f"actual={width}x{height} output={output_path}"
+            )
     return output_paths
+
+
+def _image_info(data: bytes) -> tuple[str, int, int, bool]:
+    if data.startswith(b"\x89PNG\r\n\x1a\n") and len(data) >= 26 and data[12:16] == b"IHDR":
+        width = int.from_bytes(data[16:20], "big")
+        height = int.from_bytes(data[20:24], "big")
+        color_type = data[25]
+        if width <= 0 or height <= 0:
+            raise ValueError("invalid PNG dimensions")
+        return "png", width, height, color_type in {4, 6}
+
+    if data.startswith(b"\xff\xd8"):
+        position = 2
+        sof_markers = {
+            0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7,
+            0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF,
+        }
+        while position + 4 <= len(data):
+            if data[position] != 0xFF:
+                position += 1
+                continue
+            while position < len(data) and data[position] == 0xFF:
+                position += 1
+            if position >= len(data):
+                break
+            marker = data[position]
+            position += 1
+            if marker in {0xD8, 0xD9}:
+                continue
+            if position + 2 > len(data):
+                break
+            segment_length = int.from_bytes(data[position:position + 2], "big")
+            if segment_length < 2 or position + segment_length > len(data):
+                break
+            if marker in sof_markers and segment_length >= 7:
+                height = int.from_bytes(data[position + 3:position + 5], "big")
+                width = int.from_bytes(data[position + 5:position + 7], "big")
+                if width <= 0 or height <= 0:
+                    raise ValueError("invalid JPEG dimensions")
+                return "jpeg", width, height, False
+            position += segment_length
+        raise ValueError("JPEG dimensions not found")
+
+    if data[:6] in {b"GIF87a", b"GIF89a"} and len(data) >= 10:
+        width = int.from_bytes(data[6:8], "little")
+        height = int.from_bytes(data[8:10], "little")
+        if width <= 0 or height <= 0:
+            raise ValueError("invalid GIF dimensions")
+        transparency_marker = data.find(b"\x21\xf9\x04")
+        alpha = transparency_marker >= 0 and transparency_marker + 3 < len(data) and bool(data[transparency_marker + 3] & 1)
+        return "gif", width, height, alpha
+
+    if data.startswith(b"RIFF") and len(data) >= 30 and data[8:12] == b"WEBP":
+        chunk = data[12:16]
+        if chunk == b"VP8X":
+            width = 1 + int.from_bytes(data[24:27], "little")
+            height = 1 + int.from_bytes(data[27:30], "little")
+            return "webp", width, height, bool(data[20] & 0x10)
+        if chunk == b"VP8 " and data[23:26] == b"\x9d\x01\x2a":
+            width = int.from_bytes(data[26:28], "little") & 0x3FFF
+            height = int.from_bytes(data[28:30], "little") & 0x3FFF
+            if width > 0 and height > 0:
+                return "webp", width, height, False
+        if chunk == b"VP8L" and data[20] == 0x2F:
+            width = 1 + data[21] + ((data[22] & 0x3F) << 8)
+            height = 1 + ((data[22] & 0xC0) >> 6) + (data[23] << 2) + ((data[24] & 0x0F) << 10)
+            return "webp", width, height, bool(data[24] & 0x10)
+        raise ValueError("unsupported WebP bitstream")
+
+    raise ValueError("expected PNG, JPEG, GIF, or WebP image data")
 
 
 def _one_line(value: Any, limit: int = 300) -> str:
@@ -437,7 +542,7 @@ def main() -> int:
                     return 1
                 results = _summarize_success(payload, elapsed, expected_items=args.n)
                 if args.output:
-                    _save_results(results, args.output, args.overwrite)
+                    _save_results(results, args.output, args.overwrite, requested_size=args.size)
                 return 0
         except urllib.error.HTTPError as exc:
             elapsed = time.monotonic() - started
