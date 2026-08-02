@@ -213,7 +213,10 @@ skills/<skill-name>/
 
 ## 许可证
 
-本项目采用 [GNU General Public License v3.0](LICENSE) 开源。
+当前已发布版本采用 [GNU General Public License v3.0](LICENSE) 开源。
+项目正在拟定面向未来支付模块或指定版本的分级商业授权：累计成功支付交易不超过
+1,000,000 笔免费，处理第 1,000,001 笔前需取得优选商业授权。该方案不会追溯改变
+既有 GPLv3 授权；具体边界、生效条件和条款草案见 [授权说明](LICENSING.md)。
 
 ---
 
