@@ -4,7 +4,7 @@
 
 **Turn successful Agent collaboration into reusable team capabilities.**
 
-[![Agent Skills](https://img.shields.io/badge/Agent_Skills-16-6C5CE7?style=flat-square)](#capability-catalog)
+[![Agent Skills](https://img.shields.io/badge/Agent_Skills-22-6C5CE7?style=flat-square)](#capability-catalog)
 [![Best on Codex App](https://img.shields.io/badge/Best_on-Codex_App-111827?style=flat-square)](#graph-engineering)
 [![Languages](https://img.shields.io/badge/Languages-中文_·_English_·_日本語-2D9CDB?style=flat-square)](#)
 [![Source of Truth](https://img.shields.io/badge/Source_of_Truth-Git-2EA44F?style=flat-square)](#design-principles)
@@ -70,6 +70,19 @@ Every implementation and acceptance task is Issue-driven. Each task maps to an I
 
 A standalone `content-pipeline` install covers text-only HTML/CSS cards. Install `gpt-image-generation` and `akasha-key-setup` as well when the workflow needs generated photos or illustrations.
 
+### Video production
+
+| Skill | Best for | What it provides |
+| --- | --- | --- |
+| [`video-production`](skills/video-production/) | Producing a complete video from an idea, article, script, or existing media | Stage-gated direction → sourcing/generation → EDL editing → technical and creative QA |
+| [`video-director`](skills/video-director/) | Writing, directing, storyboards, shot lists, and pre-generation planning | Narrative beats, coverage, cinematography, motion, continuity bible, and generation plan |
+| [`video-source-research`](skills/video-source-research/) | Finding, downloading, and organizing B-roll, video, image, or audio assets | Per-shot queries, yt-dlp/direct downloads, ffprobe, SHA-256, and traceable `sources.json` |
+| [`video-editing`](skills/video-editing/) | General rough/fine cuts, B-roll, audio, subtitles, and delivery | Reviewable `edl.json`, deterministic FFmpeg rendering, missing-audio handling, and output verification |
+| [`video-qc`](skills/video-qc/) | Accepting generated clips, previews, and final exports | Full decode, black/freeze/silence/loudness/subtitle checks, representative frames, and narrative continuity review |
+| [`article-to-short-video`](skills/article-to-short-video/) | Turning Chinese essays, profiles, or arguments into 60–120 second vertical videos | Evidence boundaries, Fish voiceover, Suno music, and vertical-video checks on top of the general production loop |
+
+For complete production, install all five general video skills. `video-production` routes individual shots to Seedance, Gemini Omni, Grok, GPT Image, Fish Audio, and Suno as needed. Web video downloads additionally require yt-dlp; deterministic editing and QA require FFmpeg/ffprobe.
+
 ### Image, game, and audio production
 
 | Skill | Best for | What it provides |
@@ -77,7 +90,6 @@ A standalone `content-pipeline` install covers text-only HTML/CSS cards. Install
 | [`game-asset-forge`](skills/game-asset-forge/) | Characters, scenes, UI, icons, tilesets, VFX, sprites, and animation frames | Asset contracts, smoke-before-batch, alpha/halo QA, character consistency, animation loops, 2×2 tile checks, engine import, and screenshot acceptance |
 | [`gpt-image-generation`](skills/gpt-image-generation/) | GPT Image generation, reference-image editing, and endpoint diagnosis | OpenAI-compatible generations/edits, base URL normalization, safe result storage, protocol restrictions, and failure diagnosis |
 | [`grok-media-generation`](skills/grok-media-generation/) | Grok image/video generation and editing | Call OpenAI-compatible media endpoints, continue generated results with the current CPA `video.file_id` resolver, poll silently, and download real files safely |
-| [`article-to-short-video`](skills/article-to-short-video/) | Turning Chinese essays, profiles, or arguments into 60–120 second vertical videos | Evidence boundaries, Fish reference voices, Suno music, voice-derived timing, FFmpeg composition, and loudness/black-frame/subtitle acceptance |
 | [`suno-music-generation`](skills/suno-music-generation/) | Creating music from a song description or custom lyrics | Submit asynchronous Suno jobs, check silently every five seconds, download every audio candidate plus covers and optional videos, then verify each result |
 | [`fish-audio-speech`](skills/fish-audio-speech/) | Fish Audio voiceover, voice references, and transcription | OpenAI-compatible TTS/STT with reference IDs, local reference audio, language and timestamp controls, and safe output handling |
 
@@ -157,6 +169,10 @@ Use $codex-app-development from the Issue task to define the implementation plan
 
 Use $content-pipeline to turn this Chinese article into a Xiaohongshu image post, preserve its argument, confirm the cover direction first, and deliver a recoverable local package.
 
+Use $video-production to turn this product idea into a 30-second vertical video: finish the director package and shot list, source or generate media, produce an EDL, render, and run complete final QA.
+
+Use $video-source-research to find B-roll for this shot list, download selected assets, and write sources.json with ffprobe metadata and SHA-256 hashes.
+
 Use $game-asset-forge to create transparent character animation frames for a 2D game, starting with a smoke batch.
 
 Use $grok-media-generation to generate or edit this image/video and verify the downloaded media file.
@@ -177,6 +193,7 @@ Use $fish-audio-speech to synthesize this narration and verify the beginning, mi
 | Official proactive/quota recharge | Run `python3 shared/akasha_recharge.py` to create checkout; choose the amount on the LovBrowser page | Proactive recharge does not require a quota failure; Agent offers only the clickable `publicPageUrl`, without a QR code; never leak keys/tickets |
 | Three-layer Codex App tasks | Epic supervisor, Issue planning/acceptance task, and Luna max developer task/worktree | Dispatch flows Epic→Issue→developer; Issue plans before delegation and independently reviews the full diff |
 | CLI workers | The corresponding local CLI, macOS Terminal, and tmux | Re-check `--version` and `--help` on first use and after upgrades |
+| Video editing and sourcing | FFmpeg/ffprobe; yt-dlp for web downloads | On macOS use `brew install ffmpeg yt-dlp`; every download still requires media probing, provenance, and hashing |
 
 ## Validation
 
@@ -200,7 +217,8 @@ skills/<skill-name>/
 ├── SKILL.md              # Trigger description and core working contract
 ├── agents/openai.yaml    # Agent UI metadata
 ├── scripts/              # Deterministic, repeatable execution logic (optional)
-└── references/           # Tool facts and specialized contracts (optional)
+├── references/           # Tool facts and specialized contracts (optional)
+└── assets/               # Templates and resources copied into deliverables (optional)
 ```
 
 - Keep `SKILL.md` concise and place complex facts one level down in `references/`.

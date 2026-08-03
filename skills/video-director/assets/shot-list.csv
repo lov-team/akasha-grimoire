@@ -1,0 +1,2 @@
+shot_id,beat_id,duration_s,narrative_function,subject,visible_action,scene,shot_size,camera_angle,camera_movement,sound,screen_direction,source_strategy,acceptance
+S001,B01,3.0,hook,,,,close_up,eye_level,static,,,existing,

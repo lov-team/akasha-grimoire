@@ -1,0 +1,4 @@
+interface:
+  display_name: "视频生产总编排"
+  short_description: "把编导、素材、生成、剪辑和成片验收组织成可追溯闭环"
+  default_prompt: "使用 $video-production 把这个创意制作成完整视频，并交付工程、来源清单与验收记录。"

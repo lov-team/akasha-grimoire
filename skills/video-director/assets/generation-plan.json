@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "shots": [
+    {
+      "shot_id": "S001",
+      "strategy": "video_generate",
+      "duration": 5,
+      "aspect_ratio": "16:9",
+      "start_state": "",
+      "primary_action": "",
+      "end_state": "",
+      "camera": "",
+      "references": [],
+      "continuity_keys": [],
+      "acceptance": []
+    }
+  ]
+}

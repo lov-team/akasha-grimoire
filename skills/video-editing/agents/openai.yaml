@@ -1,0 +1,4 @@
+interface:
+  display_name: "通用视频剪辑"
+  short_description: "把 A-roll、B-roll、声音和字幕组装为可复现的时间线与成片"
+  default_prompt: "使用 $video-editing 根据素材和脚本生成 EDL、渲染工程并导出成片。"

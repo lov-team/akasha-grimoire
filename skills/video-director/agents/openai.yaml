@@ -1,0 +1,4 @@
+interface:
+  display_name: "视频编导"
+  short_description: "把创意转成剧本、节拍、镜头表、分镜、运动设计与连续性合同"
+  default_prompt: "使用 $video-director 把这个创意发展为可执行的剧本、镜头表和生成计划。"

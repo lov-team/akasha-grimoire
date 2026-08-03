@@ -4,7 +4,7 @@
 
 **把一次成功的 Agent 协作，沉淀成团队可以反复调用的能力。**
 
-[![Agent Skills](https://img.shields.io/badge/Agent_Skills-16-6C5CE7?style=flat-square)](#能力目录)
+[![Agent Skills](https://img.shields.io/badge/Agent_Skills-22-6C5CE7?style=flat-square)](#能力目录)
 [![Best on Codex App](https://img.shields.io/badge/Best_on-Codex_App-111827?style=flat-square)](#graph-engineering)
 [![Languages](https://img.shields.io/badge/Languages-中文_·_English_·_日本語-2D9CDB?style=flat-square)](#)
 [![Source of Truth](https://img.shields.io/badge/Source_of_Truth-Git-2EA44F?style=flat-square)](#设计原则)
@@ -70,6 +70,19 @@ Graph Engineering 把交付建模为一张可追踪的工作图，而不是一�
 
 单独安装 `content-pipeline` 可完成纯文字 HTML/CSS 卡片；需要生成照片或插画时，同时安装 `gpt-image-generation` 和 `akasha-key-setup`。
 
+### 视频生产
+
+| Skill | 适用场景 | 核心能力 |
+| --- | --- | --- |
+| [`video-production`](skills/video-production/) | 从创意、文章、脚本或已有素材生产完整视频 | 编导 → 素材/生成 → EDL 剪辑 → 技术与创作 QA 的阶段门总编排 |
+| [`video-director`](skills/video-director/) | 编剧、导演、分镜、镜头表和生成前规划 | 叙事节拍、镜头覆盖、摄影运动、连续性 Bible 和生成计划 |
+| [`video-source-research`](skills/video-source-research/) | 搜索、下载和整理 B-roll、视频、图片或音频素材 | 逐镜查询、yt-dlp/直接下载、ffprobe、SHA-256 和可追溯 `sources.json` |
+| [`video-editing`](skills/video-editing/) | 通用粗剪、精剪、B-roll、声音、字幕和导出 | 可审阅 `edl.json`、确定性 FFmpeg 渲染、缺音轨补齐与输出复验 |
+| [`video-qc`](skills/video-qc/) | 生成片段、预览和最终成片验收 | 完整解码、黑帧/冻结/静音/响度/字幕、代表帧和叙事连续性审阅 |
+| [`article-to-short-video`](skills/article-to-short-video/) | 把中文长文、人物故事或观点稿制作成 60—120 秒竖屏短视频 | 在通用视频生产闭环上增加证据边界、Fish 旁白、Suno 配乐和竖屏专项验收 |
+
+完整安装建议同时启用以上五个通用视频 Skill；`video-production` 会按镜头需要继续调用 Seedance、Gemini Omni、Grok、GPT Image、Fish Audio 与 Suno。网页视频下载额外需要 `yt-dlp`，确定性剪辑和 QA 需要 FFmpeg/ffprobe。
+
 ### 图像、游戏与音频
 
 | Skill | 适用场景 | 核心能力 |
@@ -77,7 +90,6 @@ Graph Engineering 把交付建模为一张可追踪的工作图，而不是一�
 | [`game-asset-forge`](skills/game-asset-forge/) | 角色、场景、UI、图标、Tileset、特效、Sprite 和动画帧 | 资产合同、先 smoke 后批量、透明度与 halo、角色一致性、动画循环、2×2 tile、引擎导入和截图验收 |
 | [`gpt-image-generation`](skills/gpt-image-generation/) | GPT Image 生图、参考图编辑和端点诊断 | OpenAI-compatible generations/edits、base URL 归一化、结果安全落盘、协议限制和失败诊断 |
 | [`grok-media-generation`](skills/grok-media-generation/) | Grok 图片/视频生成与编辑 | 调用 OpenAI-compatible 媒体端点，以当前 CPA 的 `video.file_id` resolver 续接生成结果，静默轮询并安全下载真实文件 |
-| [`article-to-short-video`](skills/article-to-short-video/) | 把中文长文、人物故事或观点稿制作成 60—120 秒竖屏短视频 | 证据边界、Fish 参考音色、Suno 配乐、实际语音定时、FFmpeg 合成与响度/黑帧/字幕验收闭环 |
 | [`suno-music-generation`](skills/suno-music-generation/) | 用歌曲描述或自定义歌词生成音乐 | 提交 Suno 异步任务、本地每 5 秒静默检查、下载多首音频/封面/可选视频并逐项验收 |
 | [`fish-audio-speech`](skills/fish-audio-speech/) | Fish Audio 配音、声音参考和录音转写 | 通过 OpenAI-compatible 音频接口完成 TTS/STT，支持 reference id、本地参考音频、语言、时间戳控制与安全落盘 |
 
@@ -159,6 +171,10 @@ done
 
 使用 $content-pipeline 把这篇中文文章制作成一套小红书图文；保留原意，先确认封面方向，最后交付可恢复的本地内容包。
 
+使用 $video-production 把这份产品创意制作成 30 秒竖屏视频：先完成编导包和镜头表，再搜索或生成素材、输出 EDL、渲染并做完整成片 QA。
+
+使用 $video-source-research 为这份镜头表检索 B-roll，下载采用项并输出带 ffprobe 元数据和 SHA-256 的 sources.json。
+
 使用 $game-asset-forge 为 2D 游戏制作一套透明背景角色动画帧，先 smoke 再批量。
 
 使用 $grok-media-generation 生成或编辑这段图片/视频，并验收下载后的真实文件。
@@ -179,6 +195,7 @@ done
 | 官方主动/余额不足充值 | 运行 `python3 shared/akasha_recharge.py` 创建支付会话；金额在 LovBrowser 页面选择 | 主动充值不需要余额不足；仅官方 new-api；Agent 只给出可点击的 `publicPageUrl`，不显示二维码；不泄露 Key/票据 |
 | Codex App 三层任务 | Epic 监工 task、Issue 计划/验收 task、Luna max developer task/worktree | Epic→Issue→developer 单向下发；Issue 先计划再委托并独立验收完整 diff |
 | CLI worker | 本机已安装的对应 CLI、macOS Terminal、tmux | 首次使用或版本变化时重新核对 `--version` 与 `--help` |
+| 视频剪辑与素材 | FFmpeg/ffprobe；网页下载另需 yt-dlp | macOS 可使用 `brew install ffmpeg yt-dlp`；下载后仍必须探测媒体并记录来源与哈希 |
 
 ## 验证
 
@@ -202,7 +219,8 @@ skills/<skill-name>/
 ├── SKILL.md              # 触发描述与核心工作合同
 ├── agents/openai.yaml    # Agent UI 元数据
 ├── scripts/              # 可重复、确定性的执行逻辑（按需）
-└── references/           # 工具事实与专项合同（按需）
+├── references/           # 工具事实与专项合同（按需）
+└── assets/               # 可复制到交付物中的模板与资源（按需）
 ```
 
 - Skill 正文保持简洁，复杂事实放到一层 `references/` 中渐进披露。

@@ -1,0 +1,4 @@
+interface:
+  display_name: "视频素材检索"
+  short_description: "按镜头搜索、筛选、下载、探测并登记可追溯的视频素材"
+  default_prompt: "使用 $video-source-research 为这份镜头表检索并下载合适素材，输出来源清单。"

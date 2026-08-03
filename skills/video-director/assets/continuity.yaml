@@ -1,0 +1,15 @@
+project: ""
+format:
+  aspect_ratio: ""
+  frame_rate: ""
+  visual_style: ""
+identity: []
+wardrobe: []
+props: []
+locations: []
+lighting: []
+screen_direction: []
+audio:
+  room_tone: ""
+  music_theme: ""
+story_state: []

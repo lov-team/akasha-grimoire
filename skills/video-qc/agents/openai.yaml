@@ -1,0 +1,4 @@
+interface:
+  display_name: "视频成片验收"
+  short_description: "联合检查媒体技术指标、叙事节奏、连续性和来源完整性"
+  default_prompt: "使用 $video-qc 对这个视频执行技术检查、代表帧审阅和叙事验收。"

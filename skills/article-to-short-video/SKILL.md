@@ -18,11 +18,15 @@ description: 把中文长文、公众号文章、人物故事或观点稿制作�
 
 ## 压缩脚本与分镜
 
+**REQUIRED SUB-SKILL:** 使用 `$video-director` 将文章判断转换为 `brief.md`、`script.md`、`continuity.yaml` 和带稳定 `shot_id` 的 `shot-list.csv`；本 Skill 以下约束作为观点短视频场景的附加要求。
+
 1. 用一句可争辩的判断统领全片，不按原文章节机械摘要。
 2. 前 3 秒建立反差，20 秒内完成第一次观点推进，结尾回到文章独有判断。
 3. 90 秒旁白控制在约 350—380 个汉字；为 TTS 展开易误读缩写，但字幕保留正确书写。
 4. 以 3—8 秒为一个镜头单元，人物事实使用真实图片，抽象分析使用非肖像意象。
 5. 不生成真实人物换脸、拟真替身或伪造文件；授权不明的视频只作研究参考。
+
+需要外部图片、视频或 B-roll 时，**REQUIRED SUB-SKILL:** 使用 `$video-source-research` 按 `shot_id` 搜索、下载、探测并写入 `sources.json`。不要把浏览器搜索结果或下载器退出码直接当成采用素材。
 
 ## 先完成声音
 
@@ -36,6 +40,8 @@ description: 把中文长文、公众号文章、人物故事或观点稿制作�
 
 ## 组装与混音
 
+**REQUIRED SUB-SKILL:** 使用 `$video-editing` 输出 `edl.json` 和可重复执行的渲染记录；以下参数作为本场景的剪辑默认值。
+
 1. 旁白定时后再铺画面，避免按预估语速剪辑。
 2. 字幕每屏不超过两行，位于竖屏安全区；姓名、数字和核心句必须人工核对。
 3. 旁白目标约 -16 LUFS；配乐可从 -25～-22 LUFS 起步。
@@ -46,7 +52,7 @@ description: 把中文长文、公众号文章、人物故事或观点稿制作�
 
 ## 验收与交付
 
-运行随 Skill 提供的检查器：
+先运行随本 Skill 提供的竖屏专项检查器：
 
 ```bash
 python3 scripts/validate_short_video.py \
@@ -54,6 +60,8 @@ python3 scripts/validate_short_video.py \
   --srt ./project/captions.srt \
   --report ./staging/validation.json
 ```
+
+再 **REQUIRED SUB-SKILL:** 使用 `$video-qc` 完成通用完整解码、冻结/静音检测、代表帧、叙事连续性、完整播放和来源追溯审阅。专项检查与通用 QA 必须同时通过。
 
 验收必须覆盖：
 
