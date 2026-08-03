@@ -1,6 +1,6 @@
 ---
 name: codex-app-development
-description: 由独立的 Codex App Issue 负责/验收任务创建隔离开发任务与 worktree，使用父到子的单向会话下发和 20 分钟本地状态轮询，审核 Red 与最终实现，默认由 Issue task 完成 commit、push、worktree 回收和 Issue 关闭。用户要求用 Codex App 子会话开发、让另一个 Codex 实现、为 Issue 单独开开发会话、隔离实现与 Review 上下文或简化父子任务通信时使用；用户指定 Grok、Claude Code、Gemini 或 Codex CLI 时保留相同三层职责，只替换最底层 worker。
+description: 由独立的 Codex App Issue 负责/验收任务制定实现计划与验收矩阵，再创建使用 GPT-5.6 Luna、thinking=max 的隔离 Codex worker 完成开发；使用父到子的单向会话下发和 20 分钟本地状态轮询，审核 Red 与最终实现，默认由 Issue task 完成 commit、push、worktree 回收和 Issue 关闭。用户要求用 Codex App 子会话开发、让另一个 Codex 实现、为 Issue 单独开开发会话、隔离实现与 Review 上下文或简化父子任务通信时使用；用户明确指定其他 worker 时保留相同三层职责，只替换最底层 worker。
 ---
 
 # Codex App 独立开发任务
@@ -16,29 +16,27 @@ Epic 监工 App → Issue 负责/验收 App → Codex App 开发任务
 ```
 
 - Epic 监工发现 ready Issue 后先创建独立 Issue 任务，不直接创建开发 worker。
-- Issue 任务解释需求、确认范围和用户决策，再创建新的开发 task/worktree；Issue 任务对测试和业务文件保持只读验收视角。
-- 开发任务是该 Issue 的唯一写入者，负责先交付 Red 测试、获批后实现、测试和返工。
+- Issue 任务解释需求、确认范围和用户决策，制定可执行实现计划与验收矩阵，再创建新的开发 task/worktree；Issue 任务对测试和业务文件保持只读验收视角。
+- 开发任务默认是使用 `model=gpt-5.6-luna`、`thinking=max` 的 Codex worker，也是该 Issue 的唯一写入者；它按 Issue 计划先交付 Red 测试，获批后实现、测试和返工。
 - Issue 任务不写业务代码，但默认负责验收后的 Git 提交与推送、精确 worktree 回收和 Issue 关闭。
-- 前端开发（React/Vue/Svelte、HTML/CSS/JS/TS、组件、交互状态、表单、前端路由、响应式、可访问性、动效和前端测试）默认优先使用 `gemini-cli-development`。
-- 边界明确的小型非前端代码可改用 `grok-cli-development`：范围与验收明确、单模块或单一状态 owner、不超过 5 个文件和 300 行、核心不变量不超过 3 个，且无协议/schema/迁移/事务/恢复/并发/安全边界。用户点名 Grok 或需要其内置媒体能力时也可使用。
-- 复杂后端、协议/schema、迁移、事务、恢复、并发、安全边界或架构决策默认使用 Codex App developer (`codex-app-development`)。
-- 全栈任务在能保持单一 owner 与依赖清晰时分拆为前端 Issue（Gemini CLI）与后端 Issue（Codex App）；无法安全分拆时按高风险路径选择并写明理由。
-- 用户明确指定 Claude Code、Grok、Gemini 或 Codex CLI/TUI 时遵从指定，只替换最底层 worker，不合并 Issue 与开发职责。
+- 所有代码开发默认统一使用 Codex App developer (`codex-app-development`)；前端、后端和全栈不再按技术栈自动切换 worker。
+- 纯图片、视频、声音等素材生成仍使用对应媒体技能，不纳入代码 worker 默认路由。
+- 用户明确指定 Claude Code、Grok、Gemini 或 Codex CLI/TUI 时遵从指定，只替换最底层 worker，不合并 Issue 的计划/验收职责与开发职责。
 
 ## 创建隔离开发任务
 
 Codex App 路径先用 `list_projects` 取得 project id 和 `isGitRepository`，再用 `create_thread` 在与 Issue task 共享状态文件的同一 host 创建干净 task；Git 项目必须使用独立 worktree。不要用 `fork_thread` 复制 Issue 任务历史，只传最小实现合同。仅当实现确实依赖已批准的未提交基线时才使用 `startingState: working-tree`。
 
-创建前由 Issue 任务确定目标、验收条件、非目标、允许/禁止路径、依赖、验证门禁、Git 交付策略，以及唯一绝对状态/交付文件与完成 marker。默认授权 Issue task 在验收后 commit 并 push 当前 Issue 分支；PR、合并、强推、发布或生产写入仍需项目规则或用户明确授权。创建后保存 developer `thread_id`、`host_id` 和精确 worktree；返回 `clientThreadId` 时等待 setup 完成并解析真实 task，不能把它传给要求 `thread_id` 的工具。需要调用 `wait_threads` 等待 setup 或 task 时，默认显式传 `timeoutMs: 1200000`（20 分钟）和最近 cursor；目标提前完成、需要关注或收到新用户输入时允许提前返回。开发 prompt 必须要求：
+创建前由 Issue 任务确定目标、非目标、允许/禁止路径、依赖和 Git 交付策略，写出按步骤可执行的实现计划，并用验收矩阵绑定验收条件、验证门禁与风险复测；同时指定唯一绝对状态/交付文件与完成 marker。默认授权 Issue task 在验收后 commit 并 push 当前 Issue 分支；PR、合并、强推、发布或生产写入仍需项目规则或用户明确授权。创建后保存 developer `thread_id`、`host_id` 和精确 worktree；返回 `clientThreadId` 时等待 setup 完成并解析真实 task，不能把它传给要求 `thread_id` 的工具。需要调用 `wait_threads` 等待 setup 或 task 时，默认显式传 `timeoutMs: 1200000`（20 分钟）和最近 cursor；目标提前完成、需要关注或收到新用户输入时允许提前返回。开发 prompt 必须要求：
 
-1. 先读项目 `AGENTS.md`、相关代码和 Git 现场，再计划并按 Red → Green → Refactor 推进；不得派生新的写入 worker。
+1. 先读项目 `AGENTS.md`、Issue 提供的实现计划、相关代码和 Git 现场；核对计划可执行性后按 Red → Green → Refactor 推进，不重新定义范围，也不得派生新的写入 worker。
 2. 核对并在交付中报告唯一绝对 worktree、base SHA 和 Git 状态，不在 Issue task checkout 或其他 worktree 写入。
 3. 不向父会话发送消息；阶段切换时原子覆盖单行状态文件，Red 与最终交付另写对应交付文件和末行 marker。
 4. 默认先只修改测试及专用 fixture/support 并跑出真实 Red，写入 `DEVELOPER_RED_READY` 后暂停；未收到 `CONTINUE_GREEN` 前不得修改生产实现。
 5. Red Evidence 包含测试 diff、fixture/producer 来源、完整命令、退出码、精确失败断言和短日志路径；最终交付再包含 base SHA、累计 diff、全部变更文件、需求映射、验证证据、未验证项和风险。
 6. developer 不执行最终 commit、push、PR 或合并，由 Issue task 在验收通过后统一完成 Git 交付。
 
-创建 Codex App developer 时，用户没有明确指定模型或 thinking 就省略覆盖，沿用其 App 默认配置。Issue 任务的纯状态与 monitor 结果处理使用 `gpt-5.6-sol low`，正式 Review、失败诊断和 P0–P2 闭环使用同一模型的 `high`。不要为切 reasoning 更换模型或重建会话。
+创建 Codex App developer 时固定显式传 `model: "gpt-5.6-luna"` 与 `thinking: "max"`。只有用户在当前任务明确指定其他 worker、模型或 thinking 时才替换这两个默认值。Issue 任务的纯状态与 monitor 结果处理使用 `gpt-5.6-sol low`，实现计划、正式 Review、失败诊断和 P0–P2 闭环使用同一模型的 `high`；不要为切 reasoning 更换 Issue 模型或重建会话。
 
 ## 由 Issue 会话启动本地监控
 
@@ -53,7 +51,7 @@ developer 初始合同、`CONTINUE_GREEN`、决策或返工成功投递后，Iss
 
 ## Red-only 预审
 
-Issue task 在创建 developer 前先建立验收矩阵，把每个核心不变量绑定到真实生产入口、权威 owner、可观察结果、必须失败的负例和测试。功能、缺陷、跨模块状态、协议、事务、恢复或复杂 UI 代码默认启用 Red 预审；纯文档、纯视觉、格式修改或已有精确失败用例的极小修复可以豁免，但必须在合同中写明理由。
+Issue task 在创建 developer 前先制定实现计划并建立验收矩阵，把每个实现步骤与核心不变量绑定到真实生产入口、权威 owner、可观察结果、必须失败的负例和测试。功能、缺陷、跨模块状态、协议、事务、恢复或复杂 UI 代码默认启用 Red 预审；纯文档、纯视觉、格式修改或已有精确失败用例的极小修复可以豁免，但必须在合同中写明理由。
 
 收到 `RED_READY` 后，Issue task 使用 high reasoning，先用累计变更清单确认生产实现未修改，再读取测试 diff、fixture/producer 来源、Red 日志相关片段和必要生产契约，确认：
 

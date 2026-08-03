@@ -59,8 +59,8 @@ Every implementation and acceptance task is Issue-driven. Each task maps to an I
 
 | Skill | Best for | What it provides |
 | --- | --- | --- |
-| [`agent-task-supervisor`](skills/agent-task-supervisor/) | Supervising, coordinating, and accepting tasks through a Spec/Epic/Issue graph | After each dispatch, the direct parent starts a 20-minute local monitor that scans every 20 seconds; sol low handles status and high handles review |
-| [`codex-app-development`](skills/codex-app-development/) | Having an independent Issue acceptance task create a Codex App developer | Epic supervisor → Issue acceptance → developer separation, isolated worktrees, one-way dispatch, status-file monitoring, same-worker rework, and independent diff review |
+| [`agent-task-supervisor`](skills/agent-task-supervisor/) | Supervising, coordinating, and accepting tasks through a Spec/Epic/Issue graph | Issue-defined plans and acceptance matrices, Luna max Codex implementation, and direct-parent monitoring |
+| [`codex-app-development`](skills/codex-app-development/) | Having an independent Issue planning/acceptance task create a Codex App developer | Epic supervisor → Issue planning/acceptance → Luna max developer, isolated worktrees, and independent diff review |
 
 ### Content production
 
@@ -83,13 +83,13 @@ A standalone `content-pipeline` install covers text-only HTML/CSS cards. Install
 
 ### App tasks and CLI development workers
 
-Development uses a three-layer loop: **the Epic supervisor finds a ready Issue → an independent Issue App owns the contract and acceptance → a separate developer implements → the Issue App reviews and sends P0–P2 back to the same worker → the Issue writes Evidence for the Epic to read**. Frontend development defaults to Gemini CLI; tightly scoped non-frontend code may use Grok CLI; complex backend, protocol/schema, migration, concurrency, security, and architecture work defaults to a Codex App task/worktree. Pure media generation still uses the corresponding media skill. When a full-stack task can be split safely, route the frontend Issue to Gemini and the backend Issue to Codex App. An explicit user choice overrides the default and only replaces the bottom worker. The Issue App never writes business code. After each one-way dispatch, the direct parent starts one monitor for up to 20 minutes, scanning status and handoff files every 20 seconds.
+Development uses a three-layer loop: **the Epic supervisor finds a ready Issue → an independent Issue App defines the implementation plan and acceptance matrix → a Codex worker running GPT-5.6 Luna with `thinking=max` implements → the Issue App independently reviews and sends P0–P2 back to the same worker → the Issue writes Evidence for the Epic to read**. All code development now defaults directly to an isolated Codex App task/worktree, without switching workers by frontend/backend category or task size. Pure media generation still uses the corresponding media skill. An explicit user choice may replace only the bottom worker. The Issue App never writes business code. After each one-way dispatch, the direct parent starts one monitor for up to 20 minutes, scanning status and handoff files every 20 seconds.
 
 | Skill | Worker | Highlights |
 | --- | --- | --- |
-| [`gemini-cli-development`](skills/gemini-cli-development/) | Gemini CLI | Frontend-first default for components, interactions, forms, client routing, responsive UI, accessibility, motion, and tests |
-| [`grok-cli-development`](skills/grok-cli-development/) | Grok CLI | Tightly scoped non-frontend code, or explicitly selected Grok and built-in media work |
-| [`codex-app-development`](skills/codex-app-development/) | Codex App developer | Default for complex backend, protocol/schema, migration, concurrency, security, and architecture work |
+| [`gemini-cli-development`](skills/gemini-cli-development/) | Gemini CLI | Used when the user explicitly selects Gemini CLI |
+| [`grok-cli-development`](skills/grok-cli-development/) | Grok CLI | Used when the user explicitly selects Grok CLI; built-in media work remains available separately |
+| [`codex-app-development`](skills/codex-app-development/) | Codex App developer | Default for all code development; GPT-5.6 Luna with `thinking=max` |
 | [`claude-code-cli-development`](skills/claude-code-cli-development/) | Claude Code | Permission modes, session continuation, status delivery, and independent acceptance |
 | [`codex-cli-development`](skills/codex-cli-development/) | Codex CLI | Implementation in a separate interactive TUI, kept distinct from Codex App task management |
 
@@ -153,7 +153,7 @@ Use $agent-task-supervisor to monitor these tasks lightly and independently acce
 
 Use $agent-task-supervisor to turn this Spec into an Epic/Issue dependency graph, start only ready Issues in Codex App, and close the graph bottom-up with evidence.
 
-Use $codex-app-development from the Issue acceptance task to create a separate Codex App developer; the developer only implements, while the Issue task independently reviews and returns P0–P2 to the same worker.
+Use $codex-app-development from the Issue task to define the implementation plan and acceptance matrix, then create a separate Codex App worker running GPT-5.6 Luna with `thinking=max`; the developer only implements, while the Issue task independently reviews and returns P0–P2 to the same worker.
 
 Use $content-pipeline to turn this Chinese article into a Xiaohongshu image post, preserve its argument, confirm the cover direction first, and deliver a recoverable local package.
 
@@ -175,7 +175,7 @@ Use $fish-audio-speech to synthesize this narration and verify the beginning, mi
 | Grok / Seedance | A capability-specific key, `NEW_API_API_KEY`, or `OPENAI_API_KEY` | Real requests incur cost, so start with one smoke task before scaling up |
 | Suno / Fish Audio | `NEW_API_API_KEY` or `OPENAI_API_KEY` | Real requests consume quota; base tests never call external generation services |
 | Official proactive/quota recharge | Run `python3 shared/akasha_recharge.py` to create checkout; choose the amount on the LovBrowser page | Proactive recharge does not require a quota failure; Agent offers only the clickable `publicPageUrl`, without a QR code; never leak keys/tickets |
-| Three-layer Codex App tasks | Epic supervisor, Issue acceptance task, and developer task/worktree | Dispatch flows Epic→Issue→developer; each edge starts a 20-minute, 20-second-interval monitor after input, with independent Issue-level full-diff review |
+| Three-layer Codex App tasks | Epic supervisor, Issue planning/acceptance task, and Luna max developer task/worktree | Dispatch flows Epic→Issue→developer; Issue plans before delegation and independently reviews the full diff |
 | CLI workers | The corresponding local CLI, macOS Terminal, and tmux | Re-check `--version` and `--help` on first use and after upgrades |
 
 ## Validation

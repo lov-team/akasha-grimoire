@@ -59,8 +59,8 @@ Graph Engineering 把交付建模为一张可追踪的工作图，而不是一�
 
 | Skill | 适用场景 | 核心能力 |
 | --- | --- | --- |
-| [`agent-task-supervisor`](skills/agent-task-supervisor/) | 用 Spec/Epic/Issue 图谱监工、协调和验收多个任务 | 不限制合理并发；每次下发后由直接父层启动 20 分钟、每 20 秒扫描的本地 monitor；状态用 sol low、Review 用 high |
-| [`codex-app-development`](skills/codex-app-development/) | 由独立 Issue 验收任务创建 Codex App 开发会话 | Epic 监工 → Issue 验收 → developer 三层分工、隔离 worktree、单向下发、状态文件监控与独立 diff Review |
+| [`agent-task-supervisor`](skills/agent-task-supervisor/) | 用 Spec/Epic/Issue 图谱监工、协调和验收多个任务 | Issue 制定计划/验收矩阵；Luna max Codex worker 开发；直接父层负责 monitor |
+| [`codex-app-development`](skills/codex-app-development/) | 由独立 Issue 计划/验收任务创建 Codex App 开发会话 | Epic 监工 → Issue 计划/验收 → Luna max developer、隔离 worktree 与独立 diff Review |
 
 ### 内容生产
 
@@ -83,13 +83,13 @@ Graph Engineering 把交付建模为一张可追踪的工作图，而不是一�
 
 ### App 子任务与 CLI 开发 worker
 
-开发默认采用三层闭环：**Epic 监工 App 找到 ready Issue → 独立 Issue App 负责合同与验收 → 独立 developer 实现 → Issue App Review 并把 P0–P2 发回原 worker → Issue 写 Evidence 供 Epic 读取**。前端开发默认优先使用 Gemini CLI；边界明确的小型非前端代码可使用 Grok CLI；复杂后端、协议/schema、并发、安全与架构工作默认使用 Codex App task/worktree。纯媒体生成仍使用对应媒体技能；全栈任务可安全拆分时，前端 Issue 交给 Gemini、后端 Issue 交给 Codex App。用户点名其他 CLI 时遵从指定，只替换最底层 worker。Issue App 始终不写业务代码。每次单向下发后，直接父层启动一个最长 20 分钟、每 20 秒扫描状态/交付文件的 monitor。
+开发默认采用三层闭环：**Epic 监工 App 找到 ready Issue → 独立 Issue App 制定实现计划与验收矩阵 → 使用 GPT-5.6 Luna、thinking=max 的 Codex worker 实现 → Issue App 独立 Review 并把 P0–P2 发回原 worker → Issue 写 Evidence 供 Epic 读取**。所有代码开发默认直接使用隔离的 Codex App task/worktree，不再按前端、后端或任务规模自动切换 worker；纯媒体生成仍使用对应媒体技能。用户点名其他开发 worker 时遵从指定，只替换最底层 worker。Issue App 始终不写业务代码。每次单向下发后，直接父层启动一个最长 20 分钟、每 20 秒扫描状态/交付文件的 monitor。
 
 | Skill | Worker | 特点 |
 | --- | --- | --- |
-| [`gemini-cli-development`](skills/gemini-cli-development/) | Gemini CLI | 前端开发默认优先：组件、交互、表单、前端路由、响应式、可访问性、动效与测试 |
-| [`grok-cli-development`](skills/grok-cli-development/) | Grok CLI | 边界明确的小型非前端代码，或用户点名的 Grok/内置媒体任务 |
-| [`codex-app-development`](skills/codex-app-development/) | Codex App developer | 复杂后端、协议/schema、迁移、并发、安全与架构工作的默认 worker |
+| [`gemini-cli-development`](skills/gemini-cli-development/) | Gemini CLI | 用户明确指定 Gemini CLI 时使用 |
+| [`grok-cli-development`](skills/grok-cli-development/) | Grok CLI | 用户明确指定 Grok CLI 时使用；内置媒体任务仍可单独调用 |
+| [`codex-app-development`](skills/codex-app-development/) | Codex App developer | 所有代码开发的默认 worker；GPT-5.6 Luna、thinking=max |
 | [`claude-code-cli-development`](skills/claude-code-cli-development/) | Claude Code | 权限模式、会话续接、状态交付与独立验收 |
 | [`codex-cli-development`](skills/codex-cli-development/) | Codex CLI | 在独立交互 TUI 中实施，不与 Codex App 任务管理混用 |
 
@@ -155,7 +155,7 @@ done
 
 使用 $agent-task-supervisor 把这份 Spec 拆成 Epic/Issue 依赖图，在 Codex App 中只启动已就绪的 Issue，并用证据自底向上关闭整张图。
 
-使用 $codex-app-development 让当前 Issue 验收任务再创建独立 Codex App 开发会话；开发会话只实现，Issue 任务独立 Review 并把 P0–P2 发回原会话。
+使用 $codex-app-development 让当前 Issue 任务先制定实现计划与验收矩阵，再创建 GPT-5.6 Luna、thinking=max 的独立 Codex App worker；开发会话只实现，Issue 任务独立 Review 并把 P0–P2 发回原会话。
 
 使用 $content-pipeline 把这篇中文文章制作成一套小红书图文；保留原意，先确认封面方向，最后交付可恢复的本地内容包。
 
@@ -177,7 +177,7 @@ done
 | Grok / Seedance | 专用 key、`NEW_API_API_KEY` 或 `OPENAI_API_KEY` | 真实调用会计费，先做单个 smoke，再扩大任务规模 |
 | Suno / Fish Audio | `NEW_API_API_KEY` 或 `OPENAI_API_KEY` | 真实调用会消耗额度；基础测试不调用外部服务 |
 | 官方主动/余额不足充值 | 运行 `python3 shared/akasha_recharge.py` 创建支付会话；金额在 LovBrowser 页面选择 | 主动充值不需要余额不足；仅官方 new-api；Agent 只给出可点击的 `publicPageUrl`，不显示二维码；不泄露 Key/票据 |
-| Codex App 三层任务 | Epic 监工 task、Issue 验收 task、developer task/worktree | Epic→Issue→developer 单向下发；两条边每次下发后各启动一个 20 分钟、20 秒间隔 monitor，Issue 独立验收完整 diff |
+| Codex App 三层任务 | Epic 监工 task、Issue 计划/验收 task、Luna max developer task/worktree | Epic→Issue→developer 单向下发；Issue 先计划再委托并独立验收完整 diff |
 | CLI worker | 本机已安装的对应 CLI、macOS Terminal、tmux | 首次使用或版本变化时重新核对 `--version` 与 `--help` |
 
 ## 验证

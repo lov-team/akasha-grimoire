@@ -1,4 +1,4 @@
 interface:
   display_name: "Gemini CLI 前端开发"
-  short_description: "前端开发默认优先的 Gemini CLI 实现 worker"
+  short_description: "用户点名时使用的 Gemini CLI 实现 worker"
   default_prompt: "使用 $gemini-cli-development 驱动唯一可见 Gemini TUI 完成前端开发、Red 门与交付，再由主 Agent 独立 Review。"

@@ -5,10 +5,10 @@
 | 角色 | 职责 | 写入权限 |
 | --- | --- | --- |
 | Epic 监工 App | 找 ready Issue、维护依赖、接收关闭 Evidence、启动后续 ready Issue | 不写 Issue 业务代码 |
-| Issue 负责/验收 App | 解释合同、审核 Red 与最终实现、Git 交付、回收 worktree、关闭 Issue | 不写或代修测试与业务代码；可写 Git 元数据 |
-| Developer worker | 在唯一隔离现场中先交付 Red，获批后实现、测试、返工 | 唯一代码写入者 |
+| Issue 负责/验收 App | 解释合同、制定实现计划与验收矩阵、审核 Red 与最终实现、Git 交付、回收 worktree、关闭 Issue | 不写或代修测试与业务代码；可写 Git 元数据 |
+| Codex worker | 默认使用 GPT-5.6 Luna、thinking=max，在唯一隔离现场中按计划先交付 Red，获批后实现、测试、返工 | 唯一代码写入者 |
 
-前端开发（React/Vue/Svelte、HTML/CSS/JS/TS、组件、交互状态、表单、前端路由、响应式、可访问性、动效和前端测试）默认优先使用 Gemini CLI。边界明确的小型非前端代码（不超过 5 个文件和 300 行、核心不变量不超过 3 个，且无协议/schema、迁移、事务、恢复、并发或安全边界）可使用 Grok CLI；用户点名 Grok 或需要其内置媒体能力时也可使用。复杂后端、协议/schema、迁移、事务、恢复、并发、安全边界或架构决策默认使用 Codex App developer。全栈任务在可安全分拆时拆成前端 Issue（Gemini CLI）与后端 Issue（Codex App）；不可安全分拆时按高风险路径选择并写明理由。Issue 任务始终独立验收，禁止同时实现和自审。
+所有代码开发默认统一交给 Codex App worker，并在创建时显式使用 `model=gpt-5.6-luna`、`thinking=max`。Issue 任务先制定实现计划和验收矩阵，再把执行交给 Codex worker；Issue 始终独立验收，禁止同时实现和自审。纯媒体生成仍走对应媒体技能；用户明确指定其他开发 worker 时只替换最底层 worker。
 
 ## Developer 创建合同
 
@@ -20,6 +20,7 @@ Issue 任务传给 developer 的最小字段：
 | `developer_handoff_file` / `completion_marker` | 当前阶段唯一交付路径和末行完成标记 |
 | `monitor_host` | parent 与 child 必须能读写同一组绝对路径；不能共享文件系统时不得使用本地 monitor |
 | `issue` | Spec/Epic/Issue 图中的唯一执行节点 |
+| `implementation_plan` | 由 Issue task 制定的分步实现计划、文件/模块边界、顺序与风险点；developer 负责执行并报告偏差 |
 | `scope` / `non_goals` | 允许结果、禁止路径和不得扩大的权限 |
 | `acceptance_matrix` | 每个不变量对应的真实入口、权威 owner、可观察结果、负例和测试 |
 | `validation` | 必跑测试、Red-only 预审规则、全量升级条件和证据格式 |
