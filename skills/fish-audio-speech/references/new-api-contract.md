@@ -1,12 +1,12 @@
 # new-api Fish Audio 事实合同
 
-事实源：`new-api` 当前实现（审计提交 `6a217fb31`）的音频路由、Fish Audio adaptor、模型表与测试。
+事实源：`new-api` 当前实现（审计提交 `0ab16de57`）的音频路由、Fish Audio adaptor、模型表与测试，以及 Fish Audio 2026-07-30 更新的官方模型与定价文档。
 
 ## 客户端入口与模型
 
 | 能力 | 方法与路径 | 当前模型 |
 | --- | --- | --- |
-| TTS | `POST /v1/audio/speech` | `fish-s2-pro`、`fish-s1` |
+| TTS | `POST /v1/audio/speech` | `fish-s2.1-pro`、`fish-s2.1-pro-free`、`fish-s2-pro`、`fish-s1` |
 | STT/ASR | `POST /v1/audio/transcriptions` | `fish-transcribe-1` |
 | 私人声线创建 | `POST /v1/audio/voice-models` | `fish-voice-clone-1` |
 | 私人声线列表 | `GET /v1/audio/voice-models` | 当前用户所有声线 |
@@ -25,7 +25,18 @@ OpenAI-compatible JSON 字段：
 - `response_format`：当前脚本支持 `mp3`、`wav`、`opus`；
 - `extra_body.references`：可选参考数组，每项含 base64 `audio` 与准确对应的 `text`。
 
-new-api 将其转换为 Fish Audio `/v1/tts`，并通过 `model` header 传 `s2-pro` 或 `s1`。成功响应是音频字节，不是 JSON。
+new-api 将其转换为 Fish Audio `/v1/tts`。TTS 请求按 Fish 官方契约编码为 `application/msgpack`；客户端仍提交 JSON/base64，网关负责把 `references[*].audio` 严格解码为 MessagePack binary。`model` header 对应传 `s2.1-pro`、`s2.1-pro-free`、`s2-pro` 或 `s1`。成功响应是音频字节，不是 JSON。
+
+S2.1 支持方括号内的自然语言语气控制。Akasha CLI 的 `--style` 负责把单行描述包装为 `[style]` 并置于正文前。
+
+## 官方价格与 new-api 默认计价
+
+- `s2.1-pro`：Fish 官方 `$15 / 1M UTF-8 bytes`；new-api 默认按 1.5 倍配置为 `$22.50 / 1M UTF-8 bytes`；
+- `s2.1-pro-free`：`$0 / 1M UTF-8 bytes`；
+- `fish-voice-clone-1`：Fish 未单列模型创建费用，new-api 固定价为 `$0 / 次`；
+- `voice-design-1`：Fish 官方 `$0.01 / 成功请求`，new-api 默认固定价 `$0.015 / 次`。
+
+价格依据：[Fish Audio Pricing & Rate Limits](https://docs.fish.audio/developer-guide/models-pricing/pricing-and-rate-limits)。
 
 ## 公开参考音色检索
 

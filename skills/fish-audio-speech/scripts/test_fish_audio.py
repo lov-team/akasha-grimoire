@@ -179,7 +179,7 @@ class FishAudioTests(unittest.TestCase):
             self.assertIn("OK mode=tts", stdout.getvalue())
             payload = _FishHandler.tts_payload
             assert payload is not None
-            self.assertEqual(payload["model"], "fish-s2-pro")
+            self.assertEqual(payload["model"], "fish-s2.1-pro")
             self.assertEqual(payload["input"], "欢迎回来")
             references = payload["extra_body"]["references"]  # type: ignore[index]
             self.assertEqual(references[0]["text"], "参考语音")
@@ -259,6 +259,57 @@ class FishAudioTests(unittest.TestCase):
         assert _FishHandler.tts_payload is not None
         self.assertEqual(_FishHandler.tts_payload["voice"], "public-reference-id")
         self.assertNotIn("extra_body", _FishHandler.tts_payload)
+
+    def test_tts_style_wraps_input_for_s2_1_natural_language_control(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir, mock.patch.dict(
+            os.environ, {"NEW_API_API_KEY": "local-test-key"}, clear=False
+        ):
+            output = Path(temp_dir, "styled.wav")
+            rc = fish_audio.main(
+                [
+                    "--base-url",
+                    self.base_url,
+                    "tts",
+                    "--text",
+                    "规律一直都在那里。",
+                    "--voice",
+                    "private-reference-id",
+                    "--style",
+                    "warm and reflective",
+                    "--format",
+                    "wav",
+                    "--output",
+                    str(output),
+                ]
+            )
+        self.assertEqual(rc, 0)
+        assert _FishHandler.tts_payload is not None
+        self.assertEqual(_FishHandler.tts_payload["model"], "fish-s2.1-pro")
+        self.assertEqual(
+            _FishHandler.tts_payload["input"],
+            "[warm and reflective] 规律一直都在那里。",
+        )
+
+    def test_tts_style_rejects_nested_brackets(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir, mock.patch.dict(
+            os.environ, {"NEW_API_API_KEY": "local-test-key"}, clear=False
+        ), self.assertRaises(SystemExit) as caught:
+            fish_audio.main(
+                [
+                    "--base-url",
+                    self.base_url,
+                    "tts",
+                    "--text",
+                    "test",
+                    "--voice",
+                    "voice-id",
+                    "--style",
+                    "[whispering]",
+                    "--output",
+                    str(Path(temp_dir, "bad.mp3")),
+                ]
+            )
+        self.assertIn("bracket-free", str(caught.exception))
 
     def test_character_binding_resolves_to_reference_id_for_tts(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir, mock.patch.dict(
@@ -598,6 +649,53 @@ class FishAudioTests(unittest.TestCase):
             server.shutdown()
             server.server_close()
             thread.join(timeout=2)
+
+    def test_api_error_exposes_allowlisted_fields_without_metadata(self) -> None:
+        from email.message import Message
+        from io import BytesIO
+        from urllib.error import HTTPError
+
+        body = json.dumps(
+            {
+                "error": {
+                    "code": "model_price_error",
+                    "type": "new_api_error",
+                    "message": "model needs pricing",
+                    "metadata": {"api_key": "secret-key", "audio": "base64-payload"},
+                }
+            }
+        ).encode()
+
+        class FakeOpener:
+            def open(self, req: object, timeout: float = 0) -> object:
+                raise HTTPError(
+                    "https://newapi.1234bot.com/v1/audio/speech",
+                    400,
+                    "Bad Request",
+                    Message(),
+                    BytesIO(body),
+                )
+
+        request = fish_audio.urllib.request.Request(
+            "https://newapi.1234bot.com/v1/audio/speech",
+            data=b"{}",
+            method="POST",
+        )
+        with mock.patch.object(
+            fish_audio.urllib.request, "build_opener", return_value=FakeOpener()
+        ), self.assertRaises(SystemExit) as caught:
+            fish_audio._open_api_request(
+                request,
+                5,
+                base_url="https://newapi.1234bot.com/v1",
+                api_key="key",
+            )
+        message = str(caught.exception)
+        self.assertIn("code=model_price_error", message)
+        self.assertIn("type=new_api_error", message)
+        self.assertIn("message=model needs pricing", message)
+        self.assertNotIn("secret-key", message)
+        self.assertNotIn("base64-payload", message)
 
 
     def test_real_open_api_request_catches_quota_via_same_controller(self) -> None:

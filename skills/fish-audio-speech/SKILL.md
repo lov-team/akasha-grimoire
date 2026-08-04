@@ -13,6 +13,7 @@ description: 通过 new-api 调用 Fish Audio 完成 TTS、STT、私人声线克
 - 指定人物或角色：以名字搜索公开声线，试听多个候选后绑定角色；标题和标签不能证明真人身份或授权。
 - 私人声线：只上传已获授权的样本，通过 new-api 创建 `private` 声线，等待 `state=trained` 后再绑定。
 - TTS：文本 → 音频。使用公开、私人或显式绑定角色的 `reference_id`，也可提供单次参考音频与对应文本。
+- 情绪与语气：S2.1 使用自然语言控制，CLI 通过 `--style` 自动添加 Fish 的方括号控制指令；同一私人声线可生成中文、英语、日语等多语言试听。
 - STT：音频 → 文本。可选指定语言；只有确实不需要时间戳时才传 `--ignore-timestamps`。
 
 需要核对 new-api 与 Fish Audio 的字段映射时，读取 [references/new-api-contract.md](references/new-api-contract.md)。
@@ -96,6 +97,8 @@ python3 scripts/fish_audio.py tts \
 python3 scripts/fish_audio.py tts \
   --text "邓煜获得菲尔兹奖；钱徐预研究脑类器官。" \
   --voice <reference-id> \
+  --model fish-s2.1-pro \
+  --style "calm and thoughtful" \
   --format wav \
   --output ./staging/fish-smoke.wav
 
@@ -105,7 +108,19 @@ python3 scripts/fish_audio.py stt ./staging/fish-smoke.wav \
   --json-output ./staging/fish-smoke.json
 ```
 
-使用本地单次参考音频时，同时提供准确对应的 `--reference-text`。默认 TTS 模型为 `fish-s2-pro`；只有项目合同明确时才改为 `fish-s1`。
+使用本地单次参考音频时，同时提供准确对应的 `--reference-text`。默认 TTS 模型为生产推荐的 `fish-s2.1-pro`；开发测试可显式使用 `fish-s2.1-pro-free`，兼容项目可继续指定 `fish-s2-pro` 或 `fish-s1`。
+
+情绪控制示例：
+
+```bash
+python3 scripts/fish_audio.py tts \
+  --text "规律一直都在那里，等着被看见。" \
+  --voice <reference-id> \
+  --style "warm and reflective" \
+  --output ./staging/warm.mp3
+```
+
+`--style` 接受单行自然语言描述，例如 `calm and thoughtful`、`with growing excitement`、`whispering mysteriously`。脚本负责添加方括号，调用方不要重复输入括号。
 
 smoke 的音色、停顿、专有名词和 STT 都通过后，再用同一 `reference_id` 或角色绑定合成长文。任何一步失败都不要静默回退到系统 TTS。
 

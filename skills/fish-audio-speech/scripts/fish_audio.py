@@ -18,7 +18,13 @@ from pathlib import Path
 from typing import Any
 
 
-TTS_MODELS = {"fish-s2-pro", "fish-s1"}
+TTS_MODELS = {
+    "fish-s2.1-pro",
+    "fish-s2.1-pro-free",
+    "fish-s2-pro",
+    "fish-s1",
+}
+DEFAULT_TTS_MODEL = "fish-s2.1-pro"
 STT_MODEL = "fish-transcribe-1"
 VOICE_CLONE_MODEL = "fish-voice-clone-1"
 VOICE_MODEL_STATES = {"created", "training", "trained", "failed"}
@@ -217,7 +223,9 @@ def _open_api_request(
             except Exception:
                 pass
             recharge.raise_quota_if_applicable(exc.code, body, base_url=base_url)
-            raise SystemExit(f"new-api request failed: HTTP {exc.code}; body_bytes={len(body)}") from exc
+            detail = _safe_api_error_detail(body)
+            suffix = f"; {detail}" if detail else f"; body_bytes={len(body)}"
+            raise SystemExit(f"new-api request failed: HTTP {exc.code}{suffix}") from exc
         except urllib.error.URLError as exc:
             raise SystemExit("new-api request failed: network error") from exc
 
@@ -231,6 +239,30 @@ def _open_api_request(
         return controller.run(once)
     except recharge.AkashaRechargeError as exc:
         raise SystemExit(str(exc)) from exc
+
+
+def _safe_api_error_detail(raw: bytes) -> str:
+    """Return only allowlisted, bounded new-api error fields."""
+    try:
+        parsed = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return ""
+    if not isinstance(parsed, dict):
+        return ""
+    error = parsed.get("error", parsed)
+    if isinstance(error, str):
+        error = {"message": error}
+    if not isinstance(error, dict):
+        return ""
+    details: list[str] = []
+    for name in ("code", "type", "message"):
+        value = error.get(name)
+        if not isinstance(value, (str, int, float)) or isinstance(value, bool):
+            continue
+        compact = " ".join(str(value).split())[:512]
+        if compact:
+            details.append(f"{name}={compact}")
+    return "; ".join(details)
 
 
 def _decode_json_object(raw: bytes, operation: str) -> dict[str, Any]:
@@ -345,7 +377,7 @@ def _tts(
 ) -> None:
     if args.model is not None and args.model not in TTS_MODELS:
         raise SystemExit(f"unsupported Fish Audio TTS model: {args.model}")
-    model = args.model or "fish-s2-pro"
+    model = args.model or DEFAULT_TTS_MODEL
     if args.format not in OUTPUT_FORMATS:
         raise SystemExit(f"unsupported TTS format: {args.format}")
     voice = args.voice
@@ -363,9 +395,24 @@ def _tts(
     if bool(args.reference_audio) != bool(args.reference_text):
         raise SystemExit("--reference-audio and --reference-text must be provided together")
 
+    input_text = _read_text(args)
+    # argparse stores declared options directly on the namespace. Reading from
+    # ``vars`` also keeps direct unit-test callers that use a loose Mock from
+    # fabricating a truthy ``style`` attribute.
+    style = vars(args).get("style")
+    if style is not None:
+        style = style.strip()
+        if not style:
+            raise SystemExit("TTS style must not be empty")
+        if len(style) > 128:
+            raise SystemExit("TTS style must not exceed 128 characters")
+        if any(value in style for value in ("[", "]", "\n", "\r")):
+            raise SystemExit("TTS style must be a single bracket-free instruction")
+        input_text = f"[{style}] {input_text}"
+
     payload: dict[str, Any] = {
         "model": model,
-        "input": _read_text(args),
+        "input": input_text,
         "response_format": args.format,
     }
     if voice:
@@ -710,7 +757,11 @@ def _parser() -> argparse.ArgumentParser:
     tts.add_argument(
         "--model",
         choices=sorted(TTS_MODELS),
-        help="override the bound model; defaults to the registry model or fish-s2-pro",
+        help=f"override the bound model; defaults to the registry model or {DEFAULT_TTS_MODEL}",
+    )
+    tts.add_argument(
+        "--style",
+        help="S2.1 natural-language emotion/style instruction, for example 'warm and reflective'",
     )
     tts.add_argument("--format", default="mp3")
     tts.add_argument("--output", required=True)
@@ -738,7 +789,7 @@ def _parser() -> argparse.ArgumentParser:
     bind.add_argument("--character", required=True)
     bind.add_argument("--voice", required=True, help="Fish Audio reference_id")
     bind.add_argument("--title")
-    bind.add_argument("--model", choices=sorted(TTS_MODELS), default="fish-s2-pro")
+    bind.add_argument("--model", choices=sorted(TTS_MODELS), default=DEFAULT_TTS_MODEL)
     bind.add_argument("--registry", help="character voice registry JSON path")
 
     clone = subparsers.add_parser("clone", parents=[recharge_parent], help="create a reusable private Fish voice model")
