@@ -8,7 +8,7 @@
 [![Best on Codex App](https://img.shields.io/badge/Best_on-Codex_App-111827?style=flat-square)](#graph-engineering)
 [![Languages](https://img.shields.io/badge/Languages-中文_·_English_·_日本語-2D9CDB?style=flat-square)](#)
 [![Source of Truth](https://img.shields.io/badge/Source_of_Truth-Git-2EA44F?style=flat-square)](#設計原則)
-[![License: GPL v3](https://img.shields.io/badge/License-GPL_v3-blue?style=flat-square)](LICENSE)
+[![License: Apache 2.0 + Commercial](https://img.shields.io/badge/License-Apache_2.0_%2B_Commercial-F59E0B?style=flat-square)](LICENSE)
 
 [简体中文](README.md) · [English](README.en.md) · **日本語**
 
@@ -229,7 +229,9 @@ skills/<skill-name>/
 
 ## ライセンス
 
-本プロジェクトは [GNU General Public License v3.0](LICENSE) で公開されています。
+現行リリースには [Apache License 2.0 + 追加商用条件](LICENSE) が適用されます。商用決済利用以外は Apache 2.0 条項に従います。商用決済利用は累計決済額 1,000,000 米ドルまで無料で、超過前に書面による商用ライセンスが必要です。この組み合わせは未変更の Apache License 2.0 ではありません。詳細は [ライセンス説明](LICENSING.md) を参照してください。
+
+以前 GPLv3 で配布されたリリースには元のライセンスが引き続き適用されます。
 
 ---
 

@@ -8,7 +8,7 @@
 [![Best on Codex App](https://img.shields.io/badge/Best_on-Codex_App-111827?style=flat-square)](#graph-engineering)
 [![Languages](https://img.shields.io/badge/Languages-中文_·_English_·_日本語-2D9CDB?style=flat-square)](#)
 [![Source of Truth](https://img.shields.io/badge/Source_of_Truth-Git-2EA44F?style=flat-square)](#design-principles)
-[![License: GPL v3](https://img.shields.io/badge/License-GPL_v3-blue?style=flat-square)](LICENSE)
+[![License: Apache 2.0 + Commercial](https://img.shields.io/badge/License-Apache_2.0_%2B_Commercial-F59E0B?style=flat-square)](LICENSE)
 
 [简体中文](README.md) · **English** · [日本語](README.ja.md)
 
@@ -229,7 +229,9 @@ skills/<skill-name>/
 
 ## License
 
-This project is open source under the [GNU General Public License v3.0](LICENSE).
+The current release uses the [Apache License 2.0 with Additional Commercial Conditions](LICENSE). Uses other than Commercial Payment Use follow the Apache 2.0 terms. Commercial Payment Use is free up to USD 1,000,000 in cumulative payment volume and requires a written commercial license before exceeding that threshold. This combined license is not the unmodified Apache License 2.0. See [Licensing](LICENSING.md) for details.
+
+Releases previously distributed under GPLv3 remain under their original license.
 
 ---
 

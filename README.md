@@ -8,7 +8,7 @@
 [![Best on Codex App](https://img.shields.io/badge/Best_on-Codex_App-111827?style=flat-square)](#graph-engineering)
 [![Languages](https://img.shields.io/badge/Languages-中文_·_English_·_日本語-2D9CDB?style=flat-square)](#)
 [![Source of Truth](https://img.shields.io/badge/Source_of_Truth-Git-2EA44F?style=flat-square)](#设计原则)
-[![License: GPL v3](https://img.shields.io/badge/License-GPL_v3-blue?style=flat-square)](LICENSE)
+[![License: Apache 2.0 + Commercial](https://img.shields.io/badge/License-Apache_2.0_%2B_Commercial-F59E0B?style=flat-square)](LICENSE)
 
 **简体中文** · [English](README.en.md) · [日本語](README.ja.md)
 
@@ -231,11 +231,9 @@ skills/<skill-name>/
 
 ## 许可证
 
-当前已发布版本采用 [GNU General Public License v3.0](LICENSE) 开源。
-项目正在拟定面向未来支付模块或指定版本的分级商业授权：累计支付总额不超过
-1,000,000 美元（USD 1,000,000）免费；任何一笔交易将使累计支付总额超过该阈值前，
-需取得优选商业授权。该方案不会追溯改变既有 GPLv3 授权；具体边界、生效条件和
-条款草案见 [授权说明](LICENSING.md)。
+当前版本采用 [Apache License 2.0 + 附加商业条件](LICENSE)：非商业支付使用按 Apache 2.0 条款授权；生产环境中的商业支付使用，累计支付总额不超过 1,000,000 美元（USD 1,000,000）免费，超过前须取得书面商业授权。该组合许可证不是未经修改的 Apache License 2.0。完整说明见 [授权说明](LICENSING.md)，中文商业条件见 [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md)。
+
+此前按 GPLv3 发布的版本仍适用原许可证。
 
 ---
 
