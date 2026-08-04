@@ -1,0 +1,2 @@
+cut_id,source_in,source_out,transcript,semantic_role,decision,reason,restores_claim_id,review_status
+C001,00:00:00.000,00:00:00.000,,filler,safe_cut,,,pending
