@@ -1,0 +1,27 @@
+{
+  "canvas": {
+    "width": 1080,
+    "height": 1920
+  },
+  "a_roll_policy": "talking_head_remains_primary",
+  "opening_clear_seconds": null,
+  "ending_clear_seconds": null,
+  "overlays": [
+    {
+      "start": null,
+      "end": null,
+      "purpose": "",
+      "source": "",
+      "layout": {
+        "x": null,
+        "y": null,
+        "width": null,
+        "height": null
+      },
+      "fade_in": 0.25,
+      "fade_out": 0.25,
+      "avoidance_reason": ""
+    }
+  ],
+  "review_timestamps": []
+}

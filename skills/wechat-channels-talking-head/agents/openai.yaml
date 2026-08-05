@@ -1,4 +1,4 @@
 interface:
   display_name: "视频号口播制作"
-  short_description: "语义保真剪辑口播视频，并生成封面、标题、简介与发布包"
-  default_prompt: "使用 $wechat-channels-talking-head 剪辑这段口播，保留完整论证，并生成视频号封面、标题和简介。"
+  short_description: "语义保真剪辑口播，保留真人主画面并精确对齐字幕"
+  default_prompt: "使用 $wechat-channels-talking-head 剪辑这段口播，保留完整论证和真人主画面，用资料画中画辅助表达，按最终音轨对齐字幕，并生成视频号封面、标题和简介。"
