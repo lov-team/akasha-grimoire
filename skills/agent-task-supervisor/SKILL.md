@@ -40,6 +40,8 @@ Epic 创建 Issue task、Issue task 创建或继续 developer 后，直接父任
 
 当同一执行框架支持多个底座模型，需要按知识工作、工程、企业自动化、吞吐、成本或私有部署进行模型路由时，读取 [生产模型路由参考](references/production-model-routing.md)。它只用于模型候选、升级和验收，不覆盖用户明确指定、已有长会话粘性、项目固定模型或本 Skill 已规定的状态/Review 档位。
 
+当同一执行框架支持多个底座模型，需要按知识工作、工程、企业自动化、吞吐、成本或私有部署进行模型路由时，读取 [生产模型路由参考](references/production-model-routing.md)。它只用于模型候选、升级和验收，不覆盖用户明确指定、已有长会话粘性、项目固定模型或本 Skill 已规定的状态/Review 档位。
+
 ## 用 Graph Engineering 驱动交付
 
 把需要执行和验收的工作组织为 `Spec → Epic → Issue → Agent Task → Evidence`：
