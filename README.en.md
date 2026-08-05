@@ -4,7 +4,7 @@
 
 **Turn successful Agent collaboration into reusable team capabilities.**
 
-[![Agent Skills](https://img.shields.io/badge/Agent_Skills-22-6C5CE7?style=flat-square)](#capability-catalog)
+[![Agent Skills](https://img.shields.io/badge/Agent_Skills-23-6C5CE7?style=flat-square)](#capability-catalog)
 [![Best on Codex App](https://img.shields.io/badge/Best_on-Codex_App-111827?style=flat-square)](#graph-engineering)
 [![Languages](https://img.shields.io/badge/Languages-中文_·_English_·_日本語-2D9CDB?style=flat-square)](#)
 [![Source of Truth](https://img.shields.io/badge/Source_of_Truth-Git-2EA44F?style=flat-square)](#design-principles)
@@ -18,11 +18,11 @@
 
 Akasha Grimoire is a shared collection of Agent Skills, designed to work best in **Codex App**. It packages task boundaries, verified tool contracts, deterministic scripts, low-noise waiting, and independent acceptance into installable capabilities—so Agents guess less, poll less, and complete real work with evidence. Individual Skills remain portable to compatible Agents and CLIs.
 
-> **Want to generate images, video, speech, and music right away?** [Create a LovBrowser account](https://lovbrowser.com) and add credits. Akasha Grimoire defaults to `https://newapi.1234bot.com/v1`, so one new-api key can power GPT Image, Grok, Seedance, Fish Audio, and Suno without configuring a separate Base URL for every Skill.
+> **Want to generate images, video, speech, and music right away?** [Create a LovBrowser account](https://lovbrowser.com) and add credits. Akasha Grimoire defaults to `https://newapi.1234bot.com/v1`, so one new-api key can power GPT Image, Grok, Seedance, MiniMax H3, Kling, Fish Audio, and Suno without configuring a separate Base URL for every Skill.
 
 ## Get started in one minute
 
-1. Ask Codex to run a media task with GPT Image, Grok, Seedance, Fish Audio, or Suno.
+1. Ask Codex to run a media task with GPT Image, Grok, Seedance, MiniMax H3, Kling, Fish Audio, or Suno.
 2. When no key exists, the Agent generates a LovBrowser device-authorization QR code plus a clickable link and short code.
 3. Scan it, register or sign in, and confirm the matching code. The local client polls, stores the credential, and validates it through `/v1/models`.
 4. After validation, the original media action continues once. The real key never passes through chat, clipboard, or command arguments.
@@ -75,13 +75,14 @@ A standalone `content-pipeline` install covers text-only HTML/CSS cards. Install
 | Skill | Best for | What it provides |
 | --- | --- | --- |
 | [`video-production`](skills/video-production/) | Producing a complete video from an idea, article, script, or existing media | Stage-gated direction → sourcing/generation → EDL editing → technical and creative QA |
+| [`newapi-video-generation`](skills/newapi-video-generation/) | Generating shots with newly available new-api video models | Model-aware validation, async polling, and safe MP4 downloads for MiniMax H3 and Kling 3.0 / 2.5 |
 | [`video-director`](skills/video-director/) | Writing, directing, storyboards, shot lists, and pre-generation planning | Narrative beats, coverage, cinematography, motion, continuity bible, and generation plan |
 | [`video-source-research`](skills/video-source-research/) | Finding, downloading, and organizing B-roll, video, image, or audio assets | Per-shot queries, yt-dlp/direct downloads, ffprobe, SHA-256, and traceable `sources.json` |
 | [`video-editing`](skills/video-editing/) | General rough/fine cuts, B-roll, audio, subtitles, and delivery | Reviewable `edl.json`, deterministic FFmpeg rendering, missing-audio handling, and output verification |
 | [`video-qc`](skills/video-qc/) | Accepting generated clips, previews, and final exports | Full decode, black/freeze/silence/loudness/subtitle checks, representative frames, and narrative continuity review |
 | [`article-to-short-video`](skills/article-to-short-video/) | Turning Chinese essays, profiles, or arguments into 60–120 second vertical videos | Evidence boundaries, Fish voiceover, Suno music, and vertical-video checks on top of the general production loop |
 
-For complete production, install all five general video skills. `video-production` routes individual shots to Seedance, Gemini Omni, Grok, GPT Image, Fish Audio, and Suno as needed. Web video downloads additionally require yt-dlp; deterministic editing and QA require FFmpeg/ffprobe.
+For complete production, install all six general video skills. When no model is specified, `video-production` tries the first capable direct-video provider in this order: MiniMax H3 → Grok → Seedance 2.0. Kling, Gemini Omni, and other specialized capabilities are selected when the user requests them or a shot has incompatible hard requirements. Static visuals, narration, and music continue to route to GPT Image, Fish Audio, and Suno respectively. Web video downloads additionally require yt-dlp; deterministic editing and QA require FFmpeg/ffprobe.
 
 ### Image, game, and audio production
 

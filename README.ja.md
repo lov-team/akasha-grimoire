@@ -4,7 +4,7 @@
 
 **一度きりの成功した Agent 協働を、チームが繰り返し使える能力へ。**
 
-[![Agent Skills](https://img.shields.io/badge/Agent_Skills-22-6C5CE7?style=flat-square)](#スキル一覧)
+[![Agent Skills](https://img.shields.io/badge/Agent_Skills-23-6C5CE7?style=flat-square)](#スキル一覧)
 [![Best on Codex App](https://img.shields.io/badge/Best_on-Codex_App-111827?style=flat-square)](#graph-engineering)
 [![Languages](https://img.shields.io/badge/Languages-中文_·_English_·_日本語-2D9CDB?style=flat-square)](#)
 [![Source of Truth](https://img.shields.io/badge/Source_of_Truth-Git-2EA44F?style=flat-square)](#設計原則)
@@ -18,11 +18,11 @@
 
 Akasha Grimoire は、**Codex App** での利用に最適化された、チーム共有の Agent Skill コレクションです。タスク境界、検証済みのツール契約、決定的なスクリプト、低ノイズな待機、独立した受け入れ確認をインストール可能な能力としてまとめます。Agent の推測と無駄なポーリングを減らし、証拠に基づいて実務を完了させます。個別の Skill は互換 Agent や CLI でも利用できます。
 
-> **画像・動画・音声・音楽の生成をすぐに試したい場合：** [LovBrowser](https://lovbrowser.com) でアカウントを登録し、クレジットを購入してください。Akasha Grimoire は既定で `https://newapi.1234bot.com/v1` に接続します。1 つの new-api key で GPT Image、Grok、Seedance、Fish Audio、Suno を利用でき、Skill ごとの Base URL 設定は不要です。
+> **画像・動画・音声・音楽の生成をすぐに試したい場合：** [LovBrowser](https://lovbrowser.com) でアカウントを登録し、クレジットを購入してください。Akasha Grimoire は既定で `https://newapi.1234bot.com/v1` に接続します。1 つの new-api key で GPT Image、Grok、Seedance、MiniMax H3、Kling、Fish Audio、Suno を利用でき、Skill ごとの Base URL 設定は不要です。
 
 ## 1 分で利用開始
 
-1. Codex に GPT Image、Grok、Seedance、Fish Audio、Suno のメディア処理を依頼します。
+1. Codex に GPT Image、Grok、Seedance、MiniMax H3、Kling、Fish Audio、Suno のメディア処理を依頼します。
 2. Key がない場合、Agent は LovBrowser のデバイス認証 QR、クリック可能なリンク、短いコードを表示します。
 3. スキャンして登録またはログインし、同じコードを確認します。ローカルクライアントが自動でポーリングし、認証情報を保存して `/v1/models` で検証します。
 4. 検証後、元のメディア処理を一度だけ続行します。実際の Key はチャット、クリップボード、コマンド引数を通りません。
@@ -75,13 +75,14 @@ Graph Engineering は、納品作業を一時的な prompt の列ではなく、
 | Skill | 主な用途 | 提供する能力 |
 | --- | --- | --- |
 | [`video-production`](skills/video-production/) | アイデア、記事、脚本、既存素材から完成動画を制作 | 演出 → 素材/生成 → EDL 編集 → 技術・クリエイティブ QA の段階ゲート統括 |
+| [`newapi-video-generation`](skills/newapi-video-generation/) | new-api の新規動画モデルで shot を生成 | MiniMax H3、Kling 3.0 / 2.5 のモデル別検証、非同期ポーリング、安全な MP4 保存 |
 | [`video-director`](skills/video-director/) | 脚本、演出、絵コンテ、shot list、生成前計画 | narrative beat、coverage、撮影・motion、continuity bible、生成計画 |
 | [`video-source-research`](skills/video-source-research/) | B-roll、動画、画像、音声素材の検索・取得・整理 | shot ごとの検索、yt-dlp/直接取得、ffprobe、SHA-256、追跡可能な `sources.json` |
 | [`video-editing`](skills/video-editing/) | 一般的な rough/fine cut、B-roll、音声、字幕、書き出し | Review 可能な `edl.json`、決定論的 FFmpeg render、音声欠落補完、出力再検証 |
 | [`video-qc`](skills/video-qc/) | 生成 clip、preview、最終動画の受け入れ確認 | 全体 decode、黒画面/freeze/silence/音量/字幕、代表 frame、物語連続性 Review |
 | [`article-to-short-video`](skills/article-to-short-video/) | 中国語の長文・人物記事・論説を 60〜120 秒の縦型動画へ変換 | 共通制作 loop に証拠境界、Fish narration、Suno BGM、縦型専用検査を追加 |
 
-完全な制作には上記 5 つの共通動画 Skill をまとめて導入してください。`video-production` は shot ごとに Seedance、Gemini Omni、Grok、GPT Image、Fish Audio、Suno へ振り分けます。Web 動画の取得には yt-dlp、決定論的な編集と QA には FFmpeg/ffprobe が必要です。
+完全な制作には上記 6 つの共通動画 Skill をまとめて導入してください。モデルが指定されていない場合、`video-production` は MiniMax H3 → Grok → Seedance 2.0 の順で、shot の要件を満たす最初の動画生成先を選びます。Kling、Gemini Omni、その他の専用機能は、ユーザー指定または shot の必須要件に応じて選択します。静止画、ナレーション、音楽はそれぞれ GPT Image、Fish Audio、Suno へ振り分けます。Web 動画の取得には yt-dlp、決定論的な編集と QA には FFmpeg/ffprobe が必要です。
 
 ### 画像・ゲーム・音声制作
 

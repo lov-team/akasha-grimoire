@@ -4,6 +4,9 @@
     {
       "shot_id": "S001",
       "strategy": "video_generate",
+      "provider": "",
+      "model": "",
+      "routing_reason": "",
       "duration": 5,
       "aspect_ratio": "16:9",
       "start_state": "",

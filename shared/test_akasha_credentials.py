@@ -210,12 +210,13 @@ class DeviceFlowTests(unittest.TestCase):
 
 
 class MediaIntegrationTests(unittest.TestCase):
-    def test_all_five_media_entries_use_the_shared_bootstrap(self):
+    def test_all_six_media_entries_use_the_shared_bootstrap(self):
         root = Path(__file__).resolve().parents[1]
         cases = [
             ("gpt_image_bootstrap_test", root / "skills/gpt-image-generation/scripts/generate_openai_image.py", "_api_key", "IMAGE_PROXY_API_KEY"),
             ("grok_bootstrap_test", root / "skills/grok-media-generation/scripts/grok_media.py", "read_api_key", "GROK_MEDIA_API_KEY"),
             ("seedance_bootstrap_test", root / "skills/seedance-video-generation/scripts/seedance_video.py", "read_api_key", "SEEDANCE_VIDEO_API_KEY"),
+            ("newapi_video_bootstrap_test", root / "skills/newapi-video-generation/scripts/newapi_video.py", "read_api_key", "NEWAPI_VIDEO_API_KEY"),
             ("fish_bootstrap_test", root / "skills/fish-audio-speech/scripts/fish_audio.py", "_api_key", "FISH_AUDIO_API_KEY"),
             ("suno_bootstrap_test", root / "skills/suno-music-generation/scripts/suno_music.py", "_api_key", "SUNO_API_KEY"),
         ]

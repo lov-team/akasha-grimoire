@@ -35,13 +35,22 @@ description: 把创意、文章、脚本、已有素材或参考视频组织成�
 
 ### 3. 为每个镜头决定来源
 
-按优先级选择：复用已确认素材、拍摄/录屏、检索现有素材、生成图片并运镜、直接生成视频。需要外部素材时，**REQUIRED SUB-SKILL:** 使用 `$video-source-research`；需要生成时使用当前项目已安装的专用 Skill：
+按优先级选择：复用已确认素材、拍摄/录屏、检索现有素材、生成图片并运镜、直接生成视频。需要外部素材时，**REQUIRED SUB-SKILL:** 使用 `$video-source-research`；需要生成时使用当前项目已安装的专用 Skill。
 
+- MiniMax H3、Kling 3.0 / 2.5：`$newapi-video-generation`。
+- Grok：`$grok-media-generation`。
 - Seedance：`$seedance-video-generation`；尾帧续拍使用 `$seedance-video-continuation`。
 - Gemini Omni：`$gemini-omni-video-generation`。
-- Grok：`$grok-media-generation`。
 - 静态视觉：`$gpt-image-generation`。
 - 旁白：`$fish-audio-speech`；音乐：`$suno-music-generation`。
+
+用户没有指定模型或供应商时，直接生成视频的默认路由严格按以下顺序选择第一个满足镜头能力的入口：
+
+1. MiniMax H3（`$newapi-video-generation`）
+2. Grok（`$grok-media-generation`）
+3. Seedance 2.0（`$seedance-video-generation`）
+
+只有当前入口不支持所需参考素材、时长、画幅或声音，入口不可用，或代表镜头经过针对性重试仍未通过验收，才降到下一顺位，并在 `generation-plan.json` 记录原因。用户明确指定模型或供应商时直接遵从，不再套用默认顺序。Kling、Gemini Omni、Seedance 尾帧续拍等专用能力仅在用户明确指定，或更高顺位入口无法满足镜头硬约束时选用。
 
 先做一个代表镜头 smoke。确认人物、商品、场景、运动和风格可达后再批量消耗生成额度。
 

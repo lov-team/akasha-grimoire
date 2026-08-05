@@ -4,7 +4,7 @@
 
 **把一次成功的 Agent 协作，沉淀成团队可以反复调用的能力。**
 
-[![Agent Skills](https://img.shields.io/badge/Agent_Skills-22-6C5CE7?style=flat-square)](#能力目录)
+[![Agent Skills](https://img.shields.io/badge/Agent_Skills-23-6C5CE7?style=flat-square)](#能力目录)
 [![Best on Codex App](https://img.shields.io/badge/Best_on-Codex_App-111827?style=flat-square)](#graph-engineering)
 [![Languages](https://img.shields.io/badge/Languages-中文_·_English_·_日本語-2D9CDB?style=flat-square)](#)
 [![Source of Truth](https://img.shields.io/badge/Source_of_Truth-Git-2EA44F?style=flat-square)](#设计原则)
@@ -18,11 +18,11 @@
 
 Akasha Grimoire 是团队共享的 Agent Skill 合集，最佳使用环境是 **Codex App**。它把任务边界、工具事实、执行脚本、低噪声等待和独立验收组织成可安装的能力包，让 Agent 在真实项目中少猜、少重复轮询，并用证据完成交付。其他兼容 Agent 与 CLI 仍可使用其中的独立 Skill。
 
-> **想直接体验图片、视频、语音和音乐生成？** 访问 [LovBrowser](https://lovbrowser.com) 注册账号并开通额度。阿卡夏秘典默认连接 `https://newapi.1234bot.com/v1`，拿到一把 new-api Key 后即可调用 GPT Image、Grok、Seedance、Fish Audio 与 Suno，无需逐项配置 Base URL。
+> **想直接体验图片、视频、语音和音乐生成？** 访问 [LovBrowser](https://lovbrowser.com) 注册账号并开通额度。阿卡夏秘典默认连接 `https://newapi.1234bot.com/v1`，拿到一把 new-api Key 后即可调用 GPT Image、Grok、Seedance、MiniMax H3、Kling、Fish Audio 与 Suno，无需逐项配置 Base URL。
 
 ## 一分钟开通
 
-1. 在 Codex 中直接要求 GPT Image、Grok、Seedance、Fish Audio 或 Suno 执行媒体任务。
+1. 在 Codex 中直接要求 GPT Image、Grok、Seedance、MiniMax H3、Kling、Fish Audio 或 Suno 执行媒体任务。
 2. 首次缺少 Key 时，Agent 会生成 LovBrowser 设备授权二维码，并同时显示可点击链接与短码。
 3. 用手机扫码，注册或登录后确认同一短码；本机随后自动轮询、保存凭证并用 `/v1/models` 验证。
 4. 验证成功后，最初的媒体任务自动继续一次。真实 Key 不经过对话、剪贴板或命令参数。
@@ -75,13 +75,14 @@ Graph Engineering 把交付建模为一张可追踪的工作图，而不是一�
 | Skill | 适用场景 | 核心能力 |
 | --- | --- | --- |
 | [`video-production`](skills/video-production/) | 从创意、文章、脚本或已有素材生产完整视频 | 编导 → 素材/生成 → EDL 剪辑 → 技术与创作 QA 的阶段门总编排 |
+| [`newapi-video-generation`](skills/newapi-video-generation/) | 用 new-api 新增视频模型生成镜头 | MiniMax H3、Kling 3.0 / 2.5 的模型级校验、异步轮询与 MP4 安全下载 |
 | [`video-director`](skills/video-director/) | 编剧、导演、分镜、镜头表和生成前规划 | 叙事节拍、镜头覆盖、摄影运动、连续性 Bible 和生成计划 |
 | [`video-source-research`](skills/video-source-research/) | 搜索、下载和整理 B-roll、视频、图片或音频素材 | 逐镜查询、yt-dlp/直接下载、ffprobe、SHA-256 和可追溯 `sources.json` |
 | [`video-editing`](skills/video-editing/) | 通用粗剪、精剪、B-roll、声音、字幕和导出 | 可审阅 `edl.json`、确定性 FFmpeg 渲染、缺音轨补齐与输出复验 |
 | [`video-qc`](skills/video-qc/) | 生成片段、预览和最终成片验收 | 完整解码、黑帧/冻结/静音/响度/字幕、代表帧和叙事连续性审阅 |
 | [`article-to-short-video`](skills/article-to-short-video/) | 把中文长文、人物故事或观点稿制作成 60—120 秒竖屏短视频 | 在通用视频生产闭环上增加证据边界、Fish 旁白、Suno 配乐和竖屏专项验收 |
 
-完整安装建议同时启用以上五个通用视频 Skill；`video-production` 会按镜头需要继续调用 Seedance、Gemini Omni、Grok、GPT Image、Fish Audio 与 Suno。网页视频下载额外需要 `yt-dlp`，确定性剪辑和 QA 需要 FFmpeg/ffprobe。
+完整安装建议同时启用以上六个通用视频 Skill；未指定模型时，`video-production` 默认按 MiniMax H3 → Grok → Seedance 2.0 的顺序选择第一个满足镜头能力的直生视频入口；Kling、Gemini Omni 及其他专用能力按用户指定或镜头硬约束选用。静态视觉、旁白和音乐继续分别路由到 GPT Image、Fish Audio 与 Suno。网页视频下载额外需要 `yt-dlp`，确定性剪辑和 QA 需要 FFmpeg/ffprobe。
 
 ### 图像、游戏与音频
 

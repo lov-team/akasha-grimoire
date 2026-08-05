@@ -1,0 +1,4 @@
+interface:
+  display_name: "NewAPI 多模型视频生成"
+  short_description: "调用 MiniMax H3 与 Kling 新视频模型并验收 MP4"
+  default_prompt: "使用 $newapi-video-generation 通过 new-api 选择 MiniMax H3 或 Kling 生成视频，并验证最终 MP4。"
