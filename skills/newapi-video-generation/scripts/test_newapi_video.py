@@ -127,6 +127,36 @@ class NewAPIVideoTest(unittest.TestCase):
             "aspect_ratio": "21:9", "duration": 15, "resolution": "768P"
         })
 
+    def test_minimax_h3_image_to_video_first_and_last_frame_payload(self) -> None:
+        first = "https://media.example/first.png"
+        last = "https://media.example/last.png"
+        result = self.invoke(
+            "generate", "--model", "h3-i2v", "--prompt", "grass sways in a light breeze",
+            "--duration", "10", "--resolution", "2K",
+            "--image", first, "--image", last,
+            "--poll-interval", "0.01", "--output", self.output("h3-i2v.mp4"),
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = self.submit_payload()
+        self.assertEqual(payload["model"], "minimax-h3/image-to-video")
+        self.assertEqual(payload["duration"], 10)
+        self.assertEqual(payload["images"], [first, last])
+        self.assertEqual(payload["metadata"], {
+            "duration": 10,
+            "resolution": "2K",
+            "image_url": first,
+            "end_image_url": last,
+        })
+
+    def test_minimax_h3_image_to_video_requires_reference_frame(self) -> None:
+        result = self.invoke(
+            "generate", "--model", "minimax-h3/image-to-video", "--prompt", "subtle motion",
+            "--duration", "10", "--output", self.output("missing-frame.mp4"),
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("requires at least one", result.stderr)
+        self.assertFalse(Handler.requests)
+
     def test_kling_25_uses_string_duration_and_native_options(self) -> None:
         result = self.invoke(
             "generate", "--model", "kling-2.5-t2v", "--prompt", "camera dolly",

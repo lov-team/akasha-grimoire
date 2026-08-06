@@ -21,12 +21,15 @@ SUCCESS_STATES = {"success", "succeeded", "completed"}
 FAILURE_STATES = {"failure", "failed", "expired", "cancelled", "canceled"}
 
 MINIMAX_H3_MODEL = "minimax-h3/text-to-video"
+MINIMAX_H3_I2V_MODEL = "minimax-h3/image-to-video"
 KLING_3_MODEL = "kling-3.0/video"
 KLING_25_T2V_MODEL = "kling/v2-5-turbo-text-to-video-pro"
 
 MODEL_ALIASES = {
     "minimax-h3": MINIMAX_H3_MODEL,
     "h3": MINIMAX_H3_MODEL,
+    "minimax-h3-i2v": MINIMAX_H3_I2V_MODEL,
+    "h3-i2v": MINIMAX_H3_I2V_MODEL,
     "kling-3": KLING_3_MODEL,
     "kling-3.0": KLING_3_MODEL,
     "kling-2.5-t2v": KLING_25_T2V_MODEL,
@@ -43,6 +46,23 @@ MODEL_PROFILES = {
         "duration_as_string": False,
         "supports_sound": False,
         "supports_mode": False,
+        "requires_images": False,
+        "max_images": 0,
+        "uses_aspect_ratio": True,
+    },
+    MINIMAX_H3_I2V_MODEL: {
+        "durations": range(4, 16),
+        "default_duration": 6,
+        "aspect_ratios": (),
+        "resolutions": ("768P", "2K"),
+        "default_resolution": "2K",
+        "supports_images": True,
+        "duration_as_string": False,
+        "supports_sound": False,
+        "supports_mode": False,
+        "requires_images": True,
+        "max_images": 2,
+        "uses_aspect_ratio": False,
     },
     KLING_25_T2V_MODEL: {
         "durations": (5, 10),
@@ -54,6 +74,9 @@ MODEL_PROFILES = {
         "duration_as_string": True,
         "supports_sound": False,
         "supports_mode": False,
+        "requires_images": False,
+        "max_images": 0,
+        "uses_aspect_ratio": True,
     },
     KLING_3_MODEL: {
         "durations": range(3, 16),
@@ -65,6 +88,9 @@ MODEL_PROFILES = {
         "duration_as_string": True,
         "supports_sound": True,
         "supports_mode": True,
+        "requires_images": False,
+        "max_images": 2,
+        "uses_aspect_ratio": True,
     },
 }
 
@@ -355,14 +381,18 @@ def resolve_model(args: argparse.Namespace) -> tuple[str, dict]:
         allowed = list(profile["durations"])
         summary = f"{allowed[0]}-{allowed[-1]}" if allowed == list(range(allowed[0], allowed[-1] + 1)) else ", ".join(map(str, allowed))
         raise NewAPIVideoError(f"{model} duration must be one of: {summary} seconds")
-    if args.aspect_ratio not in profile["aspect_ratios"]:
+    if profile["uses_aspect_ratio"] and args.aspect_ratio not in profile["aspect_ratios"]:
         raise NewAPIVideoError(
             f"{model} aspect ratio must be one of: {', '.join(profile['aspect_ratios'])}"
         )
     if args.image and not profile["supports_images"]:
         raise NewAPIVideoError(f"{model} is text-to-video and does not accept --image")
-    if len(args.image) > 2:
-        raise NewAPIVideoError(f"{model} accepts at most two --image values (first and last frame)")
+    if profile["requires_images"] and not args.image:
+        raise NewAPIVideoError(f"{model} requires at least one --image reference frame")
+    if len(args.image) > profile["max_images"]:
+        raise NewAPIVideoError(
+            f"{model} accepts at most {profile['max_images']} --image values (first and last frame)"
+        )
     if args.resolution and args.resolution not in profile["resolutions"]:
         allowed = ", ".join(profile["resolutions"]) or "not configurable"
         raise NewAPIVideoError(f"{model} resolution must be one of: {allowed}")
@@ -370,7 +400,7 @@ def resolve_model(args: argparse.Namespace) -> tuple[str, dict]:
         raise NewAPIVideoError(f"{model} does not accept --mode")
     if args.sound is not None and not profile["supports_sound"]:
         raise NewAPIVideoError(f"{model} does not accept --sound/--no-sound")
-    prompt_limit = 7000 if model == MINIMAX_H3_MODEL else 2500 if model == KLING_25_T2V_MODEL else None
+    prompt_limit = 7000 if model in {MINIMAX_H3_MODEL, MINIMAX_H3_I2V_MODEL} else 2500 if model == KLING_25_T2V_MODEL else None
     if not args.prompt.strip():
         raise NewAPIVideoError("prompt must not be empty")
     if prompt_limit and len(args.prompt) > prompt_limit:
@@ -395,12 +425,9 @@ def metadata_from(args: argparse.Namespace, model: str, profile: dict) -> dict[s
         metadata.update(loaded)
 
     duration: int | str = str(args.duration) if profile["duration_as_string"] else args.duration
-    metadata.update(
-        {
-            "aspect_ratio": args.aspect_ratio,
-            "duration": duration,
-        }
-    )
+    metadata["duration"] = duration
+    if profile["uses_aspect_ratio"]:
+        metadata["aspect_ratio"] = args.aspect_ratio
     resolution = args.resolution or profile["default_resolution"]
     if resolution:
         metadata["resolution"] = resolution
@@ -408,6 +435,10 @@ def metadata_from(args: argparse.Namespace, model: str, profile: dict) -> dict[s
         metadata["negative_prompt"] = args.negative_prompt
     if args.cfg_scale is not None:
         metadata["cfg_scale"] = args.cfg_scale
+    if model == MINIMAX_H3_I2V_MODEL:
+        metadata["image_url"] = args.image[0]
+        if len(args.image) == 2:
+            metadata["end_image_url"] = args.image[1]
     if model == KLING_3_MODEL:
         metadata["mode"] = args.mode or "pro"
         metadata["sound"] = args.sound if args.sound is not None else False
@@ -436,6 +467,10 @@ def run_generate(args: argparse.Namespace) -> None:
         "duration": args.duration,
         "metadata": metadata,
     }
+    if model == MINIMAX_H3_I2V_MODEL:
+        # Keep references in the standard task envelope so new-api can classify
+        # the request as image-to-video before mapping KIE-native metadata.
+        payload["images"] = args.image
     response = parse_json(
         request(
             base_url,
@@ -484,11 +519,11 @@ def build_parser() -> argparse.ArgumentParser:
     generate.add_argument(
         "--model",
         default=MINIMAX_H3_MODEL,
-        help="model ID or alias: minimax-h3, kling-3, kling-2.5-t2v",
+        help="model ID or alias: minimax-h3, h3-i2v, kling-3, kling-2.5-t2v",
     )
     generate.add_argument("--prompt", required=True)
     generate.add_argument("--duration", type=int, metavar="SECONDS", help="model default: H3=6, Kling=5")
-    generate.add_argument("--aspect-ratio", default="16:9")
+    generate.add_argument("--aspect-ratio", default="16:9", help="text-to-video models; H3 image-to-video inherits its frame ratio")
     generate.add_argument("--resolution", help="MiniMax H3: 768P or 2K")
     generate.add_argument("--image", action="append", default=[], type=validate_public_https_url)
     generate.add_argument("--mode", choices=("std", "pro", "4K"))
