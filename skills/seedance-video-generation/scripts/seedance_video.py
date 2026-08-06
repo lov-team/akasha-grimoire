@@ -77,6 +77,9 @@ class SeedanceVideoError(RuntimeError):
     pass
 
 
+MAX_PROMPT_FILE_BYTES = 256 * 1024
+
+
 def _load_akasha_recharge() -> Any:
     """Process-level path-verified singleton for shared/akasha_recharge.py."""
     import importlib.util
@@ -353,6 +356,33 @@ def build_content(args: argparse.Namespace) -> list[dict]:
     return content
 
 
+def resolve_prompt(args: argparse.Namespace) -> str:
+    if args.prompt is not None:
+        prompt = args.prompt.strip()
+        if not prompt:
+            raise SeedanceVideoError("prompt is empty")
+        return prompt
+
+    path = Path(args.prompt_file).expanduser()
+    try:
+        size = path.stat().st_size
+    except OSError as exc:
+        raise SeedanceVideoError(f"cannot read prompt file: {path}: {exc}") from exc
+    if not path.is_file():
+        raise SeedanceVideoError(f"prompt file is not a regular file: {path}")
+    if size > MAX_PROMPT_FILE_BYTES:
+        raise SeedanceVideoError(
+            f"prompt file exceeds {MAX_PROMPT_FILE_BYTES} bytes: {path}"
+        )
+    try:
+        prompt = path.read_text(encoding="utf-8").strip()
+    except (OSError, UnicodeError) as exc:
+        raise SeedanceVideoError(f"cannot read UTF-8 prompt file: {path}: {exc}") from exc
+    if not prompt:
+        raise SeedanceVideoError(f"prompt file is empty: {path}")
+    return prompt
+
+
 def resolve_model(args: argparse.Namespace) -> tuple[str, dict]:
     image_references = args.first_frame + args.last_frame + args.reference_image
     raw_model = args.model.strip()
@@ -381,6 +411,7 @@ def resolve_model(args: argparse.Namespace) -> tuple[str, dict]:
 
 
 def run_generate(args: argparse.Namespace) -> None:
+    prompt = resolve_prompt(args)
     api_key = read_api_key()
     base_url = resolve_base_url(args.base_url)
     recharge = _load_akasha_recharge()
@@ -403,7 +434,7 @@ def run_generate(args: argparse.Namespace) -> None:
     }
     payload = {
         "model": model,
-        "prompt": args.prompt,
+        "prompt": prompt,
         "duration": args.duration,
         "metadata": metadata,
     }
@@ -457,7 +488,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=SEEDANCE_2_PRO_MODEL,
         help="Seedance Ark model ID or alias (seedance-1.0-pro, seedance-1.0-lite, seedance-1.5-pro, seedance-2, seedance-2-fast)",
     )
-    generate.add_argument("--prompt", required=True)
+    prompt_source = generate.add_mutually_exclusive_group(required=True)
+    prompt_source.add_argument("--prompt", help="inline Seedance prompt")
+    prompt_source.add_argument(
+        "--prompt-file",
+        help="read a long Seedance director prompt from a UTF-8 text file",
+    )
     generate.add_argument("--duration", type=int, default=5, metavar="SECONDS")
     generate.add_argument("--resolution", choices=("480p", "720p", "1080p", "4k"), default="720p")
     generate.add_argument("--ratio", default="16:9")

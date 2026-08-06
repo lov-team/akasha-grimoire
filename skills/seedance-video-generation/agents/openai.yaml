@@ -1,4 +1,4 @@
 interface:
-  display_name: "Seedance 视频生成"
-  short_description: "通过 new-api 调用多版本 Seedance 并安全验收"
-  default_prompt: "使用 $seedance-video-generation 通过 new-api 生成一段 Seedance 视频，并验证最终文件。"
+  display_name: "Seedance 导演级视频生成"
+  short_description: "编排秒级运镜提示词并通过 new-api 生成验收视频"
+  default_prompt: "使用 $seedance-video-generation 先编排秒级导演提示词，再通过 new-api 生成并验证最终视频。"

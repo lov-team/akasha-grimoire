@@ -153,12 +153,68 @@ class SeedanceVideoScriptTest(unittest.TestCase):
         method, path, body = Handler.requests[0]
         self.assertEqual((method, path), ("POST", "/v1/video/generations"))
         payload = json.loads(body)
+        self.assertEqual(payload["prompt"], "wave to camera")
         self.assertEqual(payload["duration"], 10)
         self.assertEqual(payload["metadata"]["duration"], 10)
         self.assertFalse(payload["metadata"]["generate_audio"])
         self.assertEqual(payload["metadata"]["content"][0]["role"], "first_frame")
         self.assertEqual(payload["metadata"]["content"][1]["type"], "video_url")
         self.assertEqual(payload["metadata"]["content"][1]["role"], "reference_video")
+
+    def test_generate_reads_multiline_prompt_from_utf8_file(self) -> None:
+        prompt_file = Path(self.temp_dir.name) / "director-prompt.txt"
+        prompt_file.write_text(
+            "【全局】写实电影风格。\n"
+            "【时间轴】\n"
+            "0.00–2.00秒：低机位远景，镜头小幅慢推。\n"
+            "2.00–5.00秒：中景侧跟，人物向画面左侧奔跑。\n",
+            encoding="utf-8",
+        )
+        output = Path(self.temp_dir.name) / "prompt-file.mp4"
+
+        result = self.invoke(
+            "generate",
+            "--prompt-file", str(prompt_file),
+            "--duration", "5",
+            "--poll-interval", "0.01",
+            "--output", str(output),
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(Handler.requests[0][2])
+        self.assertEqual(payload["prompt"], prompt_file.read_text(encoding="utf-8").strip())
+
+    def test_generate_rejects_empty_prompt_file_before_request(self) -> None:
+        prompt_file = Path(self.temp_dir.name) / "empty.txt"
+        prompt_file.write_text(" \n\t", encoding="utf-8")
+        output = Path(self.temp_dir.name) / "empty.mp4"
+
+        result = self.invoke(
+            "generate",
+            "--prompt-file", str(prompt_file),
+            "--output", str(output),
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("prompt file is empty", result.stderr)
+        self.assertFalse(Handler.requests)
+        self.assertFalse(output.exists())
+
+    def test_generate_requires_exactly_one_prompt_source(self) -> None:
+        prompt_file = Path(self.temp_dir.name) / "prompt.txt"
+        prompt_file.write_text("camera pushes in", encoding="utf-8")
+        output = Path(self.temp_dir.name) / "conflict.mp4"
+
+        result = self.invoke(
+            "generate",
+            "--prompt", "camera pans right",
+            "--prompt-file", str(prompt_file),
+            "--output", str(output),
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("not allowed with argument", result.stderr)
+        self.assertFalse(Handler.requests)
 
     def test_seedance_1_pro_uses_ark_model_and_twelve_second_limit(self) -> None:
         output = Path(self.temp_dir.name) / "pro.mp4"

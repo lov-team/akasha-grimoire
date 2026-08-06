@@ -1,11 +1,11 @@
 ---
 name: seedance-video-generation
-description: 通过 new-api 的异步视频任务端点调用火山方舟 Doubao Seedance 1.0 Pro、1.0 Lite T2V/I2V、1.5 Pro、2.0 Pro/2.0 Fast，按模型校验时长与参考素材，轮询任务并安全下载 MP4。用户要求用 Seedance、豆包视频或 doubao-seedance 模型生成视频，验证 /v1/video/generations，或排查 Seedance 提交、轮询、参考素材、分辨率与结果下载失败时使用。
+description: 为 Seedance 编排秒级时间轴、导演级景别运镜、参考素材职责、连续性与声音提示词，并通过 new-api 的异步视频任务端点调用火山方舟 Doubao Seedance 1.0 Pro、1.0 Lite T2V/I2V、1.5 Pro、2.0 Pro/2.0 Fast，按模型校验时长与素材，轮询并安全下载 MP4。用户要求用 Seedance、豆包或 doubao-seedance 设计/优化视频提示词、复刻运镜、做首尾帧或多模态参考生成、生成成片、验证 /v1/video/generations，或排查提交、轮询、分辨率与下载失败时使用。
 ---
 
 # Seedance 视频生成
 
-使用 [`scripts/seedance_video.py`](scripts/seedance_video.py) 调用 new-api。真实生成会计费；先提交一个 5 秒、720p 的最小任务，再扩大时长或画质。
+先把需求改写成可执行的 Seedance Prompt，再使用 [`scripts/seedance_video.py`](scripts/seedance_video.py) 调用 new-api。真实生成会计费；先提交一个 5 秒、720p 的最小任务，再扩大时长或画质。
 
 ## 准备
 
@@ -21,6 +21,27 @@ description: 通过 new-api 的异步视频任务端点调用火山方舟 Doubao
 
 项目需要固化 Seedance 协作规则时，使用 [`assets/AGENTS.md`](assets/AGENTS.md) 作为可复制模板。项目已有 `AGENTS.md` 时只合并「Seedance 视频生成」章节，不覆盖原有规则；项目的更严格约束优先。
 
+## 编排导演级 Prompt
+
+- 4–6 秒、单主体、单动作时，按“起始构图 → 一个主要动作 → 运镜反应 → 结束构图 → 同步声音”写紧凑 Prompt，不强拆多段。
+- 7–15 秒、多镜头、参考运镜、动作卡点、广告或剧情请求，读取 [`references/director-prompting.md`](references/director-prompting.md)，复制并填写 [`assets/director-prompt-template.txt`](assets/director-prompt-template.txt)。
+- 每个时间段只安排一个主要动作；时间段从 `0.00` 连续覆盖到命令的 `--duration`。运镜写清类型、必要的幅度/速度和目标，不堆叠互相冲突的摄影词。
+- new-api 通过 CLI 参数结构化标记首帧、尾帧和参考媒体。Prompt 用自然语言说明素材职责，不写即梦网页端的 `@图片1` / `@视频1` 标记。
+- 完整片超过 5 秒时，为 smoke 另写只覆盖前 5 秒的 Prompt；不要把完整 15 秒时间轴与 `--duration 5` 混用。
+
+长 Prompt 写入 UTF-8 文件并使用 `--prompt-file`，避免 shell 引号与换行破坏时间轴：
+
+```bash
+cp skills/seedance-video-generation/assets/director-prompt-template.txt /tmp/seedance-director-prompt.txt
+# 填完所有槽位并删除不适用行后执行
+python3 skills/seedance-video-generation/scripts/seedance_video.py generate \
+  --prompt-file /tmp/seedance-director-prompt.txt \
+  --duration 10 \
+  --resolution 720p \
+  --ratio 16:9 \
+  --output /tmp/seedance-director.mp4
+```
+
 ## 文生视频
 
 ```bash
@@ -33,6 +54,8 @@ python3 skills/seedance-video-generation/scripts/seedance_video.py generate \
 ```
 
 默认模型为 `doubao-seedance-2-0-260128`。快速模型需显式传 `--model doubao-seedance-2-0-fast-260128`。Seedance 2.x 时长为 4–15 秒。
+
+`--prompt` 与 `--prompt-file` 必须且只能选择一个。`--prompt-file` 接受不超过 256 KiB 的非空 UTF-8 普通文件。
 
 ## 模型选择
 
@@ -65,7 +88,7 @@ python3 skills/seedance-video-generation/scripts/seedance_video.py generate \
 
 脚本提交 `POST /v1/video/generations`，轮询 `GET /v1/video/generations/{task_id}`，成功后通过 `GET /v1/videos/{task_id}/content` 下载结果。只有终态成功、下载为非空 MP4 且文件签名有效才算协议完成。
 
-交付前继续用 `ffprobe` 检查时长、编码、分辨率，并抽取代表帧检查主体一致性、运动连续性、提示词约束与水印。不要以 HTTP 200、任务 `SUCCESS` 或脚本 `OK` 代替成片验收。
+交付前继续用 `ffprobe` 检查时长、编码、分辨率，并按 Prompt 时间轴抽取代表帧，检查主体一致性、动作完成度、运镜方向、转场触发、声音同步、文字与水印。不要以 HTTP 200、任务 `SUCCESS` 或脚本 `OK` 代替成片验收。
 
 常见错误：
 
