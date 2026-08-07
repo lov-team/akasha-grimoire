@@ -37,7 +37,7 @@ description: 把创意、文章、脚本、已有素材或参考视频组织成�
 
 按优先级选择：复用已确认素材、拍摄/录屏、检索现有素材、生成图片并运镜、直接生成视频。需要外部素材时，**REQUIRED SUB-SKILL:** 使用 `$video-source-research`；需要生成时使用当前项目已安装的专用 Skill。
 
-- MiniMax H3、Kling 3.0 / 2.5：`$newapi-video-generation`。
+- MiniMax H3、Kling 3.0 / 2.5：`$h3-kling-video-generation`。
 - Grok：`$grok-media-generation`。
 - Seedance：`$seedance-video-generation`；尾帧续拍使用 `$seedance-video-continuation`。
 - Gemini Omni：`$gemini-omni-video-generation`。
@@ -46,7 +46,7 @@ description: 把创意、文章、脚本、已有素材或参考视频组织成�
 
 用户没有指定模型或供应商时，直接生成视频的默认路由严格按以下顺序选择第一个满足镜头能力的入口：
 
-1. MiniMax H3（`$newapi-video-generation`）
+1. MiniMax H3（`$h3-kling-video-generation`）
 2. Grok（`$grok-media-generation`）
 3. Seedance 2.0（`$seedance-video-generation`）
 

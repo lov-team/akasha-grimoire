@@ -931,7 +931,7 @@ def add_recharge_argument(parser: Any, *, suppress_default: bool = False) -> Non
     kwargs: dict[str, Any] = {
         "dest": "recharge_usd",
         "help": (
-            "USD face value for official new-api recharge: automatic when balance is "
+            "USD face value for official LovBrowser media API recharge: automatic when balance is "
             "insufficient, or proactive when running shared/akasha_recharge.py "
             "(default: 1, or AKASHA_RECHARGE_USD). CLI overrides env. With "
             "subcommands, place before or after the subcommand name."
@@ -976,7 +976,7 @@ def direct_recharge_main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--base-url",
         default=OFFICIAL_NEWAPI_BASE_URL,
-        help=f"official new-api base URL (default: {OFFICIAL_NEWAPI_BASE_URL})",
+        help=f"official LovBrowser media API base URL (default: {OFFICIAL_NEWAPI_BASE_URL})",
     )
     add_recharge_argument(parser)
     parser.add_argument("--poll-timeout", type=float, default=900.0)

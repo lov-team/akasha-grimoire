@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate videos with MiniMax H3 and Kling through new-api."""
+"""Generate MiniMax H3 and Kling videos through an asynchronous video API."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 MAX_RESPONSE_BYTES = 256 * 1024 * 1024
-DEFAULT_BASE_URL = "https://newapi.1234bot.com/v1"
+DEFAULT_BASE_URL = "https://llmapi.lovbrowser.com/v1"
 SUCCESS_STATES = {"success", "succeeded", "completed"}
 FAILURE_STATES = {"failure", "failed", "expired", "cancelled", "canceled"}
 
@@ -95,7 +95,7 @@ MODEL_PROFILES = {
 }
 
 
-class NewAPIVideoError(RuntimeError):
+class VideoGenerationError(RuntimeError):
     pass
 
 
@@ -120,7 +120,7 @@ def _load_akasha_recharge() -> Any:
         except OSError:
             continue
     if path is None:
-        raise NewAPIVideoError(
+        raise VideoGenerationError(
             "shared akasha_recharge helper not found; install from monorepo so "
             "shared/akasha_recharge.py resolves via symlink"
         )
@@ -160,7 +160,7 @@ def _load_akasha_recharge() -> Any:
 
     spec = importlib.util.spec_from_file_location(module_name, path)
     if spec is None or spec.loader is None:
-        raise NewAPIVideoError(
+        raise VideoGenerationError(
             "shared akasha_recharge helper not found; install from monorepo so "
             "shared/akasha_recharge.py resolves via symlink"
         )
@@ -178,9 +178,9 @@ def normalize_base_url(raw: str) -> str:
     value = raw.strip().rstrip("/")
     parsed = urllib.parse.urlsplit(value)
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-        raise NewAPIVideoError("base URL must be an absolute HTTP(S) URL")
+        raise VideoGenerationError("base URL must be an absolute HTTP(S) URL")
     if parsed.username or parsed.password or parsed.query or parsed.fragment:
-        raise NewAPIVideoError("base URL must not contain userinfo, query, or fragment")
+        raise VideoGenerationError("base URL must not contain userinfo, query, or fragment")
     path = parsed.path.rstrip("/")
     if path.rsplit("/", 1)[-1] != "v1":
         path += "/v1"
@@ -190,26 +190,26 @@ def normalize_base_url(raw: str) -> str:
 def resolve_base_url(explicit: str | None) -> str:
     credentials = _load_akasha_recharge().load_akasha_credentials_module(Path(__file__))
     raw = credentials.resolve_base_url(
-        ("NEWAPI_VIDEO_BASE_URL",), explicit=explicit, default=DEFAULT_BASE_URL
+        ("H3_KLING_VIDEO_BASE_URL",), explicit=explicit, default=DEFAULT_BASE_URL
     )
     return normalize_base_url(raw)
 
 
 def read_api_key() -> str:
     credentials = _load_akasha_recharge().load_akasha_credentials_module(Path(__file__))
-    found = credentials.discover_credential(("NEWAPI_VIDEO_API_KEY",))
+    found = credentials.discover_credential(("H3_KLING_VIDEO_API_KEY",))
     if found is None:
         try:
-            found = credentials.bootstrap(specialized_names=("NEWAPI_VIDEO_API_KEY",))
+            found = credentials.bootstrap(specialized_names=("H3_KLING_VIDEO_API_KEY",))
         except credentials.CredentialError as exc:
-            raise NewAPIVideoError(str(exc)) from exc
+            raise VideoGenerationError(str(exc)) from exc
     return found.api_key
 
 
 def read_response(response: object) -> tuple[bytes, str]:
     data = response.read(MAX_RESPONSE_BYTES + 1)
     if len(data) > MAX_RESPONSE_BYTES:
-        raise NewAPIVideoError("endpoint response exceeds 256 MiB")
+        raise VideoGenerationError("endpoint response exceeds 256 MiB")
     return data, response.headers.get("Content-Type", "")
 
 
@@ -227,7 +227,7 @@ def request(
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Accept": "application/json",
-        "User-Agent": "akasha-newapi-video/1.0",
+        "User-Agent": "akasha-h3-kling-video/1.0",
     }
     if payload is not None:
         body = json.dumps(payload, separators=(",", ":")).encode()
@@ -259,9 +259,9 @@ def request(
                 message = message or str(parsed.get("message") or "")
             except (json.JSONDecodeError, AttributeError):
                 pass
-            raise NewAPIVideoError(f"HTTP {exc.code}: {message or exc.reason}") from exc
+            raise VideoGenerationError(f"HTTP {exc.code}: {message or exc.reason}") from exc
         except urllib.error.URLError as exc:
-            raise NewAPIVideoError(f"request failed: {exc.reason}") from exc
+            raise VideoGenerationError(f"request failed: {exc.reason}") from exc
 
     if controller is None:
         controller = recharge.RechargeController(
@@ -272,16 +272,16 @@ def request(
     try:
         return controller.run(once)
     except recharge.AkashaRechargeError as exc:
-        raise NewAPIVideoError(str(exc)) from exc
+        raise VideoGenerationError(str(exc)) from exc
 
 
 def parse_json(raw: bytes) -> dict:
     try:
         value = json.loads(raw)
     except json.JSONDecodeError as exc:
-        raise NewAPIVideoError("endpoint returned non-JSON data") from exc
+        raise VideoGenerationError("endpoint returned non-JSON data") from exc
     if not isinstance(value, dict):
-        raise NewAPIVideoError("endpoint returned an unexpected JSON shape")
+        raise VideoGenerationError("endpoint returned an unexpected JSON shape")
     return value
 
 
@@ -290,7 +290,7 @@ def task_id_from(response: dict) -> str:
     nested = data if isinstance(data, dict) else {}
     value = response.get("task_id") or response.get("id") or response.get("request_id") or nested.get("task_id")
     if not isinstance(value, str) or not value.strip():
-        raise NewAPIVideoError("task submission returned no task ID")
+        raise VideoGenerationError("task submission returned no task ID")
     return value.strip()
 
 
@@ -330,9 +330,9 @@ def wait_for_task(
         if state in SUCCESS_STATES:
             return
         if state in FAILURE_STATES:
-            raise NewAPIVideoError(f"video task {state}: {message or 'upstream returned no reason'}")
+            raise VideoGenerationError(f"video task {state}: {message or 'upstream returned no reason'}")
         if time.monotonic() >= deadline:
-            raise NewAPIVideoError(f"video task did not finish within {poll_timeout:g} seconds")
+            raise VideoGenerationError(f"video task did not finish within {poll_timeout:g} seconds")
         time.sleep(poll_interval)
 
 
@@ -345,12 +345,12 @@ def validate_public_https_url(value: str) -> str:
 
 def validate_mp4(data: bytes, content_type: str) -> None:
     if len(data) < 12 or data[4:8] != b"ftyp":
-        raise NewAPIVideoError(f"video result is not an MP4 (content-type={content_type or 'unknown'})")
+        raise VideoGenerationError(f"video result is not an MP4 (content-type={content_type or 'unknown'})")
 
 
 def write_output(path: Path, data: bytes, overwrite: bool) -> None:
     if path.exists() and not overwrite:
-        raise NewAPIVideoError(f"output already exists: {path}")
+        raise VideoGenerationError(f"output already exists: {path}")
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
     try:
@@ -373,43 +373,43 @@ def resolve_model(args: argparse.Namespace) -> tuple[str, dict]:
     profile = MODEL_PROFILES.get(model)
     if profile is None:
         supported = ", ".join(MODEL_PROFILES)
-        raise NewAPIVideoError(f"unsupported new-api video model: {raw_model}; choose one of: {supported}")
+        raise VideoGenerationError(f"unsupported video model: {raw_model}; choose one of: {supported}")
 
     if args.duration is None:
         args.duration = profile["default_duration"]
     if args.duration not in profile["durations"]:
         allowed = list(profile["durations"])
         summary = f"{allowed[0]}-{allowed[-1]}" if allowed == list(range(allowed[0], allowed[-1] + 1)) else ", ".join(map(str, allowed))
-        raise NewAPIVideoError(f"{model} duration must be one of: {summary} seconds")
+        raise VideoGenerationError(f"{model} duration must be one of: {summary} seconds")
     if profile["uses_aspect_ratio"] and args.aspect_ratio not in profile["aspect_ratios"]:
-        raise NewAPIVideoError(
+        raise VideoGenerationError(
             f"{model} aspect ratio must be one of: {', '.join(profile['aspect_ratios'])}"
         )
     if args.image and not profile["supports_images"]:
-        raise NewAPIVideoError(f"{model} is text-to-video and does not accept --image")
+        raise VideoGenerationError(f"{model} is text-to-video and does not accept --image")
     if profile["requires_images"] and not args.image:
-        raise NewAPIVideoError(f"{model} requires at least one --image reference frame")
+        raise VideoGenerationError(f"{model} requires at least one --image reference frame")
     if len(args.image) > profile["max_images"]:
-        raise NewAPIVideoError(
+        raise VideoGenerationError(
             f"{model} accepts at most {profile['max_images']} --image values (first and last frame)"
         )
     if args.resolution and args.resolution not in profile["resolutions"]:
         allowed = ", ".join(profile["resolutions"]) or "not configurable"
-        raise NewAPIVideoError(f"{model} resolution must be one of: {allowed}")
+        raise VideoGenerationError(f"{model} resolution must be one of: {allowed}")
     if args.mode and not profile["supports_mode"]:
-        raise NewAPIVideoError(f"{model} does not accept --mode")
+        raise VideoGenerationError(f"{model} does not accept --mode")
     if args.sound is not None and not profile["supports_sound"]:
-        raise NewAPIVideoError(f"{model} does not accept --sound/--no-sound")
+        raise VideoGenerationError(f"{model} does not accept --sound/--no-sound")
     prompt_limit = 7000 if model in {MINIMAX_H3_MODEL, MINIMAX_H3_I2V_MODEL} else 2500 if model == KLING_25_T2V_MODEL else None
     if not args.prompt.strip():
-        raise NewAPIVideoError("prompt must not be empty")
+        raise VideoGenerationError("prompt must not be empty")
     if prompt_limit and len(args.prompt) > prompt_limit:
-        raise NewAPIVideoError(f"{model} prompt must not exceed {prompt_limit} characters")
+        raise VideoGenerationError(f"{model} prompt must not exceed {prompt_limit} characters")
     if (args.negative_prompt or args.cfg_scale is not None) and model != KLING_25_T2V_MODEL:
-        raise NewAPIVideoError(f"{model} does not accept --negative-prompt or --cfg-scale")
+        raise VideoGenerationError(f"{model} does not accept --negative-prompt or --cfg-scale")
     if args.cfg_scale is not None:
         if not 0 <= args.cfg_scale <= 1 or abs(args.cfg_scale * 10 - round(args.cfg_scale * 10)) > 1e-9:
-            raise NewAPIVideoError("--cfg-scale must be between 0 and 1 in increments of 0.1")
+            raise VideoGenerationError("--cfg-scale must be between 0 and 1 in increments of 0.1")
     return model, profile
 
 
@@ -419,9 +419,9 @@ def metadata_from(args: argparse.Namespace, model: str, profile: dict) -> dict[s
         try:
             loaded = json.loads(args.metadata_json)
         except json.JSONDecodeError as exc:
-            raise NewAPIVideoError(f"--metadata-json is invalid JSON: {exc.msg}") from exc
+            raise VideoGenerationError(f"--metadata-json is invalid JSON: {exc.msg}") from exc
         if not isinstance(loaded, dict):
-            raise NewAPIVideoError("--metadata-json must decode to an object")
+            raise VideoGenerationError("--metadata-json must decode to an object")
         metadata.update(loaded)
 
     duration: int | str = str(args.duration) if profile["duration_as_string"] else args.duration
@@ -468,8 +468,8 @@ def run_generate(args: argparse.Namespace) -> None:
         "metadata": metadata,
     }
     if model == MINIMAX_H3_I2V_MODEL:
-        # Keep references in the standard task envelope so new-api can classify
-        # the request as image-to-video before mapping KIE-native metadata.
+        # Keep references in the standard task envelope so the endpoint can
+        # classify image-to-video before mapping KIE-native metadata.
         payload["images"] = args.image
     response = parse_json(
         request(
@@ -510,7 +510,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--base-url",
-        help=f"new-api host or /v1 API root (default: {DEFAULT_BASE_URL})",
+        help=f"OpenAI-compatible host or /v1 API root (default: {DEFAULT_BASE_URL})",
     )
     parser.add_argument("--timeout", type=float, default=30)
     recharge.add_recharge_argument(parser)
@@ -548,7 +548,7 @@ def main() -> int:
         args = build_parser().parse_args()
         args.handler(args)
         return 0
-    except (NewAPIVideoError, OSError, ValueError) as exc:
+    except (VideoGenerationError, OSError, ValueError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
 

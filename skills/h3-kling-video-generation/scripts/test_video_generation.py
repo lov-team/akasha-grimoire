@@ -14,11 +14,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from unittest.mock import patch
 
-SCRIPT = Path(__file__).with_name("newapi_video.py")
+SCRIPT = Path(__file__).with_name("video_generation.py")
 MP4 = b"\x00\x00\x00\x18ftypisomfixture"
 
 sys.dont_write_bytecode = True
-SPEC = importlib.util.spec_from_file_location("newapi_video_under_test", SCRIPT)
+SPEC = importlib.util.spec_from_file_location("video_generation_under_test", SCRIPT)
 assert SPEC and SPEC.loader
 VIDEO = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(VIDEO)
@@ -58,7 +58,7 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
 
 
-class NewAPIVideoTest(unittest.TestCase):
+class VideoGenerationTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
@@ -81,7 +81,7 @@ class NewAPIVideoTest(unittest.TestCase):
 
     def invoke(self, *args: str) -> subprocess.CompletedProcess[str]:
         env = os.environ.copy()
-        env["NEWAPI_VIDEO_API_KEY"] = "test-key"
+        env["H3_KLING_VIDEO_API_KEY"] = "test-key"
         return subprocess.run(
             ["python3", str(SCRIPT), "--base-url", self.base_url, "--timeout", "5", *args],
             env=env,
@@ -102,9 +102,8 @@ class NewAPIVideoTest(unittest.TestCase):
         with patch.dict(
             os.environ,
             {
-                "OPENAI_BASE_URL": "https://openai.example/v1",
-                "NEW_API_BASE_URL": "https://new-api.example/v1",
-                "NEWAPI_VIDEO_BASE_URL": "https://video.example/v1",
+                "OPENAI_BASE_URL": "https://compatible.example/v1",
+                "H3_KLING_VIDEO_BASE_URL": "https://video.example/v1",
             },
             clear=True,
         ):

@@ -1,0 +1,4 @@
+interface:
+  display_name: "H3 与 Kling 视频生成"
+  short_description: "编写导演级 H3/Kling Prompt 并验收 MP4"
+  default_prompt: "使用 $h3-kling-video-generation 编写 MiniMax H3 或 Kling 导演级 Prompt，生成视频并验证最终 MP4。"

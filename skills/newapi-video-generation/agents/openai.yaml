@@ -1,4 +1,0 @@
-interface:
-  display_name: "NewAPI 多模型视频生成"
-  short_description: "编写导演级 H3 Prompt，调用 H3/Kling 并验收 MP4"
-  default_prompt: "使用 $newapi-video-generation 按 Seedance 式导演结构编写 MiniMax H3 Prompt，通过 new-api 生成视频并验证最终 MP4。"

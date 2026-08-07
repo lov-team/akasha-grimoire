@@ -75,7 +75,7 @@ Graph Engineering 把交付建模为一张可追踪的工作图，而不是一�
 | Skill | 适用场景 | 核心能力 |
 | --- | --- | --- |
 | [`video-production`](skills/video-production/) | 从创意、文章、脚本或已有素材生产完整视频 | 编导 → 素材/生成 → EDL 剪辑 → 技术与创作 QA 的阶段门总编排 |
-| [`newapi-video-generation`](skills/newapi-video-generation/) | 用 new-api 新增视频模型生成镜头 | MiniMax H3、Kling 3.0 / 2.5 的模型级校验、异步轮询与 MP4 安全下载 |
+| [`h3-kling-video-generation`](skills/h3-kling-video-generation/) | 用 H3 与 Kling 生成导演级镜头 | MiniMax H3、Kling 3.0 / 2.5 的 Prompt 编排、模型级校验、异步轮询与 MP4 安全下载 |
 | [`video-director`](skills/video-director/) | 编剧、导演、分镜、镜头表和生成前规划 | 叙事节拍、镜头覆盖、摄影运动、连续性 Bible 和生成计划 |
 | [`video-source-research`](skills/video-source-research/) | 搜索、下载和整理 B-roll、视频、图片或音频素材 | 逐镜查询、yt-dlp/直接下载、ffprobe、SHA-256 和可追溯 `sources.json` |
 | [`video-editing`](skills/video-editing/) | 通用粗剪、精剪、B-roll、声音、字幕和导出 | 可审阅 `edl.json`、确定性 FFmpeg 渲染、缺音轨补齐与输出复验 |

@@ -75,7 +75,7 @@ Graph Engineering は、納品作業を一時的な prompt の列ではなく、
 | Skill | 主な用途 | 提供する能力 |
 | --- | --- | --- |
 | [`video-production`](skills/video-production/) | アイデア、記事、脚本、既存素材から完成動画を制作 | 演出 → 素材/生成 → EDL 編集 → 技術・クリエイティブ QA の段階ゲート統括 |
-| [`newapi-video-generation`](skills/newapi-video-generation/) | new-api の新規動画モデルで shot を生成 | MiniMax H3、Kling 3.0 / 2.5 のモデル別検証、非同期ポーリング、安全な MP4 保存 |
+| [`h3-kling-video-generation`](skills/h3-kling-video-generation/) | H3 と Kling で演出付き shot を生成 | MiniMax H3、Kling 3.0 / 2.5 の Prompt 編成、モデル別検証、非同期ポーリング、安全な MP4 保存 |
 | [`video-director`](skills/video-director/) | 脚本、演出、絵コンテ、shot list、生成前計画 | narrative beat、coverage、撮影・motion、continuity bible、生成計画 |
 | [`video-source-research`](skills/video-source-research/) | B-roll、動画、画像、音声素材の検索・取得・整理 | shot ごとの検索、yt-dlp/直接取得、ffprobe、SHA-256、追跡可能な `sources.json` |
 | [`video-editing`](skills/video-editing/) | 一般的な rough/fine cut、B-roll、音声、字幕、書き出し | Review 可能な `edl.json`、決定論的 FFmpeg render、音声欠落補完、出力再検証 |

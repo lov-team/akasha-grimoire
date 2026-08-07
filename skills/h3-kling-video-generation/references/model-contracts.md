@@ -16,10 +16,10 @@
 - `duration`：整数 4–15，默认 6。
 - `resolution`：`768P` 或 `2K`，默认 `2K`。
 - `image_url`：首帧图片 URL；`end_image_url`：尾帧图片 URL。至少提供一个，也可同时提供。
-- CLI 中第一项 `--image` 映射 `image_url`，第二项映射 `end_image_url`，最多两项；同时写入请求顶层 `images`，使 new-api 在提交前识别为图生视频并处理参考素材。
+- CLI 中第一项 `--image` 映射 `image_url`，第二项映射 `end_image_url`，最多两项；同时写入请求顶层 `images`，使兼容端点在提交前识别为图生视频并处理参考素材。
 - 图片不超过 30 MB，边长 256–5760 像素，宽高比 0.4–2.5。视频沿用参考帧比例，不传 `aspect_ratio`。
 - 参考图片必须是无需 Cookie 或 Authorization 即可读取的稳定公共 HTTPS URL。
-- 顶层 `images` 是 new-api 的请求分类信号，metadata 中的 `image_url` / `end_image_url` 是 KIE 原生输入；两层必须同时存在，不能互相替代。
+- 顶层 `images` 是兼容端点的请求分类信号，metadata 中的 `image_url` / `end_image_url` 是 KIE 原生输入；两层必须同时存在，不能互相替代。
 - 实测 `2K` 输出为 1440×1920、24 fps；实际尺寸仍由参考帧比例决定，3:4 输入不会自动扩展为 9:16。
 - 结果可能包含 AAC 音轨。正式旁白或配乐项目应只取视频流，避免模型原音轨混入。
 - 首尾参考帧构图差异过大时，上游可能直接切镜或产生场景突变；应改为 A/B 两镜或拆成独立片段，不把切换当作连续运镜。
@@ -32,7 +32,7 @@
 
 ### 已验证故障与恢复
 
-1. 仅在 metadata 中传 `image_url` / `end_image_url` 时，new-api 可能将请求误判为文生视频，并返回：
+1. 仅在 metadata 中传 `image_url` / `end_image_url` 时，兼容端点可能将请求误判为文生视频，并返回：
 
    ```text
    HTTP 400: kie createTask failed (code 422): aspect_ratio is required for text-to-video
@@ -69,4 +69,4 @@
 - 多镜头：`multi_shots=true`，使用 `multi_prompt`；每镜头含 `prompt` 和 1–12 秒 `duration`，总时长仍为 3–15 秒。
 - 元素引用：在 `kling_elements` 定义名称，并在 prompt 中用 `@名称` 引用。复杂结构通过 `--metadata-json` 传入。
 
-这些字段来自对应 KIE 模型的 `/api/v1/jobs/createTask` 契约；new-api 将 `metadata` 映射到上游 `input`。H3 图生视频的原生字段为 `image_url` 和 `end_image_url`，不要混用海螺官方渠道的 `first_frame_image`。
+这些字段来自对应 KIE 模型的 `/api/v1/jobs/createTask` 契约；兼容端点将 `metadata` 映射到上游 `input`。H3 图生视频的原生字段为 `image_url` 和 `end_image_url`，不要混用海螺官方渠道的 `first_frame_image`。

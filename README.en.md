@@ -75,7 +75,7 @@ A standalone `content-pipeline` install covers text-only HTML/CSS cards. Install
 | Skill | Best for | What it provides |
 | --- | --- | --- |
 | [`video-production`](skills/video-production/) | Producing a complete video from an idea, article, script, or existing media | Stage-gated direction → sourcing/generation → EDL editing → technical and creative QA |
-| [`newapi-video-generation`](skills/newapi-video-generation/) | Generating shots with newly available new-api video models | Model-aware validation, async polling, and safe MP4 downloads for MiniMax H3 and Kling 3.0 / 2.5 |
+| [`h3-kling-video-generation`](skills/h3-kling-video-generation/) | Generating directed shots with H3 and Kling | Prompt orchestration, model-aware validation, async polling, and safe MP4 downloads for MiniMax H3 and Kling 3.0 / 2.5 |
 | [`video-director`](skills/video-director/) | Writing, directing, storyboards, shot lists, and pre-generation planning | Narrative beats, coverage, cinematography, motion, continuity bible, and generation plan |
 | [`video-source-research`](skills/video-source-research/) | Finding, downloading, and organizing B-roll, video, image, or audio assets | Per-shot queries, yt-dlp/direct downloads, ffprobe, SHA-256, and traceable `sources.json` |
 | [`video-editing`](skills/video-editing/) | General rough/fine cuts, B-roll, audio, subtitles, and delivery | Reviewable `edl.json`, deterministic FFmpeg rendering, missing-audio handling, and output verification |
