@@ -1,6 +1,6 @@
 ---
 name: newapi-video-generation
-description: 通过 LovBrowser new-api 的异步视频任务端点调用 KIE MiniMax H3 文生视频或图生视频、Kling 3.0 与 Kling 2.5 Turbo，执行模型级时长、画幅、清晰度、首尾参考帧校验，静默轮询并安全下载 MP4。用户要求用 minimax-h3、MiniMax H3、H3 图生视频、Kling 3、Kling 2.5、new-api 新视频模型生成视频，或排查 /v1/video/generations 提交、轮询与下载时使用。
+description: 通过 LovBrowser new-api 的异步视频任务端点调用 KIE MiniMax H3 文生视频或图生视频、Kling 3.0 与 Kling 2.5 Turbo；按 Seedance 式导演结构编写 H3 成片合同、素材职责、连续性、秒级动作、摄影机、结束构图与声音提示词，并执行模型级时长、画幅、清晰度、首尾参考帧校验、轮询和 MP4 验收。用户要求编写或优化 minimax-h3/H3 Prompt、做 H3 图生视频，或使用 Kling/new-api 视频模型与排查任务时使用。
 ---
 
 # NewAPI 多模型视频生成
@@ -15,6 +15,23 @@ description: 通过 LovBrowser new-api 的异步视频任务端点调用 KIE Min
 - `kling-2.5-t2v` → `kling/v2-5-turbo-text-to-video-pro`：5 或 10 秒，纯文生视频。
 
 需要完整字段约束时读取 [`references/model-contracts.md`](references/model-contracts.md)。不要把其他供应商的字段混入请求。
+
+## 编写 H3 导演级 Prompt
+
+H3 Prompt 使用 Seedance 的导演级表达标准，但必须服从 H3 的素材和请求契约。先读取 [`references/h3-director-prompting.md`](references/h3-director-prompting.md)；需要落盘时复制并填写 [`assets/h3-director-prompt-template.txt`](assets/h3-director-prompt-template.txt)。
+
+最小完整结构：
+
+1. **成片合同**：时长、媒介质感、节奏、唯一核心事件与最终落点；
+2. **参考帧职责**：首帧锁定身份、服装、初始景别、构图和光线；尾帧只在实际传入时声明；
+3. **连续性硬约束**：只列需要冻结的身份、道具、空间、光线和屏幕方向，并明确唯一允许变化；
+4. **秒级动作与摄影机**：时间从 `0.00` 连续覆盖到 `duration`，每段一个主要动作；写清景别/机位、摄影机类型/幅度/速度/目标、焦点与结束构图；
+5. **声音策略**：环境声、动作音、对白和配乐逐层选择；后期配音项目明确无对白、无配乐，并在验收后移除模型音轨；
+6. **高损失限制**：只保留会破坏镜头合同的错误，避免泛化否定词淹没动作。
+
+4–6 秒单镜头可以写成紧凑的三段微时间轴；不要把多个独立事件塞进一个短镜头。图生视频不重复发明首帧已经锁定的静态美术，只描述素材职责、允许发生的变化、摄影机反应和结束状态。
+
+同一 A/B 实验若只比较首帧景别，两份 H3 Prompt 必须逐字相同，并写“严格保持首帧既有景别与取景范围”；不要在文字里再次分别描述 A/B 景别，否则会引入第二个主要变量。
 
 ## 生成
 
@@ -48,10 +65,10 @@ MiniMax H3 首帧图生视频：
 ```bash
 python3 skills/newapi-video-generation/scripts/newapi_video.py generate \
   --model h3-i2v \
-  --prompt "Preserve the character, clothing, drawing lines and colors; only add breathing, grass movement and a slow camera push" \
+  --prompt "$(cat /tmp/h3-director-prompt.txt)" \
   --image https://media.example/first-frame.png \
-  --duration 10 \
-  --resolution 2K \
+  --duration 4 \
+  --resolution 768P \
   --output /tmp/minimax-h3-i2v.mp4
 ```
 
