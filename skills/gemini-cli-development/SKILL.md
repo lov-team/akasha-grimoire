@@ -1,11 +1,11 @@
 ---
 name: gemini-cli-development
-description: 用户明确指定 Gemini CLI、让 Gemini 编码或要求复用原 Gemini 会话时，使用可见 macOS Terminal + tmux 驱动 Gemini CLI 作为 implementation worker，覆盖 React、Vue、Svelte、HTML、CSS、JavaScript、TypeScript、组件、交互、表单、前端路由、响应式、可访问性、动效和前端测试；在同一 TUI 完成中文计划、Red 门、实现、状态交付和返工，并由主 Agent 独立验收。未明确指定 worker 的代码开发默认使用 codex-app-development 的 Luna max Codex worker。
+description: 用户明确指定 Gemini CLI、让 Gemini 编码或要求复用原 Gemini 会话时，使用可见 macOS Terminal + tmux 驱动 Gemini CLI 作为 implementation worker，覆盖 React、Vue、Svelte、HTML、CSS、JavaScript、TypeScript、组件、交互、表单、前端路由、响应式、可访问性、动效和前端测试；在同一 TUI 完成中文计划、Red 门、实现、状态交付和返工，并由主 Agent 独立验收。未明确指定 worker 的代码开发默认使用 codex-app-development 的 GPT-5.6 Sol，并按任务难度选择 thinking。
 ---
 
 # Gemini CLI 开发与独立验收
 
-仅在用户明确指定 Gemini CLI 时把 Gemini 当作实现 worker；未指定 worker 的前端、后端和全栈代码统一交给 `codex-app-development` 的 GPT-5.6 Luna、thinking=max Codex worker。纯图片、视频、声音等素材生成仍走对应媒体技能。主 Agent 负责需求解释、范围、用户决策、完整 diff Review、风险复测和 Git 结论。
+仅在用户明确指定 Gemini CLI 时把 Gemini 当作实现 worker；未指定 worker 的前端、后端和全栈代码统一交给 `codex-app-development` 的 GPT-5.6 Sol Codex worker，并按任务难度选择 thinking。纯图片、视频、声音等素材生成仍走对应媒体技能。主 Agent 负责需求解释、范围、用户决策、完整 diff Review、风险复测和 Git 结论。
 
 ## 读取规则并核对 CLI
 

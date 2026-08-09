@@ -6,9 +6,9 @@
 | --- | --- | --- |
 | Epic 监工 App | 找 ready Issue、维护依赖、接收关闭 Evidence、启动后续 ready Issue | 不写 Issue 业务代码 |
 | Issue 负责/验收 App | 解释合同、制定实现计划与验收矩阵、审核 Red 与最终实现、Git 交付、回收 worktree、关闭 Issue | 不写或代修测试与业务代码；可写 Git 元数据 |
-| Codex worker | 默认使用 GPT-5.6 Luna、thinking=max，在唯一隔离现场中按计划先交付 Red，获批后实现、测试、返工 | 唯一代码写入者 |
+| Codex worker | 默认使用 GPT-5.6 Sol、按任务难度选择 thinking，在唯一隔离现场中按计划先交付 Red，获批后实现、测试、返工 | 唯一代码写入者 |
 
-所有代码开发默认统一交给 Codex App worker，并在创建时显式使用 `model=gpt-5.6-luna`、`thinking=max`。Issue 任务先制定实现计划和验收矩阵，再把执行交给 Codex worker；Issue 始终独立验收，禁止同时实现和自审。纯媒体生成仍走对应媒体技能；用户明确指定其他开发 worker 时只替换最底层 worker。
+所有代码开发默认统一交给 Codex App worker，并在创建时显式使用 `model=gpt-5.6-sol`。Issue 任务先制定实现计划和验收矩阵，按 `简单=low / 常规=medium / 复杂=high / 高风险=xhigh / 极高难=max` 选择 thinking，再把执行交给 Codex worker；选择依据必须写进实现合同，信息不足默认 `medium`，不得一律使用 `max`。Issue 始终独立验收，禁止同时实现和自审。纯媒体生成仍走对应媒体技能；用户明确指定其他开发 worker 时只替换最底层 worker。
 
 ## Developer 创建合同
 
@@ -21,6 +21,7 @@ Issue 任务传给 developer 的最小字段：
 | `monitor_host` | parent 与 child 必须能读写同一组绝对路径；不能共享文件系统时不得使用本地 monitor |
 | `issue` | Spec/Epic/Issue 图中的唯一执行节点 |
 | `implementation_plan` | 由 Issue task 制定的分步实现计划、文件/模块边界、顺序与风险点；developer 负责执行并报告偏差 |
+| `model` / `difficulty` / `thinking` | 默认 `gpt-5.6-sol`；记录难度、判定证据及对应 thinking，worker 创建后和返工期间保持不变 |
 | `scope` / `non_goals` | 允许结果、禁止路径和不得扩大的权限 |
 | `acceptance_matrix` | 每个不变量对应的真实入口、权威 owner、可观察结果、负例和测试 |
 | `validation` | 必跑测试、Red-only 预审规则、全量升级条件和证据格式 |

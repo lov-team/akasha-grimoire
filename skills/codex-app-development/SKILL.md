@@ -1,6 +1,6 @@
 ---
 name: codex-app-development
-description: 由独立的 Codex App Issue 负责/验收任务制定实现计划与验收矩阵，再创建使用 GPT-5.6 Luna、thinking=max 的隔离 Codex worker 完成开发；使用父到子的单向会话下发和 20 分钟本地状态轮询，审核 Red 与最终实现，默认由 Issue task 完成 commit、push、worktree 回收和 Issue 关闭。用户要求用 Codex App 子会话开发、让另一个 Codex 实现、为 Issue 单独开开发会话、隔离实现与 Review 上下文或简化父子任务通信时使用；用户明确指定其他 worker 时保留相同三层职责，只替换最底层 worker。
+description: 由独立的 Codex App Issue 负责/验收任务制定实现计划与验收矩阵，再创建使用 GPT-5.6 Sol、按任务难度选择 thinking 的隔离 Codex worker 完成开发；使用父到子的单向会话下发和 20 分钟本地状态轮询，审核 Red 与最终实现，默认由 Issue task 完成 commit、push、worktree 回收和 Issue 关闭。用户要求用 Codex App 子会话开发、让另一个 Codex 实现、为 Issue 单独开开发会话、隔离实现与 Review 上下文或简化父子任务通信时使用；用户明确指定其他 worker 时保留相同三层职责，只替换最底层 worker。
 ---
 
 # Codex App 独立开发任务
@@ -17,7 +17,7 @@ Epic 监工 App → Issue 负责/验收 App → Codex App 开发任务
 
 - Epic 监工发现 ready Issue 后先创建独立 Issue 任务，不直接创建开发 worker。
 - Issue 任务解释需求、确认范围和用户决策，制定可执行实现计划与验收矩阵，再创建新的开发 task/worktree；Issue 任务对测试和业务文件保持只读验收视角。
-- 开发任务默认是使用 `model=gpt-5.6-luna`、`thinking=max` 的 Codex worker，也是该 Issue 的唯一写入者；它按 Issue 计划先交付 Red 测试，获批后实现、测试和返工。
+- 开发任务默认是使用 `model=gpt-5.6-sol`、按任务难度选择 `thinking` 的 Codex worker，也是该 Issue 的唯一写入者；它按 Issue 计划先交付 Red 测试，获批后实现、测试和返工。
 - Issue 任务不写业务代码，但默认负责验收后的 Git 提交与推送、精确 worktree 回收和 Issue 关闭。
 - 所有代码开发默认统一使用 Codex App developer (`codex-app-development`)；前端、后端和全栈不再按技术栈自动切换 worker。
 - 纯图片、视频、声音等素材生成仍使用对应媒体技能，不纳入代码 worker 默认路由。
@@ -36,7 +36,17 @@ Codex App 路径先用 `list_projects` 取得 project id 和 `isGitRepository`�
 5. Red Evidence 包含测试 diff、fixture/producer 来源、完整命令、退出码、精确失败断言和短日志路径；最终交付再包含 base SHA、累计 diff、全部变更文件、需求映射、验证证据、未验证项和风险。
 6. developer 不执行最终 commit、push、PR 或合并，由 Issue task 在验收通过后统一完成 Git 交付。
 
-创建 Codex App developer 时固定显式传 `model: "gpt-5.6-luna"` 与 `thinking: "max"`。只有用户在当前任务明确指定其他 worker、模型或 thinking 时才替换这两个默认值。Issue 任务的纯状态与 monitor 结果处理使用 `gpt-5.6-sol low`，实现计划、正式 Review、失败诊断和 P0–P2 闭环使用同一模型的 `high`；不要为切 reasoning 更换 Issue 模型或重建会话。
+创建 Codex App developer 时固定显式传 `model: "gpt-5.6-sol"`，并在创建前依据 Issue 合同选择 `thinking`：
+
+| 难度 | `thinking` | 判定信号 |
+| --- | --- | --- |
+| 简单 | `low` | 纯文档/格式、机械配置、局部且确定性的单文件修改，验证路径直接 |
+| 常规 | `medium` | 边界清楚的功能或缺陷，涉及少量文件与普通测试，无复杂状态或迁移 |
+| 复杂 | `high` | 跨模块调用链、状态机、协议/数据模型、复杂 UI、并发或多类失败恢复 |
+| 高风险 | `xhigh` | 安全边界、数据一致性、迁移/回滚、架构级改动，或复杂失败已重复出现 |
+| 极高难 | `max` | 多个高风险信号叠加，且必须进行长链诊断、跨系统权衡或大范围一致性证明 |
+
+Issue 任务必须在实现合同中记录所选难度、证据和 `thinking`，不因追求能力而一律选 `max`，也不只按文件数降档。信息不足时先按 `medium`，发现更高风险信号则在创建 worker 前升档；worker 创建后保持同一 `gpt-5.6-sol` 与 thinking，返工继续原会话。只有用户在当前任务明确指定其他 worker、模型或 thinking 时才替换默认路由。Issue 任务的纯状态与 monitor 结果处理使用 `gpt-5.6-sol low`；实现计划、正式 Review、失败诊断和 P0–P2 闭环使用 `high`，安全、并发、迁移或数据一致性 Review 使用 `xhigh`。不要为切 reasoning 更换 Issue 模型或重建会话。
 
 ## 由 Issue 会话启动本地监控
 
@@ -70,7 +80,7 @@ worker 完成标记只代表待 Review。Issue 任务必须独立 Review 完整 
 
 ## 独立验收和原任务返工
 
-收到 `DELIVERY_COMPLETE` 双标记后，Issue 任务用 `gpt-5.6-sol high` 亲自读取 developer worktree 的完整累计 diff、全部变更文件和真实调用链，并按风险复跑必要验证。不得只依据 developer 的摘要、测试或完成消息，也不得直接修改业务文件。
+收到 `DELIVERY_COMPLETE` 双标记后，Issue 任务用 `gpt-5.6-sol` 及上表对应的 Review 档位（通常为 `high`，高风险为 `xhigh`）亲自读取 developer worktree 的完整累计 diff、全部变更文件和真实调用链，并按风险复跑必要验证。不得只依据 developer 的摘要、测试或完成消息，也不得直接修改业务文件。
 
 问题分为 P0–P3。P0–P2 必须发回同一个 developer task 或同一 CLI 会话返工，附具体证据、验收条件和禁止范围；返工后重新完整 Review。
 

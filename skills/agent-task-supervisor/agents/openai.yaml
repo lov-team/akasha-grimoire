@@ -1,4 +1,4 @@
 interface:
   display_name: "Agent 任务轻量监工"
-  short_description: "Issue 计划验收，Luna max worker 实现，Epic 续跑"
-  default_prompt: "使用 $agent-task-supervisor 按三层拓扑推进：Issue task 制定计划与验收矩阵，再创建 GPT-5.6 Luna、thinking=max 的 Codex worker；Issue 独立验收，关闭后由 Epic 读取 Evidence 并启动后续 ready Issue。"
+  short_description: "Issue 负责计划与独立验收，Sol 按难度实现并由 Epic 续跑"
+  default_prompt: "使用 $agent-task-supervisor 按三层拓扑推进：Issue task 制定计划与验收矩阵，再创建 GPT-5.6 Sol、按任务难度选择 thinking 的 Codex worker；Issue 独立验收，关闭后由 Epic 读取 Evidence 并启动后续 ready Issue。"

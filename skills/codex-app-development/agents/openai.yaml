@@ -1,4 +1,4 @@
 interface:
   display_name: "Codex App 子任务开发"
-  short_description: "Issue 计划验收，Luna max Codex worker 开发"
-  default_prompt: "使用 $codex-app-development：由 Issue task 制定实现计划和验收矩阵，再创建 GPT-5.6 Luna、thinking=max 的独立 Codex worker 开发；最后由 Issue 独立验收并完成交付与关闭。"
+  short_description: "Issue 负责计划与独立验收，Sol 按任务难度思考并开发"
+  default_prompt: "使用 $codex-app-development：由 Issue task 制定实现计划和验收矩阵，再创建 GPT-5.6 Sol、按任务难度选择 thinking 的独立 Codex worker 开发；最后由 Issue 独立验收并完成交付与关闭。"

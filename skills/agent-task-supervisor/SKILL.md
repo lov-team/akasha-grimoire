@@ -1,6 +1,6 @@
 ---
 name: agent-task-supervisor
-description: 在 Codex App 中以 Spec、Epic、Issue 和证据关系图轻量监工多个任务；由独立 Issue task 制定实现计划与验收矩阵，再创建 GPT-5.6 Luna、thinking=max 的 Codex worker 开发，Issue 独立审核 Red 与完整实现并默认完成 Git 交付、worktree 回收和 Issue 关闭。用户要求用 Graph Engineering 拆解、监工、协调、等待或验收多个任务，或持续推进 worker 但不代替其实现时使用。
+description: 在 Codex App 中以 Spec、Epic、Issue 和证据关系图轻量监工多个任务；由独立 Issue task 制定实现计划与验收矩阵，再创建 GPT-5.6 Sol、按任务难度选择 thinking 的 Codex worker 开发，Issue 独立审核 Red 与完整实现并默认完成 Git 交付、worktree 回收和 Issue 关闭。用户要求用 Graph Engineering 拆解、监工、协调、等待或验收多个任务，或持续推进 worker 但不代替其实现时使用。
 ---
 
 # Agent 任务监工
@@ -21,7 +21,7 @@ description: 在 Codex App 中以 Spec、Epic、Issue 和证据关系图轻量�
 | monitor | 状态/交付文件、最近已处理状态与 mtime、监控进程和失联阈值 |
 | edges | `depends_on`、`blocks`、`produces`、`validates` |
 
-用户已明确要求开发采用三层分工。Epic 监工发现 ready Issue 后先调用 `create_thread` 建立独立 Issue 负责/验收 task；Issue task 制定实现计划与验收矩阵后，再按 `codex-app-development` 创建使用 GPT-5.6 Luna、thinking=max 的独立 Codex worker。禁止 Epic 监工直接把 developer 当 Issue task，也禁止 Issue task 自己实现再自审。
+用户已明确要求开发采用三层分工。Epic 监工发现 ready Issue 后先调用 `create_thread` 建立独立 Issue 负责/验收 task；Issue task 制定实现计划与验收矩阵后，再按 `codex-app-development` 创建使用 GPT-5.6 Sol、按任务难度选择 thinking 的独立 Codex worker。禁止 Epic 监工直接把 developer 当 Issue task，也禁止 Issue task 自己实现再自审。
 
 Epic 创建 Issue task、Issue task 创建或继续 developer 后，直接父任务都立即启动一个最长 20 分钟、每 20 秒扫描一次的本地监控程序。两级监控分别只读直属 child 的单行状态文件与终态交付文件，不能合并、越级或重复；child 不向父会话主动发送消息。
 
@@ -33,7 +33,7 @@ Epic 创建 Issue task、Issue task 创建或继续 developer 后，直接父任
 
 按以下规则选择最底层 worker：
 
-1. 所有代码开发默认使用 Codex App worker (`codex-app-development`)，创建时显式传 `model=gpt-5.6-luna`、`thinking=max`；前端、后端、全栈和任务规模不再触发自动换 worker。
+1. 所有代码开发默认使用 Codex App worker (`codex-app-development`)，创建时显式传 `model=gpt-5.6-sol`，并按 `简单=low / 常规=medium / 复杂=high / 高风险=xhigh / 极高难=max` 选择 `thinking`；前端、后端、全栈和任务规模不再触发自动换 worker。
 2. Issue task 负责计划：先给出分步实现计划、范围/非目标、文件或模块边界、验收矩阵、Red 门禁与风险复测，再把开发交给 Codex worker。
 3. 纯图片、视频、声音等素材生成仍走相应媒体技能。
 4. 用户在当前任务明确指定 Claude Code、Grok、Gemini 或 Codex CLI 时遵从指定，只替换最底层 worker；计划、实现与验收职责仍保持分离。
@@ -84,7 +84,7 @@ Epic 创建 Issue task、Issue task 创建或继续 developer 后，直接父任
 - 无论并发多少，每条父子边只能有一个监控所有者：Issue task 监控 developer，Epic 监工只监控 Issue task；Epic、Issue task 和 CLI wrapper 不得同时轮询同一 developer 或状态文件。
 - 监控程序必须由被监控目标的直接父任务启动：Issue task 监控 developer，Epic 监工只监控 Issue task。
 - monitor 不得与同一目标上的 active `/goal` 自动续跑或 automation heartbeat 并存；三者只能保留一个监控所有者。本工作流默认选择上述 20 分钟本地 monitor，不再创建周期 automation。
-- Codex developer 从创建起固定使用 `gpt-5.6-luna`、`thinking=max`，返工继续同一 worker，不为阶段变化切模型。Issue task 保持 `gpt-5.6-sol`：纯状态与 monitor 结果处理使用 `thinking=low`，实现计划、正式合同判断、累计 diff Review、失败诊断与 P0–P2 闭环使用 `thinking=high`；不为切 reasoning 重建 task 或丢失原会话。
+- Codex developer 从创建起固定使用 `gpt-5.6-sol`；Issue task 在创建前按任务难度选择 `thinking` 并记录证据：简单 `low`、常规 `medium`、复杂 `high`、高风险 `xhigh`、极高难 `max`，信息不足默认 `medium`，不得一律使用 `max`。返工继续同一 worker，不为阶段变化切模型或 thinking。Issue task 保持 `gpt-5.6-sol`：纯状态与 monitor 结果处理使用 `thinking=low`，实现计划、正式合同判断、累计 diff Review、失败诊断与 P0–P2 闭环通常使用 `thinking=high`，安全、并发、迁移或数据一致性 Review 使用 `thinking=xhigh`；不为切 reasoning 重建 task 或丢失原会话。
 - worker 交付标记只代表待 Review，不等于目标完成。Issue task 独立 Review 并确认 P0–P2 清零后，先确认 worker 停止与 monitor 退出，再完成 commit、push、远端 SHA 核验、精确 worktree 回收和 Issue 关闭，最后写入 `ISSUE_COMPLETE` 与 Evidence。Epic 的 monitor 读到后推进新的 ready Issue。
 
 ## 按路径低噪声等待

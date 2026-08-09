@@ -59,8 +59,8 @@ Graph Engineering は、納品作業を一時的な prompt の列ではなく、
 
 | Skill | 主な用途 | 提供する能力 |
 | --- | --- | --- |
-| [`agent-task-supervisor`](skills/agent-task-supervisor/) | Spec/Epic/Issue グラフによる複数 task の監督、調整、受け入れ確認 | Issue が計画と受け入れマトリクスを策定し、Luna max Codex worker が実装、直接の親が監視 |
-| [`codex-app-development`](skills/codex-app-development/) | 独立 Issue 計画/受け入れ task から Codex App developer を作成 | Epic 監督 → Issue 計画/受け入れ → Luna max developer、worktree 隔離、独立 diff Review |
+| [`agent-task-supervisor`](skills/agent-task-supervisor/) | Spec/Epic/Issue グラフによる複数 task の監督、調整、受け入れ確認 | Issue が計画と受け入れマトリクスを策定し、Sol Codex worker が難易度別 thinking で実装、直接の親が監視 |
+| [`codex-app-development`](skills/codex-app-development/) | 独立 Issue 計画/受け入れ task から Codex App developer を作成 | Epic 監督 → Issue 計画/受け入れ → 難易度別 thinking の Sol developer、worktree 隔離、独立 diff Review |
 
 ### コンテンツ制作
 
@@ -96,13 +96,13 @@ Graph Engineering は、納品作業を一時的な prompt の列ではなく、
 
 ### App 子 task と CLI 開発 worker
 
-開発は三層ループを使います。**Epic 監督 App が ready Issue を発見 → 独立 Issue App が実装計画と受け入れマトリクスを策定 → GPT-5.6 Luna・`thinking=max` の Codex worker が実装 → Issue App が独立 Review し P0–P2 を元 worker に返却 → Issue が Evidence を書き、Epic が読み取る**。すべてのコード開発は、frontend/backend や task 規模による worker の自動切り替えを行わず、隔離された Codex App task/worktree を既定とします。純粋な media 生成は対応する media Skill を使います。ユーザーが別 worker を明示した場合は最下層だけを置換します。Issue App は業務コードを書きません。一方向の指示送信後、直接の親が状態・交付ファイルを 20 秒間隔で最大 20 分監視します。
+開発は三層ループを使います。**Epic 監督 App が ready Issue を発見 → 独立 Issue App が実装計画と受け入れマトリクスを策定 → GPT-5.6 Sol・難易度別 `thinking` の Codex worker が実装 → Issue App が独立 Review し P0–P2 を元 worker に返却 → Issue が Evidence を書き、Epic が読み取る**。すべてのコード開発は、frontend/backend や task 規模による worker の自動切り替えを行わず、隔離された Codex App task/worktree を既定とします。純粋な media 生成は対応する media Skill を使います。ユーザーが別 worker を明示した場合は最下層だけを置換します。Issue App は業務コードを書きません。一方向の指示送信後、直接の親が状態・交付ファイルを 20 秒間隔で最大 20 分監視します。
 
 | Skill | Worker | 特徴 |
 | --- | --- | --- |
 | [`gemini-cli-development`](skills/gemini-cli-development/) | Gemini CLI | ユーザーが Gemini CLI を明示指定した場合に使用 |
 | [`grok-cli-development`](skills/grok-cli-development/) | Grok CLI | ユーザーが Grok CLI を明示指定した場合に使用。内蔵 media 作業は別途利用可能 |
-| [`codex-app-development`](skills/codex-app-development/) | Codex App developer | すべてのコード開発の既定 worker。GPT-5.6 Luna・`thinking=max` |
+| [`codex-app-development`](skills/codex-app-development/) | Codex App developer | すべてのコード開発の既定 worker。GPT-5.6 Sol・難易度別 `thinking` |
 | [`claude-code-cli-development`](skills/claude-code-cli-development/) | Claude Code | 権限モード、セッション継続、状態納品、独立した受け入れ確認 |
 | [`codex-cli-development`](skills/codex-cli-development/) | Codex CLI | 独立した対話 TUI で実装し、Codex App のタスク管理とは分離 |
 
@@ -166,7 +166,7 @@ $agent-task-supervisor を使ってタスクを低ノイズで監督し、納品
 
 $agent-task-supervisor を使ってこの Spec を Epic/Issue の依存グラフに分解し、Codex App では準備済み Issue だけを開始し、Evidence で末端からグラフ全体を閉じてください。
 
-$codex-app-development を Issue task から使い、実装計画と受け入れマトリクスを策定してから GPT-5.6 Luna・`thinking=max` の別 Codex App worker を作成してください。developer は実装のみ、Issue task は独立 Review と P0–P2 の差し戻しを担当します。
+$codex-app-development を Issue task から使い、実装計画と受け入れマトリクスを策定してから GPT-5.6 Sol・難易度別 `thinking` の別 Codex App worker を作成してください。developer は実装のみ、Issue task は独立 Review と P0–P2 の差し戻しを担当します。
 
 $content-pipeline を使って中国語の記事を小紅書形式の画像投稿に変換し、原文の主張を保ち、先に表紙方針を確認して、再開可能なローカルパッケージを納品してください。
 
@@ -192,7 +192,7 @@ $fish-audio-speech を使ってナレーションを音声化し、冒頭・中�
 | Grok / Seedance | 専用 key、`NEW_API_API_KEY`、`OPENAI_API_KEY` | 実リクエストは課金対象。規模を広げる前に 1 件の smoke を実行 |
 | Suno / Fish Audio | `NEW_API_API_KEY` または `OPENAI_API_KEY` | 実リクエストはクォータを消費。基本テストでは外部生成サービスを呼び出さない |
 | 公式の手動／残高不足リチャージ | `python3 shared/akasha_recharge.py` で決済ページを作成し、金額は LovBrowser ページで選択 | 手動リチャージは残高不足を必要としない。Agent はクリック可能な `publicPageUrl` のみ提示し、QR コードは表示しない。Key/チケットを漏らさない |
-| Codex App 三層 task | Epic 監督、Issue 計画/受け入れ task、Luna max developer task/worktree | Epic→Issue→developer の一方向指示、Issue が計画してから委託し、完全 diff を独立 Review |
+| Codex App 三層 task | Epic 監督、Issue 計画/受け入れ task、難易度別 thinking の Sol developer task/worktree | Epic→Issue→developer の一方向指示、Issue が計画してから委託し、完全 diff を独立 Review |
 | CLI worker | 対応するローカル CLI、macOS Terminal、tmux | 初回利用時と更新後に `--version` と `--help` を再確認 |
 | 動画編集と素材取得 | FFmpeg/ffprobe、Web 取得には yt-dlp | macOS では `brew install ffmpeg yt-dlp`。取得後も media probe、出典、hash の記録が必要 |
 

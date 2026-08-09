@@ -59,8 +59,8 @@ Every implementation and acceptance task is Issue-driven. Each task maps to an I
 
 | Skill | Best for | What it provides |
 | --- | --- | --- |
-| [`agent-task-supervisor`](skills/agent-task-supervisor/) | Supervising, coordinating, and accepting tasks through a Spec/Epic/Issue graph | Issue-defined plans and acceptance matrices, Luna max Codex implementation, and direct-parent monitoring |
-| [`codex-app-development`](skills/codex-app-development/) | Having an independent Issue planning/acceptance task create a Codex App developer | Epic supervisor → Issue planning/acceptance → Luna max developer, isolated worktrees, and independent diff review |
+| [`agent-task-supervisor`](skills/agent-task-supervisor/) | Supervising, coordinating, and accepting tasks through a Spec/Epic/Issue graph | Issue-defined plans and acceptance matrices, difficulty-based Sol Codex implementation, and direct-parent monitoring |
+| [`codex-app-development`](skills/codex-app-development/) | Having an independent Issue planning/acceptance task create a Codex App developer | Epic supervisor → Issue planning/acceptance → Sol developer with difficulty-based thinking, isolated worktrees, and independent diff review |
 
 ### Content production
 
@@ -96,13 +96,13 @@ For complete production, install all six general video skills. When no model is 
 
 ### App tasks and CLI development workers
 
-Development uses a three-layer loop: **the Epic supervisor finds a ready Issue → an independent Issue App defines the implementation plan and acceptance matrix → a Codex worker running GPT-5.6 Luna with `thinking=max` implements → the Issue App independently reviews and sends P0–P2 back to the same worker → the Issue writes Evidence for the Epic to read**. All code development now defaults directly to an isolated Codex App task/worktree, without switching workers by frontend/backend category or task size. Pure media generation still uses the corresponding media skill. An explicit user choice may replace only the bottom worker. The Issue App never writes business code. After each one-way dispatch, the direct parent starts one monitor for up to 20 minutes, scanning status and handoff files every 20 seconds.
+Development uses a three-layer loop: **the Epic supervisor finds a ready Issue → an independent Issue App defines the implementation plan and acceptance matrix → a Codex worker running GPT-5.6 Sol with difficulty-based `thinking` implements → the Issue App independently reviews and sends P0–P2 back to the same worker → the Issue writes Evidence for the Epic to read**. All code development now defaults directly to an isolated Codex App task/worktree, without switching workers by frontend/backend category or task size. Pure media generation still uses the corresponding media skill. An explicit user choice may replace only the bottom worker. The Issue App never writes business code. After each one-way dispatch, the direct parent starts one monitor for up to 20 minutes, scanning status and handoff files every 20 seconds.
 
 | Skill | Worker | Highlights |
 | --- | --- | --- |
 | [`gemini-cli-development`](skills/gemini-cli-development/) | Gemini CLI | Used when the user explicitly selects Gemini CLI |
 | [`grok-cli-development`](skills/grok-cli-development/) | Grok CLI | Used when the user explicitly selects Grok CLI; built-in media work remains available separately |
-| [`codex-app-development`](skills/codex-app-development/) | Codex App developer | Default for all code development; GPT-5.6 Luna with `thinking=max` |
+| [`codex-app-development`](skills/codex-app-development/) | Codex App developer | Default for all code development; GPT-5.6 Sol with difficulty-based `thinking` |
 | [`claude-code-cli-development`](skills/claude-code-cli-development/) | Claude Code | Permission modes, session continuation, status delivery, and independent acceptance |
 | [`codex-cli-development`](skills/codex-cli-development/) | Codex CLI | Implementation in a separate interactive TUI, kept distinct from Codex App task management |
 
@@ -166,7 +166,7 @@ Use $agent-task-supervisor to monitor these tasks lightly and independently acce
 
 Use $agent-task-supervisor to turn this Spec into an Epic/Issue dependency graph, start only ready Issues in Codex App, and close the graph bottom-up with evidence.
 
-Use $codex-app-development from the Issue task to define the implementation plan and acceptance matrix, then create a separate Codex App worker running GPT-5.6 Luna with `thinking=max`; the developer only implements, while the Issue task independently reviews and returns P0–P2 to the same worker.
+Use $codex-app-development from the Issue task to define the implementation plan and acceptance matrix, then create a separate Codex App worker running GPT-5.6 Sol with difficulty-based `thinking`; the developer only implements, while the Issue task independently reviews and returns P0–P2 to the same worker.
 
 Use $content-pipeline to turn this Chinese article into a Xiaohongshu image post, preserve its argument, confirm the cover direction first, and deliver a recoverable local package.
 
@@ -192,7 +192,7 @@ Use $fish-audio-speech to synthesize this narration and verify the beginning, mi
 | Grok / Seedance | A capability-specific key, `NEW_API_API_KEY`, or `OPENAI_API_KEY` | Real requests incur cost, so start with one smoke task before scaling up |
 | Suno / Fish Audio | `NEW_API_API_KEY` or `OPENAI_API_KEY` | Real requests consume quota; base tests never call external generation services |
 | Official proactive/quota recharge | Run `python3 shared/akasha_recharge.py` to create checkout; choose the amount on the LovBrowser page | Proactive recharge does not require a quota failure; Agent offers only the clickable `publicPageUrl`, without a QR code; never leak keys/tickets |
-| Three-layer Codex App tasks | Epic supervisor, Issue planning/acceptance task, and Luna max developer task/worktree | Dispatch flows Epic→Issue→developer; Issue plans before delegation and independently reviews the full diff |
+| Three-layer Codex App tasks | Epic supervisor, Issue planning/acceptance task, and Sol developer task/worktree with difficulty-based thinking | Dispatch flows Epic→Issue→developer; Issue plans before delegation and independently reviews the full diff |
 | CLI workers | The corresponding local CLI, macOS Terminal, and tmux | Re-check `--version` and `--help` on first use and after upgrades |
 | Video editing and sourcing | FFmpeg/ffprobe; yt-dlp for web downloads | On macOS use `brew install ffmpeg yt-dlp`; every download still requires media probing, provenance, and hashing |
 
