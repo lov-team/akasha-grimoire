@@ -50,7 +50,8 @@ Epic 发现 ready Issue 后先建立独立 Issue 负责/验收 task；Issue task
 2. 用户指定 Claude Desktop worker 时同样使用两层结构；创建时按相同难度档位选择 effort（`low/medium/high/xhigh/max`），模型跟随会话默认或读取生产模型路由参考。
 3. 两层模式监工只负责需求合同与验收，不制定实现计划；三层模式由 Issue task 制定分步实现计划与验收矩阵，再把开发交给 CLI worker。
 4. 纯图片、视频、声音等素材生成仍走相应媒体技能。
-5. 用户在当前任务明确指定 Claude Code、Grok、Gemini 或 Codex CLI 时遵从指定并切换三层分工；计划、实现与验收职责仍保持分离。
+5. 用户要求让现有界面模仿、学习另一种界面/产品的视觉与交互风格时，派 `ui-ux-imitation-development` worker：叠加对比参考界面、产出改进点清单、确认后修改并复截图验证；仍走两层结构，验收与 Git 收尾归监工。
+6. 用户在当前任务明确指定 Claude Code、Grok、Gemini 或 Codex CLI 时遵从指定并切换三层分工；计划、实现与验收职责仍保持分离。
 
 当同一执行框架支持多个底座模型，需要按知识工作、工程、企业自动化、吞吐、成本或私有部署进行模型路由时，读取 [生产模型路由参考](references/production-model-routing.md)。它只用于模型候选、升级和验收，不覆盖用户明确指定、已有长会话粘性、项目固定模型或本 Skill 已规定的状态/Review 档位。
 

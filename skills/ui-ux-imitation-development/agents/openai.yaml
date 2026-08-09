@@ -1,0 +1,4 @@
+interface:
+  display_name: "UI/UX 模仿学习开发"
+  short_description: "叠加对比参考界面，产出改进点并修改验证提交"
+  default_prompt: "使用 $ui-ux-imitation-development：截取参考界面与现有界面同视口截图，半透明叠加分析差异，产出改进点清单确认后修改前端代码，复截图验证收敛并提交。"
