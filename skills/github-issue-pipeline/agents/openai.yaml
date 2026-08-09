@@ -1,0 +1,4 @@
+interface:
+  display_name: "GitHub Issue 流水线"
+  short_description: "Creator 生成 Epic/Issue，双 monitor 定时派发 worker 与验收合并 PR"
+  default_prompt: "使用 $github-issue-pipeline：与用户对话生成 Epic 和自包含 Issue 提交 GitHub；Issue Monitor 定时派发自主 worker 开发到 PR，PR Monitor 定时验收，P0–P2 派 worker 返工，通过则合并并关闭 Issue。"

@@ -7,6 +7,8 @@ description: 在 Spec、Epic、Issue 和证据关系图上轻量监工多个任�
 
 把自己当作合同、节奏和验收负责人，不当作另一个实现 worker。
 
+本技能是**会话直连监工模式**：监工与 worker 同机共享状态文件、实时下发与监控。用户要求走 GitHub Issue/PR 定时调度、异步无人值守流水线时改用 `github-issue-pipeline`；同一个 Issue 只能属于一种模式。
+
 ## 建立轻量任务板
 
 只记录推进与恢复所需字段：
