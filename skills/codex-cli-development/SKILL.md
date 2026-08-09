@@ -14,11 +14,11 @@ description: 使用可见 macOS Terminal + tmux 驱动 Codex CLI 在同一交互
 3. 主 Agent 自行确定逐条验收、非目标、真实调用链和验证门禁。
 4. 权限、凭证、安全、不可逆操作或范围歧义先交给用户决定。
 
-## 委托后自治与单向会话通信
+## 委托后自治与会话通信
 
-- 任务带有父会话、Epic 监工或其他委托来源时，当前 Issue task 接受委托后独立负责需求对齐、用户决策、Red 审核、返工、验证、Git 交付与异常恢复；所有阶段与终态都写状态/交付文件，不向父会话发送消息。
+- 任务带有父会话、Epic 监工或其他委托来源时，当前 Issue task 接受委托后独立负责需求对齐、用户决策、Red 审核、返工、验证、Git 交付与异常恢复；所有阶段与终态都写状态/交付文件，由父会话的长轮询读取。
 - P0-P2、Red 不合格、测试或日志不合格、diff 偏离都由当前 Issue task 直接驱动 Codex CLI 修正并复验。需要产品选择时直接在当前 Issue task 向用户提问；不得让父会话代为转问、批准或恢复 worker。
-- 会话消息只允许父会话向当前 Issue task 下发任务、决策或返工；当前 Issue task 不向父会话发送消息。它在阶段变化时原子更新父会话指定的单行状态文件，终态另写交付文件，由父会话的长轮询读取。
+- 会话消息以父到子为主：父会话向当前 Issue task 下发任务、决策或返工。当前 Issue task 在阶段变化时原子更新父会话指定的单行状态文件，终态另写交付文件。父子两端都是 Claude Desktop 或 Claude Code 会话时（两者已支持会话互发），当前 Issue task 在进入可动作终态（`ISSUE_COMPLETE`、`ISSUE_BLOCKED_USER_DECISION`、`ISSUE_ERROR`、`ISSUE_ABORTED`）时额外向父会话发送一条简短唤醒消息，每个状态最多一条，只含状态名与状态/交付文件路径；文件仍是唯一事实源。父会话不支持接收消息时保持纯单向，不发送任何回推，也不发送阶段性进展。
 - 父会话的存在不降低当前 Issue task 的自主性，也不构成重启异常 worker、继续返工或执行已授权 Git 闭环所需的新权限。
 
 ## 建立 prompt contract
@@ -86,4 +86,4 @@ scripts/submit-to-tmux.zsh \
 
 主 Agent 亲自检查完整累计 diff、所有变更文件、真实生产调用链和风险相关测试。问题分 P0-P3；P0-P2 必须在当前活动 TUI 返工并重新完整验收，session 异常退出则按恢复规则使用唯一替代 TUI。worker 自述、测试摘要或完成标记不能替代 Review。
 
-只有需求证据齐全、P0-P2 清零、独立验证通过且未验证项披露后，Issue 负责/验收 task 才主动关闭记录的每个精确 tmux session；已自然退出的 session 记录事实即可。随后默认由 Issue task 提交并 push 当前 Issue 分支、核对远端 SHA，按 `codex-app-development` 合同安全回收精确 worktree并关闭 Issue。若存在父会话，只在此时写入最终 `ISSUE_COMPLETE` 状态与交付文件；任一步失败都保留现场并由当前 Issue task 自行处理，不发送会话消息。Codex CLI worker 不执行最终 Git 交付；默认授权不包含 PR、合并、强推、发布或生产写入。
+只有需求证据齐全、P0-P2 清零、独立验证通过且未验证项披露后，Issue 负责/验收 task 才主动关闭记录的每个精确 tmux session；已自然退出的 session 记录事实即可。随后默认由 Issue task 提交并 push 当前 Issue 分支、核对远端 SHA，按 `codex-app-development` 合同安全回收精确 worktree并关闭 Issue。若存在父会话，只在此时写入最终 `ISSUE_COMPLETE` 状态与交付文件，并在父会话支持接收时补发一条唤醒消息；任一步失败都保留现场并由当前 Issue task 自行处理，不就阶段性进展向父会话发送消息。Codex CLI worker 不执行最终 Git 交付；默认授权不包含 PR、合并、强推、发布或生产写入。

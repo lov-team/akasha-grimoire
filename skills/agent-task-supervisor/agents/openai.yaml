@@ -1,4 +1,4 @@
 interface:
   display_name: "Agent 任务轻量监工"
-  short_description: "Issue 负责计划与独立验收，Sol 按难度实现并由 Epic 续跑"
-  default_prompt: "使用 $agent-task-supervisor 按三层拓扑推进：Issue task 制定计划与验收矩阵，再创建 GPT-5.6 Sol、按任务难度选择 thinking 的 Codex worker；Issue 独立验收，关闭后由 Epic 读取 Evidence 并启动后续 ready Issue。"
+  short_description: "监工只下发合同并独立验收，Sol worker 自主计划开发测试"
+  default_prompt: "使用 $agent-task-supervisor 按两层拓扑推进：监工下发需求合同与验收条件，再创建 GPT-5.6 Sol、按任务难度选择 thinking 的 Codex worker 自主完成实现计划、开发与测试；监工独立验收并完成 Git 交付与 Issue 关闭，再启动后续 ready Issue。"

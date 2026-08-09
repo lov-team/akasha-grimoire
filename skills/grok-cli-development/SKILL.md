@@ -14,11 +14,11 @@ description: 使用可见 macOS Terminal + tmux 让 Grok CLI 实现边界明确�
 3. 产品取舍、UI/协议歧义、破坏性操作、权限凭证不明或未知业务文件出现时，先停止并请求用户决策。
 4. 不把需求理解、真实调用链识别或成功标准制定外包给 Grok。
 
-## 委托后自治与单向会话通信
+## 委托后自治与会话通信
 
-- 任务带有父会话、Epic 监工或其他委托来源时，当前 Issue task 接受委托后独立负责需求对齐、用户决策、Red 审核、返工、验证、Git 交付与异常恢复；所有阶段与终态都写状态/交付文件，不向父会话发送消息。
+- 任务带有父会话、Epic 监工或其他委托来源时，当前 Issue task 接受委托后独立负责需求对齐、用户决策、Red 审核、返工、验证、Git 交付与异常恢复；所有阶段与终态都写状态/交付文件，由父会话的长轮询读取。
 - P0-P2、Red 不合格、截图不合格、日志过期或 diff 偏离都由当前 Issue task 直接驱动 Grok 修正并复验。需要产品选择时直接在当前 Issue task 向用户提问；不得让父会话代为转问、批准或恢复 worker。
-- 会话消息只允许父会话向当前 Issue task 下发任务、决策或返工；当前 Issue task 不向父会话发送消息。它在阶段变化时原子更新父会话指定的单行状态文件，终态另写交付文件，由父会话的长轮询读取。
+- 会话消息以父到子为主：父会话向当前 Issue task 下发任务、决策或返工。当前 Issue task 在阶段变化时原子更新父会话指定的单行状态文件，终态另写交付文件。父子两端都是 Claude Desktop 或 Claude Code 会话时（两者已支持会话互发），当前 Issue task 在进入可动作终态（`ISSUE_COMPLETE`、`ISSUE_BLOCKED_USER_DECISION`、`ISSUE_ERROR`、`ISSUE_ABORTED`）时额外向父会话发送一条简短唤醒消息，每个状态最多一条，只含状态名与状态/交付文件路径；文件仍是唯一事实源。父会话不支持接收消息时保持纯单向，不发送任何回推，也不发送阶段性进展。
 - 父会话的存在不降低当前 Issue task 的自主性，也不构成重启异常 worker、继续返工或执行已授权 Git 闭环所需的新权限。
 
 ## 先做开发 Agent 选型
@@ -292,7 +292,7 @@ tmux kill-session -t "$EXACT_SESSION"
 
 默认由主 Agent（在三层拓扑中即 Issue 负责/验收 task）在验收后提交并 push 当前 Issue 分支；Grok 不负责最终 Git 交付。默认授权不包含 PR、合并、强推、发布或生产写入，除非用户或项目规则明确扩大权限。
 
-发生 Git 操作时，独立核对本地 HEAD、远端 SHA、PR 基线与完整 diff、可合并状态和目标分支。提交与 push 成功后按 `codex-app-development` 合同确认 worktree 干净、无未跟踪文件且远端 SHA 一致，再非强制回收精确 worktree、关闭 Issue。若存在父会话，只在此时写入最终 `ISSUE_COMPLETE` 状态与交付文件；任一步失败都保留现场和 Issue并由当前 Issue task 自行处理，不发送会话消息。CI 是否为门禁、是否直接合并，以当前项目 `AGENTS.md` 和用户指令为准，不在技能中硬编码。
+发生 Git 操作时，独立核对本地 HEAD、远端 SHA、PR 基线与完整 diff、可合并状态和目标分支。提交与 push 成功后按 `codex-app-development` 合同确认 worktree 干净、无未跟踪文件且远端 SHA 一致，再非强制回收精确 worktree、关闭 Issue。若存在父会话，只在此时写入最终 `ISSUE_COMPLETE` 状态与交付文件，并在父会话支持接收时补发一条唤醒消息；任一步失败都保留现场和 Issue并由当前 Issue task 自行处理，不就阶段性进展向父会话发送消息。CI 是否为门禁、是否直接合并，以当前项目 `AGENTS.md` 和用户指令为准，不在技能中硬编码。
 
 只有同时满足以下条件才声称完成：
 
