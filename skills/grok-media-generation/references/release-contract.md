@@ -6,13 +6,14 @@
 
 - CPA：`v7.2.126`，commit `aed6d3861238a4415b8b2bf9f721e0f5fe2e3b23`。
 - new-api：commit `c5cc612aae4c2b4e355d95d7ce09aa7b510730c9`。
-- Grok Build 公共源码仓库 commit：`6e386420825bd44ae648c63e7c8cba12fcec9401`。
-- 上述 Grok Build checkout 根目录 `SOURCE_REV`：`9b8d35b46d959c042ea9aa31cbbebbd1f0c5c527`。
+- Grok Build 权威 checkout：`/Volumes/外接硬盘/user/yesone/project/grok-build`，commit `8a14c91d88875a831a38b3a066b1683116bcb31c`。
+- 上述 Grok Build checkout 根目录 `SOURCE_REV`：`27b3c66635e2c0bf213429a36ab916f25d59df20`。
+- 相对上一审阅版本 `6e386420825bd44ae648c63e7c8cba12fcec9401`，模型目录及 Image/Edit/Video wire 契约未变；相关 builder 变化仅涉及证书和描述清洗，因此现有模型及媒体 payload 无需追加修改。
 - 1.5 稳定模型及本合同中的新图片 payload 已通过生产 smoke；仓库测试仍以本地假服务为默认，不重复产生费用。
 
 ## 上游源码审阅规则
 
-1. 把 `xai-org/grok-build` checkout 保存在 Akasha 仓库之外的项目目录，例如 `${PROJECTS_ROOT}/grok-build`；不要复制或 vendor 到 Skill 目录。
+1. 使用 Akasha 仓库之外的权威 checkout `/Volumes/外接硬盘/user/yesone/project/grok-build`；不要复制或 vendor 到 Skill 目录。
 2. 每次调查 Grok 协议、模型目录、认证头、图片、视频或 STT 时，先更新或重新核对该 checkout，并在审阅记录中同时写下完整 Git commit 与根目录 `SOURCE_REV`。
 3. 图片/视频 wire 契约以 `crates/codegen/xai-grok-tools/src/implementations/grok_build/` 下的真实 request builder 为审阅入口；可选文本模型还需用已认证 Grok CLI 的 `/v1/models` 响应确认，不能只依据源码中的版本门控注释。
 4. 修改 CPA/new-api 适配器前重新读取该来源。采用的 wire 变更先在 CPA 落地，再以精确 payload 测试镜像到 new-api；新增 CPA 媒体模型还必须同时完成分类、路由、默认价格和目录同步测试。
