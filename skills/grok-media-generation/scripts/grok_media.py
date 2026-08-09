@@ -21,6 +21,27 @@ from typing import Any
 MAX_DOWNLOAD_BYTES = 256 * 1024 * 1024
 DEFAULT_BASE_URL = "https://newapi.1234bot.com/v1"
 TERMINAL_VIDEO_STATES = {"completed", "failed", "expired", "cancelled"}
+IMAGE_ASPECT_RATIOS = (
+    "1:1",
+    "16:9",
+    "9:16",
+    "4:3",
+    "3:4",
+    "3:2",
+    "2:3",
+    "2:1",
+    "1:2",
+    "19.5:9",
+    "9:19.5",
+    "20:9",
+    "9:20",
+    "auto",
+)
+VIDEO_MODELS = (
+    "grok-imagine-video",
+    "grok-imagine-video-1.5",
+    "grok-imagine-video-1.5-preview",
+)
 
 
 class GrokMediaError(RuntimeError):
@@ -200,34 +221,53 @@ def parse_json(raw: bytes) -> dict:
     return value
 
 
-def multipart_image_body(model: str, prompt: str, image_path: Path) -> tuple[bytes, str]:
-    if image_path.stat().st_size > MAX_DOWNLOAD_BYTES:
-        raise GrokMediaError("reference image exceeds 256 MiB")
+def multipart_image_body(
+    model: str,
+    prompt: str,
+    image_paths: list[Path],
+    aspect_ratio: str | None,
+) -> tuple[bytes, str]:
+    if not image_paths:
+        raise GrokMediaError("at least one reference image is required")
+    total_size = 0
+    for image_path in image_paths:
+        image_size = image_path.stat().st_size
+        if image_size > MAX_DOWNLOAD_BYTES:
+            raise GrokMediaError("reference image exceeds 256 MiB")
+        total_size += image_size
+    if total_size > MAX_DOWNLOAD_BYTES:
+        raise GrokMediaError("reference images exceed 256 MiB in total")
     boundary = "----grok-media-" + secrets.token_hex(16)
     chunks: list[bytes] = []
-    for name, value in (("model", model), ("prompt", prompt), ("response_format", "url")):
+    fields = [("model", model), ("prompt", prompt), ("response_format", "url")]
+    if len(image_paths) > 1:
+        fields.append(("aspect_ratio", aspect_ratio or "auto"))
+    for name, value in fields:
         chunks.extend([
             f"--{boundary}\r\n".encode(),
             f'Content-Disposition: form-data; name="{name}"\r\n\r\n'.encode(),
             value.encode(),
             b"\r\n",
         ])
-    mime_type = mimetypes.guess_type(image_path.name)[0] or "application/octet-stream"
-    chunks.extend([
-        f"--{boundary}\r\n".encode(),
-        f'Content-Disposition: form-data; name="image"; filename="{image_path.name}"\r\n'.encode(),
-        f"Content-Type: {mime_type}\r\n\r\n".encode(),
-        image_path.read_bytes(),
-        b"\r\n",
-        f"--{boundary}--\r\n".encode(),
-    ])
+    for image_path in image_paths:
+        mime_type = mimetypes.guess_type(image_path.name)[0] or "application/octet-stream"
+        chunks.extend([
+            f"--{boundary}\r\n".encode(),
+            f'Content-Disposition: form-data; name="image"; filename="{image_path.name}"\r\n'.encode(),
+            f"Content-Type: {mime_type}\r\n\r\n".encode(),
+            image_path.read_bytes(),
+            b"\r\n",
+        ])
+    chunks.append(f"--{boundary}--\r\n".encode())
     return b"".join(chunks), f"multipart/form-data; boundary={boundary}"
 
 
-def validate_public_https_url(url: str) -> None:
+def validate_public_https_url(url: str, media_kind: str = "video") -> None:
     parsed = urllib.parse.urlsplit(url)
     if parsed.scheme != "https" or not parsed.netloc or parsed.username or parsed.password:
-        raise GrokMediaError("video URL must be an absolute public HTTPS URL without userinfo")
+        raise GrokMediaError(
+            f"{media_kind} URL must be an absolute public HTTPS URL without userinfo"
+        )
 
 
 def download_public_url(url: str, timeout: float) -> bytes:
@@ -342,7 +382,15 @@ def run(args: argparse.Namespace) -> None:
     output = Path(args.output).expanduser().resolve()
 
     if args.command == "image-generate":
-        payload = {"model": args.model, "prompt": args.prompt, "n": 1, "size": args.size, "response_format": "url"}
+        payload = {
+            "model": args.model,
+            "prompt": args.prompt,
+            "n": 1,
+            "aspect_ratio": args.aspect_ratio,
+            "response_format": "url",
+        }
+        if args.size:
+            payload["size"] = args.size
         response = parse_json(
             api_request(
                 base_url,
@@ -357,12 +405,18 @@ def run(args: argparse.Namespace) -> None:
         validate_image(media)
         write_output(output, media, args.overwrite)
     elif args.command == "image-edit":
-        image_path = Path(args.image).expanduser().resolve()
-        if not image_path.is_file():
-            raise GrokMediaError(f"reference image not found: {image_path}")
-        body, content_type = multipart_image_body(args.model, args.prompt, image_path)
-        response = parse_json(
-            api_request(
+        if args.image:
+            image_paths = [Path(value).expanduser().resolve() for value in args.image]
+            for image_path in image_paths:
+                if not image_path.is_file():
+                    raise GrokMediaError(f"reference image not found: {image_path}")
+            body, content_type = multipart_image_body(
+                args.model,
+                args.prompt,
+                image_paths,
+                args.aspect_ratio,
+            )
+            raw_response = api_request(
                 base_url,
                 api_key,
                 "/images/edits",
@@ -371,7 +425,32 @@ def run(args: argparse.Namespace) -> None:
                 content_type=content_type,
                 controller=controller,
             )[0]
-        )
+        else:
+            image_urls = list(args.image_url or [])
+            if not image_urls:
+                raise GrokMediaError("at least one reference image URL is required")
+            for image_url in image_urls:
+                validate_public_https_url(image_url, "image")
+            payload = {
+                "model": args.model,
+                "prompt": args.prompt,
+                "response_format": "url",
+            }
+            references = [{"url": image_url} for image_url in image_urls]
+            if len(references) == 1:
+                payload["image"] = references[0]
+            else:
+                payload["images"] = references
+                payload["aspect_ratio"] = args.aspect_ratio or "auto"
+            raw_response = api_request(
+                base_url,
+                api_key,
+                "/images/edits",
+                args.timeout,
+                payload=payload,
+                controller=controller,
+            )[0]
+        response = parse_json(raw_response)
         media = image_bytes(response, args.timeout)
         validate_image(media)
         write_output(output, media, args.overwrite)
@@ -440,7 +519,11 @@ def parser() -> argparse.ArgumentParser:
         sub.add_argument("--output", required=True)
         sub.add_argument("--overwrite", action="store_true")
         if video:
-            sub.add_argument("--model", default="grok-imagine-video")
+            sub.add_argument(
+                "--model",
+                default="grok-imagine-video",
+                help="video model (known: " + ", ".join(VIDEO_MODELS) + ")",
+            )
             sub.add_argument("--poll-timeout", type=float, default=600)
             sub.add_argument("--poll-interval", type=float, default=5)
         else:
@@ -448,9 +531,33 @@ def parser() -> argparse.ArgumentParser:
         return sub
 
     image_generate = common_media("image-generate", video=False)
-    image_generate.add_argument("--size", default="1024x1024")
+    image_generate.add_argument(
+        "--aspect-ratio",
+        choices=IMAGE_ASPECT_RATIOS,
+        default="auto",
+        help="output aspect ratio (default: auto)",
+    )
+    image_generate.add_argument(
+        "--size",
+        help="legacy OpenAI size alias; omitted by default so aspect_ratio remains authoritative",
+    )
     image_edit = common_media("image-edit", video=False)
-    image_edit.add_argument("--image", required=True)
+    image_edit.add_argument(
+        "--aspect-ratio",
+        choices=IMAGE_ASPECT_RATIOS,
+        help="multi-image output aspect ratio (default: auto); omitted for a single image",
+    )
+    image_source = image_edit.add_mutually_exclusive_group(required=True)
+    image_source.add_argument(
+        "--image",
+        action="append",
+        help="local reference image; repeat for a multi-image edit",
+    )
+    image_source.add_argument(
+        "--image-url",
+        action="append",
+        help="public HTTPS reference; repeat to send bare {'url': ...} image references",
+    )
     video_generate = common_media("video-generate", video=True)
     video_generate.add_argument("--duration", type=int, default=4)
     video_edit = common_media("video-edit", video=True)

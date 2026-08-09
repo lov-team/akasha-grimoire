@@ -137,11 +137,24 @@ class GrokMediaScriptTest(unittest.TestCase):
         result = self.invoke("image-generate", "--prompt", "red panda", "--output", str(generated))
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(generated.read_bytes(), PNG)
+        generation_payload = json.loads(Handler.requests[-1][2])
+        self.assertEqual(generation_payload["aspect_ratio"], "auto")
+        self.assertNotIn("size", generation_payload)
 
         source = self.directory / "source.png"
         source.write_bytes(PNG)
         edited = self.directory / "edited.png"
-        result = self.invoke("image-edit", "--image", str(source), "--prompt", "green umbrella", "--output", str(edited))
+        result = self.invoke(
+            "image-edit",
+            "--image",
+            str(source),
+            "--aspect-ratio",
+            "16:9",
+            "--prompt",
+            "green umbrella",
+            "--output",
+            str(edited),
+        )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(edited.read_bytes(), PNG)
         path, content_type, body = Handler.requests[-1]
@@ -149,6 +162,158 @@ class GrokMediaScriptTest(unittest.TestCase):
         self.assertTrue(content_type.startswith("multipart/form-data; boundary="))
         self.assertIn(b"grok-imagine-image", body)
         self.assertIn(PNG, body)
+        self.assertNotIn(b'name="aspect_ratio"', body)
+
+    def test_multi_image_edit_defaults_aspect_ratio_to_auto(self) -> None:
+        first = self.directory / "first.png"
+        second = self.directory / "second.png"
+        first.write_bytes(PNG + b"-first")
+        second.write_bytes(PNG + b"-second")
+        edited = self.directory / "multi-edited.png"
+
+        result = self.invoke(
+            "image-edit",
+            "--image",
+            str(first),
+            "--image",
+            str(second),
+            "--prompt",
+            "combine",
+            "--output",
+            str(edited),
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(edited.read_bytes(), PNG)
+        path, content_type, body = Handler.requests[-1]
+        self.assertEqual(path, "/v1/images/edits")
+        self.assertTrue(content_type.startswith("multipart/form-data; boundary="))
+        self.assertEqual(body.count(b'name="image"; filename='), 2)
+        self.assertIn(b'name="aspect_ratio"\r\n\r\nauto\r\n', body)
+        self.assertIn(PNG + b"-first", body)
+        self.assertIn(PNG + b"-second", body)
+
+    def test_url_image_edit_uses_bare_image_references(self) -> None:
+        single = self.directory / "single-url.png"
+        result = self.invoke(
+            "image-edit",
+            "--image-url",
+            "https://media.example/first.png",
+            "--aspect-ratio",
+            "20:9",
+            "--prompt",
+            "edit one",
+            "--output",
+            str(single),
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(Handler.requests[-1][2])
+        self.assertEqual(payload["image"], {"url": "https://media.example/first.png"})
+        self.assertNotIn("images", payload)
+        self.assertNotIn("aspect_ratio", payload)
+        self.assertNotIn("type", payload["image"])
+
+        multiple = self.directory / "multi-url.png"
+        result = self.invoke(
+            "image-edit",
+            "--image-url",
+            "https://media.example/first.png",
+            "--image-url",
+            "https://media.example/second.png",
+            "--aspect-ratio",
+            "19.5:9",
+            "--prompt",
+            "edit two",
+            "--output",
+            str(multiple),
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(Handler.requests[-1][2])
+        self.assertEqual(
+            payload["images"],
+            [
+                {"url": "https://media.example/first.png"},
+                {"url": "https://media.example/second.png"},
+            ],
+        )
+        self.assertEqual(payload["aspect_ratio"], "19.5:9")
+        self.assertTrue(all("type" not in ref for ref in payload["images"]))
+
+    def test_current_aspect_ratios_and_video_models_are_visible_in_help(self) -> None:
+        image_help = subprocess.run(
+            ["python3", str(SCRIPT), "image-generate", "--help"],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(image_help.returncode, 0, image_help.stderr)
+        current_ratios = ("2:1", "1:2", "19.5:9", "9:19.5", "20:9", "9:20", "auto")
+        for ratio in current_ratios:
+            self.assertIn(ratio, image_help.stdout)
+            parsed = GROK_MEDIA.parser().parse_args(
+                [
+                    "image-generate",
+                    "--aspect-ratio",
+                    ratio,
+                    "--prompt",
+                    "x",
+                    "--output",
+                    "/tmp/out.png",
+                ]
+            )
+            self.assertEqual(parsed.aspect_ratio, ratio)
+
+        video_help = subprocess.run(
+            ["python3", str(SCRIPT), "video-generate", "--help"],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(video_help.returncode, 0, video_help.stderr)
+        self.assertIn("grok-imagine-video-1.5", video_help.stdout)
+        self.assertIn("grok-imagine-video-1.5-preview", video_help.stdout)
+
+    def test_stable_and_preview_video_models_are_forwarded(self) -> None:
+        for index, model in enumerate(
+            ("grok-imagine-video-1.5", "grok-imagine-video-1.5-preview")
+        ):
+            with self.subTest(model=model):
+                Handler.requests.clear()
+                output = self.directory / f"model-{index}.mp4"
+                result = self.invoke(
+                    "video-generate",
+                    "--model",
+                    model,
+                    "--prompt",
+                    "wave",
+                    "--duration",
+                    "4",
+                    "--poll-interval",
+                    "0.01",
+                    "--output",
+                    str(output),
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                submit = next(
+                    request
+                    for request in Handler.requests
+                    if request[0] == "/v1/videos/generations"
+                )
+                self.assertEqual(json.loads(submit[2])["model"], model)
+
+    def test_rejects_non_https_image_url_without_request(self) -> None:
+        result = self.invoke(
+            "image-edit",
+            "--image-url",
+            "http://media.example/source.png",
+            "--prompt",
+            "edit",
+            "--output",
+            str(self.directory / "out.png"),
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(Handler.requests, [])
+        self.assertIn("image URL must be an absolute public HTTPS URL", result.stderr)
 
     def test_missing_key_recommends_lovbrowser_without_request(self) -> None:
         output = self.directory / "missing-key.png"

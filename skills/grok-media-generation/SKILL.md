@@ -1,11 +1,13 @@
 ---
 name: grok-media-generation
-description: 通过 new-api 的 OpenAI-compatible Grok 端点生成或编辑图片与视频，轮询视频任务并安全下载最终文件。用户要求调用 grok-imagine-image、grok-imagine-image-quality、grok-imagine-video 或 grok-imagine-video-1.5-preview，验证 /v1/images/generations、/v1/images/edits、/v1/videos/generations、/v1/videos/edits，或排查 Grok 媒体生成、图片编辑、视频编辑失败时使用。
+description: 通过 new-api 的 OpenAI-compatible Grok 端点生成或编辑图片与视频，轮询视频任务并安全下载最终文件。用户要求调用 grok-imagine-image、grok-imagine-image-quality、grok-imagine-video、稳定版 grok-imagine-video-1.5 或 grok-imagine-video-1.5-preview，验证 /v1/images/generations、/v1/images/edits、/v1/videos/generations、/v1/videos/edits，或排查 Grok 媒体生成、图片编辑、视频编辑失败时使用。
 ---
 
 # Grok 图片与视频生成
 
 使用 [`scripts/grok_media.py`](scripts/grok_media.py) 调用 new-api，不手写包含凭证的 curl。真实生成会计费；先做单个最小 smoke，再扩大任务规模。
+
+当前已核对的 CPA/new-api 版本、模型能力、默认价格和上游源码审阅规则见 [`references/release-contract.md`](references/release-contract.md)。修改 CPA/new-api 适配器前必须重新核对该规则，不根据旧笔记猜测 wire payload。
 
 ## 准备
 
@@ -32,10 +34,11 @@ base URL 可传 host 根或以 `/v1` 结尾的 API 根；自定义前缀会在�
 ```bash
 python3 skills/grok-media-generation/scripts/grok_media.py image-generate \
   --prompt "A red panda astronaut on the moon, no text" \
+  --aspect-ratio auto \
   --output /tmp/grok-image.jpg
 ```
 
-默认模型为 `grok-imagine-image`。高质量模式显式传 `--model grok-imagine-image-quality`。成功必须是 2xx、`data` 非空，并将首个 `url` 或 `b64_json` 解码为真实图片文件。
+默认模型为 `grok-imagine-image`，默认画幅为 `auto`。高质量模式显式传 `--model grok-imagine-image-quality`。支持 `1:1`、`16:9`、`9:16`、`4:3`、`3:4`、`3:2`、`2:3`、`2:1`、`1:2`、`19.5:9`、`9:19.5`、`20:9`、`9:20` 和 `auto`。`--size` 只保留为显式兼容参数，默认不发送，避免把 `auto` 隐式改回 `1:1`。成功必须是 2xx、`data` 非空，并将首个 `url` 或 `b64_json` 解码为真实图片文件。
 
 ## 图片编辑
 
@@ -48,7 +51,26 @@ python3 skills/grok-media-generation/scripts/grok_media.py image-edit \
   --output /tmp/grok-image-edited.jpg
 ```
 
-固定主体、构图和不得变化的元素。不要把 JSON URL 编辑成功外推成 multipart 兼容；需要验证代理兼容性时必须实际使用 `image-edit`。
+重复 `--image` 可做多图编辑。单图编辑始终省略 `aspect_ratio`，即使调用方传了该参数；多图编辑未显式指定画幅时发送 `auto`：
+
+```bash
+python3 skills/grok-media-generation/scripts/grok_media.py image-edit \
+  --image /absolute/path/subject.jpg \
+  --image /absolute/path/style.jpg \
+  --prompt "Keep the subject; apply only the color language" \
+  --output /tmp/grok-image-combined.jpg
+```
+
+公开 HTTPS 引用使用可重复的 `--image-url`。JSON 请求必须发送裸引用：单图为 `"image":{"url":"..."}`，多图为 `"images":[{"url":"..."}]`；不要加入 `type` 或嵌套 `image_url`：
+
+```bash
+python3 skills/grok-media-generation/scripts/grok_media.py image-edit \
+  --image-url https://media.example.invalid/subject.jpg \
+  --prompt "Change only the background" \
+  --output /tmp/grok-image-url-edited.jpg
+```
+
+固定主体、构图和不得变化的元素。不要把 JSON URL 编辑成功外推成 multipart 兼容；需要验证代理兼容性时必须实际使用相应的 `image-edit` 输入方式。
 
 ## 视频生成
 
@@ -59,7 +81,7 @@ python3 skills/grok-media-generation/scripts/grok_media.py video-generate \
   --output /tmp/grok-video.mp4
 ```
 
-脚本提交 `/v1/videos/generations`，轮询 `/v1/videos/{request_id}`，完成后从 `/v1/videos/{request_id}/content` 下载 MP4。默认模型为 `grok-imagine-video`；预览模型需显式传 `--model grok-imagine-video-1.5-preview`。
+脚本提交 `/v1/videos/generations`，轮询 `/v1/videos/{request_id}`，完成后从 `/v1/videos/{request_id}/content` 下载 MP4。默认模型为 `grok-imagine-video`；1.5 稳定版使用 `--model grok-imagine-video-1.5`，Preview 继续保留为 `--model grok-imagine-video-1.5-preview`。
 
 ## 视频编辑
 
@@ -93,5 +115,6 @@ python3 skills/grok-media-generation/scripts/grok_media.py video-edit \
 - `400 multipart: NextPart...`：代理可能把 JSON 请求体与 multipart 请求头混用；检查上游 `Content-Type`。
 - `video.file_id` 返回 404：确认 ID 来自同一 CPA 实例且仍在缓存期；否则改用完成状态中的 `metadata.url`。
 - `queued` 或 `processing`：继续轮询；超过 `--poll-timeout` 后明确报告未完成，不伪造成功。
+- 部署后 `/v1/models` 暂未出现新模型：先按 [`references/release-contract.md`](references/release-contract.md) 的模型目录缓存等待窗口做有界重试；不要用第一次目录缺失立即触发回滚。
 
 脚本只在最终成功后写文件。失败时不要把错误 JSON、登录页或 HTML 保存成图片或视频。
