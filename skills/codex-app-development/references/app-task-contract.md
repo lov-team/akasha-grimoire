@@ -28,7 +28,7 @@
 
 ## 会话消息与状态文件
 
-会话消息默认只从监工到 developer，用于初始合同、决策和返工。Codex App developer 不调用 `send_message_to_thread` 向父层报告；它只原子更新父层指定的状态文件，终态另写交付文件。父子两端都为 Claude Desktop / Claude Code 会话时，developer 可在可动作终态额外发送一条简短唤醒消息（每状态最多一条，只含状态名与文件路径），但文件仍是唯一事实源。
+会话消息默认只从监工到 developer，用于初始合同、决策和返工。Codex App developer 必须由 `create_thread` 创建隔离 task，不使用 `fork_thread` 或 shell/PTY session 复制父上下文；初始消息和 follow-up 只传绝对合同路径与最小指令。Codex App developer 不调用 `send_message_to_thread` 向父层报告；它只原子更新父层指定的状态文件，终态另写交付文件。父子两端都为 Claude Desktop / Claude Code 会话时，developer 可在可动作终态额外发送一条简短唤醒消息（每状态最多一条，只含状态名与文件路径），但文件仍是唯一事实源。
 
 - developer 状态使用 `DEVELOPER_PLANNING`、`DEVELOPER_IMPLEMENTING`、`DEVELOPER_BLOCKED_USER_DECISION`、`DEVELOPER_SCOPE_DRIFT`、`DEVELOPER_DELIVERY_COMPLETE`、`DEVELOPER_ERROR`、`DEVELOPER_ABORTED`；合同显式保留 Red 门时另有 `DEVELOPER_RED_READY`。CLI worker 可保留供应商前缀，但语义必须一致。
 - 默认不设 `RED_READY` 暂停门：developer 每个核心行为先写测试跑出目标性失败，再实现到 Green，Red 失败证据（命令、退出码、精确失败断言）必须保留进最终交付。监工在合同中显式保留 Red 门的高风险 Issue 除外：worker 交付 Red 后暂停，监工预审通过下发 `CONTINUE_GREEN`。
@@ -42,11 +42,11 @@ monitor 使用 `wait-for-task-delivery.zsh`，默认 1200 秒、每 20 秒读取
 
 monitor 与同目标的 active goal、automation heartbeat 互斥。宿主若返回运行 session，监工只用支持的最长等待续接同一进程。状态和 mtime 未变化时不重复投递；只有父向子的下一条指令使用会话消息。
 
-需要使用 `wait_threads` 获取 setup 或 task 状态时，默认显式传 `timeoutMs: 1200000`（20 分钟）；单目标同时传最近 cursor，多目标放在同一次有界等待中。目标完成、需要关注或收到新用户输入时允许提前返回。
+需要使用 `wait_threads` 获取 setup 或 task 状态时，默认显式传 `timeoutMs: 1200000`（20 分钟），并为每个目标传其自己的最近 cursor。多目标调用只充当首个可动作终态的事件选择器：任一目标完成或需关注就立即处理并移出等待集合，其他目标继续运行；禁止把它实现成等待全部 worker/monitor/PID 的 barrier。常规推进不调用 `read_thread(includeOutputs=true)`，终态只读一次状态/交付文件。
 
 新 `BLOCKED_USER_DECISION` 使用独立决策生命周期：监工只读取合同、既有决策、依赖、最近相关 3–5 个 turn 和最小证据，生成稳定 `decision_fingerprint`。范围内、可逆、无安全或不可逆影响且有明确推荐的事项直接决定并恢复 worker；必须由用户决定的事项去重、消除可推导下游项后合并成一个决策包，每项给出推荐、理由、关键代价和依赖影响。memory 保存 `prompted_decision_id` 与 `resolved_decision_id`；成功呈现后静默等待，不重复提问，直到用户答案写回合同并成功投递给 worker 才 resolved。
 
-P0–P2 必须由监工下发给原 developer task 返工，返工后重新完整验收。确认 P0–P2 清零后，监工先确认 worker 与 monitor 停止，再完成 commit、push、远端 SHA 核验、精确 worktree 安全回收和 Issue 关闭。
+P0–P2 必须由监工下发给原 developer task 返工；投递前保留旧交付文件，切换到唯一返工 handoff 路径并原子重置状态，再只发送读取返工合同路径的短指令。返工后重新完整验收。确认 P0–P2 清零后，监工先确认 worker 与 monitor 停止，再完成 commit、push、远端 SHA 核验、精确 worktree 安全回收和 Issue 关闭。
 
 ## 验收门
 

@@ -1,4 +1,4 @@
 interface:
   display_name: "Codex App 子任务开发"
-  short_description: "监工只下发合同并独立验收，Sol 自主计划、开发与测试"
-  default_prompt: "使用 $codex-app-development：由监工下发需求合同与验收条件，再创建 GPT-5.6 Sol、按任务难度选择 thinking 的独立 Codex worker 自主完成实现计划、开发与测试；最后由监工独立验收并完成交付与关闭。"
+  short_description: "隔离 Codex worker，逐任务监控并先完成先验收"
+  default_prompt: "使用 $codex-app-development：通过 create_thread 创建最小上下文的隔离 Codex worker，每个任务使用独立 worktree、状态文件和 cursor；任一 worker 完成就立即由监工独立验收和交付，不等待同批全部结束。"

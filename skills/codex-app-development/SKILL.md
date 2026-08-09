@@ -1,6 +1,6 @@
 ---
 name: codex-app-development
-description: 由监工任务下发需求合同与验收条件，再创建使用 GPT-5.6 Sol、按任务难度选择 thinking 的隔离 Codex App worker，在两层结构中由 worker 自主完成实现计划、开发与测试（测试先行的 Red → Green → Refactor 与自测），监工独立 Review 最终交付并默认完成 commit、push、worktree 回收和 Issue 关闭；使用父到子的单向会话下发和 20 分钟本地状态轮询。用户要求用 Codex App 子会话开发、让另一个 Codex 实现、为 Issue 单独开开发会话或隔离实现与 Review 上下文时使用；用户明确指定 CLI TUI worker 时改走对应 CLI 技能的三层分工。
+description: 由监工任务下发需求合同与验收条件，再创建使用 GPT-5.6 Sol、按任务难度选择 thinking 的隔离 Codex App worker，在两层结构中由 worker 自主完成实现计划、开发与测试（测试先行的 Red → Green → Refactor 与自测），监工独立 Review 最终交付并默认完成 commit、push、worktree 回收和 Issue 关闭；并行 worker 使用最小上下文、逐任务 cursor 和先完成先验收的事件驱动流水线。用户要求用 Codex App 子会话开发、让另一个 Codex 实现、为 Issue 单独开开发会话或隔离实现与 Review 上下文时使用；用户明确指定 CLI TUI worker 时改走对应 CLI 技能的三层分工。
 ---
 
 # Codex App 独立开发任务
@@ -24,9 +24,9 @@ description: 由监工任务下发需求合同与验收条件，再创建使用 
 
 ## 创建隔离开发任务
 
-Codex App 路径先用 `list_projects` 取得 project id 和 `isGitRepository`，再用 `create_thread` 在与监工共享状态文件的同一 host 创建干净 task；Git 项目必须使用独立 worktree。不要用 `fork_thread` 复制监工历史，只传最小需求合同。仅当实现确实依赖已批准的未提交基线时才使用 `startingState: working-tree`。
+Codex App 路径先用 `list_projects` 取得 project id 和 `isGitRepository`，再用 `create_thread` 在与监工共享状态文件的同一 host 创建干净 task；Git 项目必须使用独立 worktree。不要用 shell/PTY session 伪装 Codex App task，也不要用 `fork_thread` 复制监工历史。初始 prompt 只传 Issue、绝对合同/状态/交付路径和必要启动指令，不嵌入父会话历史、完整 Issue 正文、长日志或 diff；worker 自行读取合同和仓库事实。仅当实现确实依赖已批准的未提交基线时才使用 `startingState: working-tree`。
 
-创建前由监工确定目标、非目标、允许/禁止路径、依赖、逐条验收条件、验证门禁和 Git 交付策略；同时指定唯一绝对状态/交付文件与完成 marker。实现计划由 worker 制定，监工不代写。默认授权监工在验收后 commit 并 push 当前 Issue 分支；PR、合并、强推、发布或生产写入仍需项目规则或用户明确授权。创建后保存 developer `thread_id`、`host_id` 和精确 worktree；返回 `clientThreadId` 时等待 setup 完成并解析真实 task，不能把它传给要求 `thread_id` 的工具。需要调用 `wait_threads` 等待 setup 或 task 时，默认显式传 `timeoutMs: 1200000`（20 分钟）和最近 cursor；目标提前完成、需要关注或收到新用户输入时允许提前返回。开发 prompt 必须要求：
+创建前由监工确定目标、非目标、允许/禁止路径、依赖、逐条验收条件、验证门禁和 Git 交付策略；同时指定唯一绝对状态/交付文件与完成 marker。实现计划由 worker 制定，监工不代写。默认授权监工在验收后 commit 并 push 当前 Issue 分支；PR、合并、强推、发布或生产写入仍需项目规则或用户明确授权。创建后为每个 developer 独立保存 `thread_id`、`host_id`、最近 cursor 和精确 worktree；返回 `clientThreadId` 时等待 setup 完成并解析真实 task，不能把它传给要求 `thread_id` 的工具。开发 prompt 必须要求：
 
 1. 先读项目 `AGENTS.md`、需求合同、相关代码和 Git 现场；自主输出分步实现计划（文件/模块边界、顺序、风险点、每个验收条件对应的测试入口）并自检，再按测试先行的 Red → Green → Refactor 推进，不重新定义范围，也不得派生新的写入 worker。
 2. 核对并在交付中报告唯一绝对 worktree、base SHA 和 Git 状态，不在监工 checkout 或其他 worktree 写入。
@@ -49,6 +49,14 @@ Codex App 路径先用 `list_projects` 取得 project id 和 `isGitRepository`�
 
 监工必须在需求合同中记录所选难度、证据和 `thinking`，不因追求能力而一律选 `max`，也不只按文件数降档。信息不足时先按 `medium`，发现更高风险信号则在创建 worker 前升档；worker 创建后保持同一 `gpt-5.6-sol` 与 thinking，返工继续原会话。只有用户在当前任务明确指定其他 worker、模型或 thinking 时才替换默认路由。监工的纯状态与 monitor 结果处理使用低档 reasoning；正式 Review、失败诊断和 P0–P2 闭环使用 `high`，安全、并发、迁移或数据一致性 Review 使用 `xhigh`。不要为切 reasoning 更换监工模型或重建会话。
 
+## 多 worker 事件驱动流水线
+
+- 多个 developer 可以同时运行，但每个 Issue 必须拥有独立 task、worktree、状态/交付文件和 cursor；不得共享 shell session、状态文件或 handoff。
+- 使用 `wait_threads` 时为每个目标传自己的最近 cursor，显式设置 `timeoutMs: 1200000`。多目标调用只选择首个完成或需关注的目标；任一目标返回可动作终态后，立即把它移出等待集合并进入该 Issue 的 Review、返工或 Git 交付，其他 worker 继续运行。
+- 禁止把多个 monitor、session 或 PID 放入一个“等待全部结束”包装器；最终批次汇总可以等待全部，但单 Issue 交付不得被兄弟任务阻塞。
+- 正常监控不调用 `read_thread(includeOutputs=true)`，也不把 worker 输出复制进监工上下文。状态文件、handoff、累计 diff 和验证日志是回收证据；只有 setup/投递故障或证据矛盾时才以 `includeOutputs=false`、最小 turn 数定点诊断。
+- 决策或返工只向原 task 发送读取绝对合同路径的短指令。返工投递前保留旧交付文件，切换到唯一返工 handoff 路径，并把该 worker 状态原子重置为 implementing/reworking，避免旧终态造成误唤醒。
+
 ## 由监工启动本地监控
 
 developer 初始合同、决策或返工成功投递后，监工立即运行 `agent-task-supervisor/scripts/wait-for-task-delivery.zsh`，默认 1200 秒、每 20 秒扫描。App developer 与 CLI developer 使用同一状态/交付文件合同，不再为这条 edge 创建 automation heartbeat：
@@ -59,6 +67,7 @@ developer 初始合同、决策或返工成功投递后，监工立即运行 `ag
 - 宿主先返回运行 session 时，只用支持的最长等待续接该进程，不由模型每 20 秒查询文件、thread、pane 或历史。
 - monitor 不与同目标的 active goal 或 heartbeat 并存；输入失败时先修复投递，不启动监控。
 - `BLOCKED_USER_DECISION` 只恢复合同、既有决策、依赖和最小证据；可逆且范围内的明确推荐直接决定并下发，需要用户决定的事项去重并合并成一个决策包。
+- 多 developer 的 monitor 保持逐 edge 独立；任一 monitor 返回 0/3 就立即处理该 Issue，不等待其他 monitor。不得启动 wait-all shell 聚合器。
 
 ## 单向下发，状态文件回收结果
 

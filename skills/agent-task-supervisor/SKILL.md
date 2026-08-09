@@ -1,6 +1,6 @@
 ---
 name: agent-task-supervisor
-description: 在 Spec、Epic、Issue 和证据关系图上轻量监工多个任务；使用 Codex App 或 Claude Desktop worker 时采用两层结构，worker 自主完成实现计划、开发与测试，监工只下发需求合同并独立验收，默认完成 Git 交付、worktree 回收和 Issue 关闭；Claude Desktop 与 Claude Code CLI 会话支持终态唤醒消息，状态/交付文件仍是唯一事实源；用户指定 CLI TUI worker 时保留 Epic → Issue → developer 三层分工。用户要求用 Graph Engineering 拆解、监工、协调、等待或验收多个任务，或持续推进 worker 但不代替其实现时使用。
+description: 在 Spec、Epic、Issue 和证据关系图上轻量监工多个任务；使用 Codex App 或 Claude Desktop worker 时采用两层结构，worker 自主完成实现计划、开发与测试，监工只下发需求合同并独立验收，默认完成 Git 交付、worktree 回收和 Issue 关闭；多个 worker 使用隔离任务、逐任务 cursor 和先完成先验收的事件驱动流水线，状态/交付文件是唯一事实源；用户指定 CLI TUI worker 时保留 Epic → Issue → developer 三层分工。用户要求用 Graph Engineering 拆解、监工、协调、等待或验收多个任务，或持续推进 worker 但不代替其实现时使用。
 ---
 
 # Agent 任务监工
@@ -65,13 +65,13 @@ Epic 发现 ready Issue 后先建立独立 Issue 负责/验收 task；Issue task
 - **Agent Task**：两层模式下每个 Issue 映射唯一 developer task；三层模式另加只读协调/验收的 Issue task。分别保存 task id、host、worktree 和 cursor，不充当新的事实源。
 - **Evidence**：用累计 diff、测试、产物、Review 和远端 SHA 关闭 Issue，再自底向上关闭 Epic 与 Spec。
 
-开始实现前先建立或更新节点与依赖边；没有 Issue 映射的任务不得进入执行。只并行没有未满足依赖的 Issue。范围或方向变化时先更新 Spec/Epic/Issue，再推动原任务；阻塞、决策和验收结论写回对应节点，不另建流水账。Issue 验收闭环完成后（两层由监工直接关闭 Issue；三层由 Epic 监控到 `ISSUE_COMPLETE`）立即重新计算 ready 集合，按依赖、写入冲突、资源和优先级启动下一个 Issue，或并行启动多个互不冲突的 ready Issue。
+开始实现前先建立或更新节点与依赖边；没有 Issue 映射的任务不得进入执行。项目提供持久 Issue 依赖索引时，先直接读取并维护该索引，不从历史会话或 worker 上下文重新拼图；只有已知生命周期变化才定点核验并更新对应边。只并行没有未满足依赖的 Issue。范围或方向变化时先更新 Spec/Epic/Issue，再推动原任务；阻塞、决策和验收结论写回对应节点，不另建流水账。Issue 验收闭环完成后（两层由监工直接关闭 Issue；三层由 Epic 监控到 `ISSUE_COMPLETE`）立即重新计算 ready 集合，按依赖、写入冲突、资源和优先级启动下一个 Issue，或并行启动多个互不冲突的 ready Issue。
 
 ## 默认保持轻量
 
-1. 调用 `wait_threads` 时默认显式传 `timeoutMs: 1200000`（20 分钟）并使用紧凑快照；单任务传最近 cursor，多任务在一次有界等待中聚合。目标提前完成、需要关注或收到新用户输入时允许提前返回。
-2. 正常推进时只关注阶段、最新短进展、完成或需用户注意，不重复播报不变状态。
-3. 不常规读取完整历史、pane、过程输出、日志、diff、测试明细或思考过程。
+1. 每个 task 独立保存 `thread_id`、`host_id` 和最近 cursor。调用 `wait_threads` 时显式传 `timeoutMs: 1200000`（20 分钟）与各自 cursor；多目标调用只作为“首个可动作终态”事件选择器，不是等待全部完成的 barrier。任一目标先完成或需关注就立即处理并从等待集合移除，其他目标继续运行。
+2. 正常推进时只关注阶段、最新短进展、完成或需用户注意，不重复播报不变状态；不得用等待全部 PID、全部 monitor 或整批 worker 完成的包装器阻塞已就绪任务。
+3. 不常规读取完整历史、pane、过程输出、日志、diff、测试明细或思考过程；Codex App 不调用 `read_thread(includeOutputs=true)` 回收进展，终态只读一次状态/交付文件。仅在 setup 恢复、投递失败或文件证据矛盾时，用 `includeOutputs=false` 和最小 turn 数定点诊断。
 4. 先推动原任务解决问题；不要因为进展慢就接管代码或另开 worker。
 5. 问题关闭后立即恢复状态级监工。
 
@@ -92,6 +92,8 @@ Epic 发现 ready Issue 后先建立独立 Issue 负责/验收 task；Issue task
 3. 退出 0 后父任务只读一次交付文件并立即进入对应 Review 或图谱推进；退出 3 后只恢复解决该状态所需的最小上下文；退出 124 且 child 仍稳定执行时可启动下一轮 20 分钟监控，不发送“仍在运行”。
 4. 宿主若先返回运行 session，只用支持的最长等待续接同一进程；不由模型每 20 秒查询 session、状态文件、pane 或完整 task 历史。
 5. 输入投递失败时不启动 monitor；先解决投递失败。监控退出后才允许对同一 child 投递下一条输入并启动新 monitor，避免重复指令与双重消费者。
+6. 多 child 并行时每条 edge 保持独立状态、交付路径、cursor 和 monitor；禁止把多个 child 包进一个“等待全部结束”的 shell/PID 聚合器。任一 edge 返回 0/3 就立即进入该 Issue 的 Review、决策或返工，其他 edge 原样继续。
+7. 返工前保留旧交付证据，切换到不含旧完成 marker 的唯一返工 handoff 路径，并把状态原子写回 implementing/reworking；再向原 task 发送只含返工合同路径的短指令，避免旧 `DELIVERY_COMPLETE` 让 monitor 立即误判。
 
 ## 成本与并发边界
 
