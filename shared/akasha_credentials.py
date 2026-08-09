@@ -300,11 +300,23 @@ def _envelope(status: int, payload: dict[str, Any], headers: Mapping[str, str]) 
     cache = headers.get("Cache-Control", "") if headers else ""
     if "no-store" not in cache.lower():
         raise CredentialError("bootstrap response is missing Cache-Control: no-store")
+    envelope_fields = set(payload)
     if (
-        set(payload) != {"code", "message", "data"}
+        envelope_fields
+        not in (
+            {"code", "message", "data"},
+            {"code", "message", "data", "timestamp"},
+        )
         or payload.get("code") != status
         or not isinstance(payload.get("message"), str)
         or len(payload["message"]) > 256
+        or (
+            "timestamp" in payload
+            and (
+                not isinstance(payload["timestamp"], (int, float))
+                or isinstance(payload["timestamp"], bool)
+            )
+        )
     ):
         raise CredentialError("bootstrap response has an invalid envelope")
     data = payload.get("data")

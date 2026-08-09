@@ -38,6 +38,7 @@ class FixtureHandler(BaseHTTPRequestHandler):
         return
 
     def _json(self, status: int, payload: dict) -> None:
+        payload = {**payload, "timestamp": 1_786_265_286_488}
         raw = json.dumps(payload).encode()
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
@@ -137,6 +138,42 @@ class CredentialDiscoveryTests(unittest.TestCase):
 
 
 class DeviceFlowTests(unittest.TestCase):
+    def test_standard_api_response_timestamp_is_accepted(self):
+        payload = {
+            "code": 200,
+            "message": "success",
+            "data": {"version": credentials.VERSION},
+            "timestamp": 1_786_265_286_488,
+        }
+        data, error = credentials._envelope(
+            200, payload, {"Cache-Control": "no-store"}
+        )
+        self.assertEqual(data, {"version": credentials.VERSION})
+        self.assertIsNone(error)
+
+    def test_http_403_access_denied_remains_a_protocol_error_code(self):
+        payload = {
+            "code": 403,
+            "message": "denied",
+            "data": {"error": "access_denied"},
+            "timestamp": 1_786_265_286_488,
+        }
+        data, error = credentials._envelope(
+            403, payload, {"Cache-Control": "no-store"}
+        )
+        self.assertIsNone(data)
+        self.assertEqual(error, "access_denied")
+
+    def test_unknown_envelope_fields_are_still_rejected(self):
+        payload = {
+            "code": 200,
+            "message": "success",
+            "data": {},
+            "unexpected": "field",
+        }
+        with self.assertRaisesRegex(credentials.CredentialError, "invalid envelope"):
+            credentials._envelope(200, payload, {"Cache-Control": "no-store"})
+
     def test_start_poll_validate_save_and_no_output_leak(self):
         with tempfile.TemporaryDirectory() as tmp, fixture_server() as origin:
             env = {"AKASHA_CONFIG_DIR": tmp}
