@@ -107,22 +107,6 @@ Graph Engineering は、納品作業を一時的な prompt の列ではなく、
 | [`claude-code-cli-development`](skills/claude-code-cli-development/) | Claude Code | 権限モード、セッション継続、状態納品、独立した受け入れ確認 |
 | [`codex-cli-development`](skills/codex-cli-development/) | Codex CLI | 独立した対話 TUI で実装し、Codex App のタスク管理とは分離 |
 
-## 実例：Amazon 向けスリッパ商品メディア
-
-この実例では、架空のミストブルー人体工学 EVA スライドサンダルを題材に、商品ビジュアル一式を作成しました。色、ストラップの溝、ロッカーソールを固定し、Amazon 向け白背景メイン画像、浴室での着用画像、素材ディテール画像を生成。その後 Grok と Seedance でそれぞれ 5 秒の商品動画を作成し、デコード、メタデータ、代表フレームを検証しました。
-
-![Amazon スリッパのメイン画像](docs/assets/amazon-slippers-main.jpg)
-
-| 成果物 | 能力 | 検証結果 |
-| --- | --- | --- |
-| メイン、使用シーン、ディテール画像 | `gpt-image-generation` / `gpt-image-2` | 1536 px の商品画像。メイン画像の四隅は純白 |
-| スタジオ商品動画 | `grok-media-generation` / `grok-imagine-video` | 5.04 秒、848 × 480、24 fps |
-| 回転商品動画 | `seedance-video-generation` / `doubao-seedance-2-0-260128` | 5.04 秒、1280 × 720、24 fps |
-
-![上段は Grok、下段は Seedance の代表フレーム](docs/assets/amazon-slippers-video-comparison.jpg)
-
-この例は制作上の限界も示します。text-to-video は方向性の確認には速い一方、商品の色、溝、アウトソール形状が変化する場合があります。実際の商品ページでは承認済みの商品写真を image-to-video の参照に使い、防滑・防水・クッション性などの表現には実測や仕入先の証拠を用意してください。
-
 ## クイックインストール
 
 リポジトリを clone した後、リポジトリを唯一の情報源として維持するため、シンボリックリンクを推奨します。

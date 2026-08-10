@@ -107,22 +107,6 @@ Development uses a three-layer loop: **the Epic supervisor finds a ready Issue �
 | [`claude-code-cli-development`](skills/claude-code-cli-development/) | Claude Code | Permission modes, session continuation, status delivery, and independent acceptance |
 | [`codex-cli-development`](skills/codex-cli-development/) | Codex CLI | Implementation in a separate interactive TUI, kept distinct from Codex App task management |
 
-## Real example: Amazon slipper product media
-
-This end-to-end example created a visual package for a fictional pair of mist-blue ergonomic EVA slides. The Agent locked the color, strap grooves, and rocker sole; generated an Amazon-style white-background hero image, a bathroom lifestyle image, and a material-detail image; then generated separate five-second product videos with Grok and Seedance and verified their decoding, metadata, and representative frames.
-
-![Amazon slipper hero image](docs/assets/amazon-slippers-main.jpg)
-
-| Deliverable | Capability | Verified result |
-| --- | --- | --- |
-| Hero, lifestyle, and detail images | `gpt-image-generation` / `gpt-image-2` | 1536 px product images; all hero-image corners are pure white |
-| Studio product video | `grok-media-generation` / `grok-imagine-video` | 5.04 seconds, 848 × 480, 24 fps |
-| Rotating product video | `seedance-video-generation` / `doubao-seedance-2-0-260128` | 5.04 seconds, 1280 × 720, 24 fps |
-
-![Grok frames above and Seedance frames below](docs/assets/amazon-slippers-video-comparison.jpg)
-
-The example also shows the production boundary: text-to-video is fast for direction finding, but product color, grooves, and outsole geometry may drift. For a real listing, use approved product photography as image-to-video references and substantiate claims such as slip resistance, water resistance, or cushioning with real evidence.
-
 ## Quick installation
 
 Clone the repository, then prefer symbolic links so the repository remains the single source of truth.

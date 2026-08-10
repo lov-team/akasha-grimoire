@@ -132,7 +132,9 @@ Graph Engineering 把交付建模为一张可追踪的工作图，而不是一�
 
 《跨会话通讯与 Agent 工作流》从一段带 90° 显示旋转的手机原片开始。Agent 先做语义地图，再把 365.424 秒素材压缩为 309.566 秒；不是按静音机械切割，而是保留“新特性 → 旧问题 → Goal 模式反例 → 三 Agent 工作流 → 产能结论”的完整论证链。
 
-![lov-talk《跨会话通讯与 Agent 工作流》成片联系表](docs/assets/lov-talk-agent-workflow-contact-sheet.jpg)
+[![lov-talk《跨会话通讯与 Agent 工作流》成片联系表；点击播放视频预览](docs/assets/lov-talk-agent-workflow-contact-sheet.jpg)](docs/assets/lov-talk-agent-workflow-preview.mp4)
+
+[▶ 播放或下载 32 秒口播剪辑预览](docs/assets/lov-talk-agent-workflow-preview.mp4)（从开场、Goal 模式、三 Agent 工作流和产能结论四处各取 8 秒；保留成片声音）
 
 | 环节 | 使用能力 | 可复验结果 |
 | --- | --- | --- |
@@ -148,7 +150,9 @@ Graph Engineering 把交付建模为一张可追踪的工作图，而不是一�
 
 动画生产不是“一条 Prompt 出片”。`lov-anime` 先冻结内容合同和视觉合同，验收角色/场景锚点与困难镜头 smoke，再批量生成六段统一风格镜头，最后完成 Fish Audio 女声讲解、Suno 音乐、字幕、混音和发布包。
 
-![lov-anime《履卦·回身》75 秒动画代表帧](docs/assets/lov-anime-lugua-contact-sheet.jpg)
+[![lov-anime《履卦·回身》75 秒动画代表帧；点击播放完整视频](docs/assets/lov-anime-lugua-contact-sheet.jpg)](docs/assets/lov-anime-lugua-75s-preview.mp4)
+
+[▶ 播放或下载《履卦·回身》75 秒完整压缩预览](docs/assets/lov-anime-lugua-75s-preview.mp4)（540 × 960、24 fps、H.264/AAC，保留女声讲解和音乐）
 
 | 环节 | 使用能力 | 可复验结果 |
 | --- | --- | --- |
@@ -202,14 +206,16 @@ E11“共享充能条与超必杀”进一步展示了 fork/join：[#449](https:
 
 | 目标 | Skill 组合 | 已完成样例 |
 | --- | --- | --- |
-| 生图/改图 | `gpt-image-generation` + `game-asset-forge` | 为雾蓝 EVA 拖鞋制作 1536 px 白底主图、场景图和材质细节图，并检查纯白四角、轮廓与结构一致性 |
-| 生视频 | `grok-media-generation` / `seedance-video-generation` | 同一商品方向分别生成 5.04 秒 Grok 棚拍和 5.04 秒 Seedance 旋转镜头；另有 [60 秒《一枚鸡蛋的幕后团队》](docs/cases/fanjingshan-eggs-behind-team.md) 四段续接动画 |
+| 生图/改图 | `gpt-image-generation` / `grok-media-generation` + `game-asset-forge` | [麻将王 #230](https://github.com/lov-team/mahjong-game/issues/230) 先确认 12 名原创角色 brief 与小批量样张，再批量生成立绘，并验证 Godot import、12 条 `portrait_path`、序列化和旧 IP 负向审计 |
+| 生视频 | `seedance-video-generation` + `seedance-video-continuation` | [60 秒《一枚鸡蛋的幕后团队》](docs/cases/fanjingshan-eggs-behind-team.md) 由 4 段 × 15 秒 Seedance 2.0 竖屏动画组成，以真实尾部视频和前景遮挡维持连续性 |
 | 生语音 | `fish-audio-speech` | 为《履卦·回身》选择中文女声、分段 TTS、合成 75 秒旁白，并用 STT/CER 回听检查可懂度 |
 | 生歌/配乐 | `suno-music-generation` | 生成《回身》歌曲与纯器乐 BGM，多候选下载后逐项执行 ffprobe、完整解码、响度、静音和 SHA-256 验收 |
 
-![GPT Image 拖鞋白底主图](docs/assets/amazon-slippers-main.jpg)
+![麻将王原创角色“林夜彻”立绘样例](docs/assets/mahjong-lin-yeche-portrait.jpg)
 
-![Grok 与 Seedance 视频抽帧对比：上方为 Grok，下方为 Seedance](docs/assets/amazon-slippers-video-comparison.jpg)
+[![60 秒《一枚鸡蛋的幕后团队》封面；点击播放完整视频](docs/assets/fanjingshan-eggs-behind-team-poster.jpg)](docs/assets/fanjingshan-eggs-behind-team-60s.mp4)
+
+[▶ 播放或下载 60 秒《一枚鸡蛋的幕后团队》](docs/assets/fanjingshan-eggs-behind-team-60s.mp4)
 
 媒体生成的共同原则是：**先单个 smoke，再批量；先保存原始响应与任务 ID，再下载；最后检查真实文件，而不是把接口返回“成功”当成交付完成。**
 
