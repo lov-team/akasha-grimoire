@@ -1,0 +1,4 @@
+interface:
+  display_name: "多平台视频发布"
+  short_description: "将动画或口播视频防重复发布到四个平台并核验远端状态"
+  default_prompt: "使用 $multi-platform-video-publishing 校验这条视频及封面，并按平台逐个发布到抖音、小红书、哔哩哔哩和微信视频号，记录远端证据且避免重复提交。"

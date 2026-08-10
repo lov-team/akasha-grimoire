@@ -4,7 +4,7 @@
 
 **Turn successful Agent collaboration into reusable team capabilities.**
 
-[![Agent Skills](https://img.shields.io/badge/Agent_Skills-23-6C5CE7?style=flat-square)](#capability-catalog)
+[![Agent Skills](https://img.shields.io/badge/Agent_Skills-24-6C5CE7?style=flat-square)](#capability-catalog)
 [![Best on Codex App](https://img.shields.io/badge/Best_on-Codex_App-111827?style=flat-square)](#graph-engineering)
 [![Languages](https://img.shields.io/badge/Languages-中文_·_English_·_日本語-2D9CDB?style=flat-square)](#)
 [![Source of Truth](https://img.shields.io/badge/Source_of_Truth-Git-2EA44F?style=flat-square)](#design-principles)
@@ -81,8 +81,9 @@ A standalone `content-pipeline` install covers text-only HTML/CSS cards. Install
 | [`video-editing`](skills/video-editing/) | General rough/fine cuts, B-roll, audio, subtitles, and delivery | Reviewable `edl.json`, deterministic FFmpeg rendering, missing-audio handling, and output verification |
 | [`video-qc`](skills/video-qc/) | Accepting generated clips, previews, and final exports | Full decode, black/freeze/silence/loudness/subtitle checks, representative frames, and narrative continuity review |
 | [`article-to-short-video`](skills/article-to-short-video/) | Turning Chinese essays, profiles, or arguments into 60–120 second vertical videos | Evidence boundaries, Fish voiceover, Suno music, and vertical-video checks on top of the general production loop |
+| [`multi-platform-video-publishing`](skills/multi-platform-video-publishing/) | Publishing animation, talking-head, or knowledge videos to Douyin, Xiaohongshu, Bilibili, and WeChat Channels in parallel | Parallel account checks/uploads, per-platform logs and ledgers, SHA confirmation, duplicate prevention, and remote status verification |
 
-For complete production, install all six general video skills. When no model is specified, `video-production` tries the first capable direct-video provider in this order: MiniMax H3 → Grok → Seedance 2.0. Kling, Gemini Omni, and other specialized capabilities are selected when the user requests them or a shot has incompatible hard requirements. Static visuals, narration, and music continue to route to GPT Image, Fish Audio, and Suno respectively. Web video downloads additionally require yt-dlp; deterministic editing and QA require FFmpeg/ffprobe.
+For complete production, install all seven general video skills. When no model is specified, `video-production` tries the first capable direct-video provider in this order: MiniMax H3 → Grok → Seedance 2.0. Kling, Gemini Omni, and other specialized capabilities are selected when the user requests them or a shot has incompatible hard requirements. Static visuals, narration, and music continue to route to GPT Image, Fish Audio, and Suno respectively. Web video downloads additionally require yt-dlp; deterministic editing and QA require FFmpeg/ffprobe; live distribution requires an already signed-in `mpau` runtime.
 
 ### Image, game, and audio production
 

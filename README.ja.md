@@ -4,7 +4,7 @@
 
 **一度きりの成功した Agent 協働を、チームが繰り返し使える能力へ。**
 
-[![Agent Skills](https://img.shields.io/badge/Agent_Skills-23-6C5CE7?style=flat-square)](#スキル一覧)
+[![Agent Skills](https://img.shields.io/badge/Agent_Skills-24-6C5CE7?style=flat-square)](#スキル一覧)
 [![Best on Codex App](https://img.shields.io/badge/Best_on-Codex_App-111827?style=flat-square)](#graph-engineering)
 [![Languages](https://img.shields.io/badge/Languages-中文_·_English_·_日本語-2D9CDB?style=flat-square)](#)
 [![Source of Truth](https://img.shields.io/badge/Source_of_Truth-Git-2EA44F?style=flat-square)](#設計原則)
@@ -81,8 +81,9 @@ Graph Engineering は、納品作業を一時的な prompt の列ではなく、
 | [`video-editing`](skills/video-editing/) | 一般的な rough/fine cut、B-roll、音声、字幕、書き出し | Review 可能な `edl.json`、決定論的 FFmpeg render、音声欠落補完、出力再検証 |
 | [`video-qc`](skills/video-qc/) | 生成 clip、preview、最終動画の受け入れ確認 | 全体 decode、黒画面/freeze/silence/音量/字幕、代表 frame、物語連続性 Review |
 | [`article-to-short-video`](skills/article-to-short-video/) | 中国語の長文・人物記事・論説を 60〜120 秒の縦型動画へ変換 | 共通制作 loop に証拠境界、Fish narration、Suno BGM、縦型専用検査を追加 |
+| [`multi-platform-video-publishing`](skills/multi-platform-video-publishing/) | アニメ、talking-head、解説動画を Douyin・小紅書・Bilibili・微信视频号へ並列配信 | 4 platform の並列 account check/upload、個別 log/ledger、SHA 確認、重複投稿防止、remote status 検証 |
 
-完全な制作には上記 6 つの共通動画 Skill をまとめて導入してください。モデルが指定されていない場合、`video-production` は MiniMax H3 → Grok → Seedance 2.0 の順で、shot の要件を満たす最初の動画生成先を選びます。Kling、Gemini Omni、その他の専用機能は、ユーザー指定または shot の必須要件に応じて選択します。静止画、ナレーション、音楽はそれぞれ GPT Image、Fish Audio、Suno へ振り分けます。Web 動画の取得には yt-dlp、決定論的な編集と QA には FFmpeg/ffprobe が必要です。
+完全な制作には上記 7 つの共通動画 Skill をまとめて導入してください。モデルが指定されていない場合、`video-production` は MiniMax H3 → Grok → Seedance 2.0 の順で、shot の要件を満たす最初の動画生成先を選びます。Kling、Gemini Omni、その他の専用機能は、ユーザー指定または shot の必須要件に応じて選択します。静止画、ナレーション、音楽はそれぞれ GPT Image、Fish Audio、Suno へ振り分けます。Web 動画の取得には yt-dlp、決定論的な編集と QA には FFmpeg/ffprobe、実際の配信にはログイン済みの `mpau` runtime が必要です。
 
 ### 画像・ゲーム・音声制作
 

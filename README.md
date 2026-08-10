@@ -4,7 +4,7 @@
 
 **把一次成功的 Agent 协作，沉淀成团队可以反复调用的能力。**
 
-[![Agent Skills](https://img.shields.io/badge/Agent_Skills-23-6C5CE7?style=flat-square)](#能力目录)
+[![Agent Skills](https://img.shields.io/badge/Agent_Skills-24-6C5CE7?style=flat-square)](#能力目录)
 [![Best on Codex App](https://img.shields.io/badge/Best_on-Codex_App-111827?style=flat-square)](#graph-engineering)
 [![Languages](https://img.shields.io/badge/Languages-中文_·_English_·_日本語-2D9CDB?style=flat-square)](#)
 [![Source of Truth](https://img.shields.io/badge/Source_of_Truth-Git-2EA44F?style=flat-square)](#设计原则)
@@ -81,8 +81,9 @@ Graph Engineering 把交付建模为一张可追踪的工作图，而不是一�
 | [`video-editing`](skills/video-editing/) | 通用粗剪、精剪、B-roll、声音、字幕和导出 | 可审阅 `edl.json`、确定性 FFmpeg 渲染、缺音轨补齐与输出复验 |
 | [`video-qc`](skills/video-qc/) | 生成片段、预览和最终成片验收 | 完整解码、黑帧/冻结/静音/响度/字幕、代表帧和叙事连续性审阅 |
 | [`article-to-short-video`](skills/article-to-short-video/) | 把中文长文、人物故事或观点稿制作成 60—120 秒竖屏短视频 | 在通用视频生产闭环上增加证据边界、Fish 旁白、Suno 配乐和竖屏专项验收 |
+| [`multi-platform-video-publishing`](skills/multi-platform-video-publishing/) | 把动画、口播或知识视频并行发布到抖音、小红书、B站和视频号 | 四平台并行账号校验与上传、独立日志/台账、SHA 确认、防重复提交和远端状态核验 |
 
-完整安装建议同时启用以上六个通用视频 Skill；未指定模型时，`video-production` 默认按 MiniMax H3 → Grok → Seedance 2.0 的顺序选择第一个满足镜头能力的直生视频入口；Kling、Gemini Omni 及其他专用能力按用户指定或镜头硬约束选用。静态视觉、旁白和音乐继续分别路由到 GPT Image、Fish Audio 与 Suno。网页视频下载额外需要 `yt-dlp`，确定性剪辑和 QA 需要 FFmpeg/ffprobe。
+完整安装建议同时启用以上七个通用视频 Skill；未指定模型时，`video-production` 默认按 MiniMax H3 → Grok → Seedance 2.0 的顺序选择第一个满足镜头能力的直生视频入口；Kling、Gemini Omni 及其他专用能力按用户指定或镜头硬约束选用。静态视觉、旁白和音乐继续分别路由到 GPT Image、Fish Audio 与 Suno。网页视频下载额外需要 `yt-dlp`，确定性剪辑和 QA 需要 FFmpeg/ffprobe；正式分发需要已经登录的 `mpau` 运行时。
 
 ### 图像、游戏与音频
 

@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "release_id": "PROJECT-SLUG-YYYYMMDD",
+  "video": "/ABSOLUTE/PATH/final.mp4",
+  "video_sha256": "VIDEO_SHA256",
+  "platforms": {
+    "douyin": {
+      "enabled": true,
+      "account": "main",
+      "title": "DOUYIN_TITLE",
+      "desc": "DOUYIN_DESCRIPTION",
+      "tags": ["TAG_A", "TAG_B"],
+      "thumbnail_portrait": "/ABSOLUTE/PATH/cover-3x4.jpg",
+      "browser_mode": "headed"
+    },
+    "xiaohongshu": {
+      "enabled": true,
+      "account": "main",
+      "title": "XIAOHONGSHU_TITLE",
+      "desc": "XIAOHONGSHU_DESCRIPTION",
+      "tags": ["TAG_A", "TAG_B"],
+      "thumbnail": "/ABSOLUTE/PATH/cover-3x4.jpg",
+      "browser_mode": "headed"
+    },
+    "bilibili": {
+      "enabled": true,
+      "account": "main",
+      "title": "BILIBILI_TITLE",
+      "desc": "BILIBILI_DESCRIPTION",
+      "tags": ["TAG_A", "TAG_B"],
+      "tid": 47
+    },
+    "tencent": {
+      "enabled": true,
+      "account": "main",
+      "title": "TENCENT_TITLE",
+      "short_title": "SHORT_TITLE",
+      "desc": "TENCENT_DESCRIPTION",
+      "tags": ["TAG_A", "TAG_B"],
+      "thumbnail": "/ABSOLUTE/PATH/cover-3x4.jpg",
+      "browser_mode": "headed"
+    }
+  }
+}
