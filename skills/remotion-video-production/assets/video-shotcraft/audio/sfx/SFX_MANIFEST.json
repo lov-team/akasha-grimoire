@@ -1,0 +1,176 @@
+{
+  "source": "https://github.com/Vincentwei1021/video-shotcraft.git",
+  "commit": "41ee360d82f4c491ba9d88a24a4add7d8ff1cf8b",
+  "license": "Mixkit Sound Effects Free License",
+  "licenseUrl": "https://mixkit.co/license/#sfxFree",
+  "sounds": [
+    {
+      "name": "camera-shutter-vintage",
+      "category": "camera",
+      "filename": "camera-shutter-vintage.mp3",
+      "url": "https://assets.mixkit.co/active_storage/sfx/1438/1438-preview.mp3",
+      "sha256": "b8736115a13bd0f930d73854ba7f51ca6e4e3703a3843e6a899e70faf4a007e7"
+    },
+    {
+      "name": "click-camera",
+      "category": "camera",
+      "filename": "click-camera.mp3",
+      "url": "https://assets.mixkit.co/active_storage/sfx/1133/1133-preview.mp3",
+      "sha256": "042d01db7a4a0c492c580c0d3d64460c0ceb8638f0c6419d0e4b7a9ba2ac8eed"
+    },
+    {
+      "name": "ui-zoom-in",
+      "category": "camera",
+      "filename": "ui-zoom-in.mp3",
+      "url": "https://assets.mixkit.co/active_storage/sfx/2618/2618-preview.mp3",
+      "sha256": "183a0ea75d9c090421aa01af144f617dd016d7dd20fb05c9477d63efe69e5314"
+    },
+    {
+      "name": "ui-zoom-out",
+      "category": "camera",
+      "filename": "ui-zoom-out.mp3",
+      "url": "https://assets.mixkit.co/active_storage/sfx/2619/2619-preview.mp3",
+      "sha256": "8b98f2c91a976b6a29b9b536380d216a7861ae8f81f6e5547489c51329e381b9"
+    },
+    {
+      "name": "bass-hit-short",
+      "category": "impact",
+      "filename": "bass-hit-short.mp3",
+      "url": "https://assets.mixkit.co/active_storage/sfx/2299/2299-preview.mp3",
+      "sha256": "8bd0c7fd63fbb8a4442ffe1176aa41b260d1fafbcf728e3c63648eb5bcd4e16b"
+    },
+    {
+      "name": "hit-weak",
+      "category": "impact",
+      "filename": "hit-weak.mp3",
+      "url": "https://assets.mixkit.co/active_storage/sfx/2148/2148-preview.mp3",
+      "sha256": "42573541de8ab79d5d1fd6d3486fecfc41869f34fcec1fe9cbe6b88956f1e191"
+    },
+    {
+      "name": "impact-deep-whoosh",
+      "category": "impact",
+      "filename": "impact-deep-whoosh.mp3",
+      "url": "https://assets.mixkit.co/active_storage/sfx/1143/1143-preview.mp3",
+      "sha256": "9854bff8a78fcebef95350ff0ec72a41ba449ab372bbd601b55d84de13bd626d"
+    },
+    {
+      "name": "impact-zoom-quick",
+      "category": "impact",
+      "filename": "impact-zoom-quick.mp3",
+      "url": "https://assets.mixkit.co/active_storage/sfx/772/772-preview.mp3",
+      "sha256": "c5eba091c94b5292d9a545576bbbee1c21dd5cbc2539822fb61ac2aec69836d0"
+    },
+    {
+      "name": "shimmer-sparkle-sweep",
+      "category": "light",
+      "filename": "shimmer-sparkle-sweep.mp3",
+      "url": "https://assets.mixkit.co/active_storage/sfx/2633/2633-preview.mp3",
+      "sha256": "8228e373de20a738b3ca74cd08bac181434f72ea0a6f9d75f499e58e7a7fabe3"
+    },
+    {
+      "name": "paper-page-turn",
+      "category": "paper",
+      "filename": "paper-page-turn.mp3",
+      "url": "https://assets.mixkit.co/active_storage/sfx/1104/1104-preview.mp3",
+      "sha256": "3b2b05dd402127a6ee15f33c5c6690568f389848b1a8d11d6d70cab7d0268bd4"
+    },
+    {
+      "name": "paper-scissors-cut",
+      "category": "paper",
+      "filename": "paper-scissors-cut.mp3",
+      "url": "https://assets.mixkit.co/active_storage/sfx/2378/2378-preview.mp3",
+      "sha256": "8a9dc5b73277d6ccf0f9cb19c48458ef9af0658fec9ca7083c2b094da1d39138"
+    },
+    {
+      "name": "paper-slide",
+      "category": "paper",
+      "filename": "paper-slide.mp3",
+      "url": "https://assets.mixkit.co/active_storage/sfx/1530/1530-preview.mp3",
+      "sha256": "630ac68a95829c9b04cd981b8e8249efb2a03947a95f05ff4296b2e5169e1c82"
+    },
+    {
+      "name": "paper-staple",
+      "category": "paper",
+      "filename": "paper-staple.mp3",
+      "url": "https://assets.mixkit.co/active_storage/sfx/2995/2995-preview.mp3",
+      "sha256": "9544100adc1ef49fd5e54f9df3581d55ce6be2b9dacf98769750ba27ec670d31"
+    },
+    {
+      "name": "marker-pen-line",
+      "category": "text",
+      "filename": "marker-pen-line.mp3",
+      "url": "https://assets.mixkit.co/active_storage/sfx/2998/2998-preview.mp3",
+      "sha256": "ae15103bc9f247c52255ea424a7c1e19e642f2eb95d2dd4e7f398e0cb7967cf4"
+    },
+    {
+      "name": "pencil-write-short",
+      "category": "text",
+      "filename": "pencil-write-short.mp3",
+      "url": "https://assets.mixkit.co/active_storage/sfx/2376/2376-preview.mp3",
+      "sha256": "815231851bb7f8adeaa513bda8a37331ca6e474c98b851232a475a04489b710f"
+    },
+    {
+      "name": "typewriter-digital",
+      "category": "text",
+      "filename": "typewriter-digital.mp3",
+      "url": "https://assets.mixkit.co/active_storage/sfx/1363/1363-preview.mp3",
+      "sha256": "cf44d81084e6ba97985203406dc0cbb535c6b834e86989239cfedc1f5d06f039"
+    },
+    {
+      "name": "typewriter-return-bell",
+      "category": "text",
+      "filename": "typewriter-return-bell.mp3",
+      "url": "https://assets.mixkit.co/active_storage/sfx/1383/1383-preview.mp3",
+      "sha256": "e711dfcddee29ce28db8d8f0c15f3f824371b5a15ccd5595d1f2a77ee03bbd47"
+    },
+    {
+      "name": "air-woosh-quick",
+      "category": "transition",
+      "filename": "air-woosh-quick.mp3",
+      "url": "https://assets.mixkit.co/active_storage/sfx/2605/2605-preview.mp3",
+      "sha256": "faa42dd877dcdbbd0362e9623a22c847dffd5392d1389274a5607be47bfcdc26"
+    },
+    {
+      "name": "sweep-fast",
+      "category": "transition",
+      "filename": "sweep-fast.mp3",
+      "url": "https://assets.mixkit.co/active_storage/sfx/164/164-preview.mp3",
+      "sha256": "9d9efd7ce925ad362619db70cc214f5e590086d73aa0bb8ddfe12c91946d90d1"
+    },
+    {
+      "name": "swoosh-quick",
+      "category": "transition",
+      "filename": "swoosh-quick.mp3",
+      "url": "https://assets.mixkit.co/active_storage/sfx/166/166-preview.mp3",
+      "sha256": "5d8153579cfbd4ec23738494dff8dec95b3737981578222b793eff9e3fdd4ca8"
+    },
+    {
+      "name": "switch-click-quick",
+      "category": "ui",
+      "filename": "switch-click-quick.mp3",
+      "url": "https://assets.mixkit.co/active_storage/sfx/2582/2582-preview.mp3",
+      "sha256": "a3a7579e0a6c04acb6e8da3f87136a1f4addb8b0b3bf55099b9b0bb6fdcf57ca"
+    },
+    {
+      "name": "ui-popup-dry",
+      "category": "ui",
+      "filename": "ui-popup-dry.mp3",
+      "url": "https://assets.mixkit.co/active_storage/sfx/2356/2356-preview.mp3",
+      "sha256": "e374bcd10352200c2f36b24bc508d11f99007b1ae34a08e9b4fc90313db58d21"
+    },
+    {
+      "name": "ui-select-click",
+      "category": "ui",
+      "filename": "ui-select-click.mp3",
+      "url": "https://assets.mixkit.co/active_storage/sfx/1109/1109-preview.mp3",
+      "sha256": "4473ef3397b4a35bb75520e637b827e9984ae1d09bbf27c7f7c72cacc17885f7"
+    },
+    {
+      "name": "ui-success-soft",
+      "category": "ui",
+      "filename": "ui-success-soft.mp3",
+      "url": "https://assets.mixkit.co/active_storage/sfx/2865/2865-preview.mp3",
+      "sha256": "2baf3c94b6c94cd164d3ff5598a0f7808b85345df72205630551ae896006960f"
+    }
+  ]
+}

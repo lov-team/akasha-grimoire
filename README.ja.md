@@ -4,7 +4,7 @@
 
 **一度きりの成功した Agent 協働を、チームが繰り返し使える能力へ。**
 
-[![Agent Skills](https://img.shields.io/badge/Agent_Skills-24-6C5CE7?style=flat-square)](#スキル一覧)
+[![Agent Skills](https://img.shields.io/badge/Agent_Skills-28-6C5CE7?style=flat-square)](#スキル一覧)
 [![Best on Codex App](https://img.shields.io/badge/Best_on-Codex_App-111827?style=flat-square)](#graph-engineering)
 [![Languages](https://img.shields.io/badge/Languages-中文_·_English_·_日本語-2D9CDB?style=flat-square)](#)
 [![Source of Truth](https://img.shields.io/badge/Source_of_Truth-Git-2EA44F?style=flat-square)](#設計原則)
@@ -74,7 +74,8 @@ Graph Engineering は、納品作業を一時的な prompt の列ではなく、
 
 | Skill | 主な用途 | 提供する能力 |
 | --- | --- | --- |
-| [`video-production`](skills/video-production/) | アイデア、記事、脚本、既存素材から完成動画を制作 | 演出 → 素材/生成 → EDL 編集 → 技術・クリエイティブ QA の段階ゲート統括 |
+| [`video-production`](skills/video-production/) | アイデア、記事、脚本、既存素材から完成動画を制作 | Remotion または動画モデルを先に選び、演出・素材・完成動画・QA を統括 |
+| [`remotion-video-production`](skills/remotion-video-production/) | コードアニメーション、UI デモ、写真構成、復元可能な Remotion 動画 | 内蔵 video-shotcraft recipe と正確な Demo、検証付きオンデマンド SFX、決定論的 render、納品検証 |
 | [`h3-kling-video-generation`](skills/h3-kling-video-generation/) | H3 と Kling で演出付き shot を生成 | MiniMax H3、Kling 3.0 / 2.5 の Prompt 編成、モデル別検証、非同期ポーリング、安全な MP4 保存 |
 | [`video-director`](skills/video-director/) | 脚本、演出、絵コンテ、shot list、生成前計画 | narrative beat、coverage、撮影・motion、continuity bible、生成計画 |
 | [`video-source-research`](skills/video-source-research/) | B-roll、動画、画像、音声素材の検索・取得・整理 | shot ごとの検索、yt-dlp/直接取得、ffprobe、SHA-256、追跡可能な `sources.json` |
@@ -83,7 +84,7 @@ Graph Engineering は、納品作業を一時的な prompt の列ではなく、
 | [`article-to-short-video`](skills/article-to-short-video/) | 中国語の長文・人物記事・論説を 60〜120 秒の縦型動画へ変換 | 共通制作 loop に証拠境界、Fish narration、Suno BGM、縦型専用検査を追加 |
 | [`multi-platform-video-publishing`](skills/multi-platform-video-publishing/) | アニメ、talking-head、解説動画を Douyin・小紅書・Bilibili・微信视频号へ並列配信 | 4 platform の並列 account check/upload、個別 log/ledger、SHA 確認、重複投稿防止、remote status 検証 |
 
-完全な制作には上記 7 つの共通動画 Skill をまとめて導入してください。モデルが指定されていない場合、`video-production` は MiniMax H3 → Grok → Seedance 2.0 の順で、shot の要件を満たす最初の動画生成先を選びます。Kling、Gemini Omni、その他の専用機能は、ユーザー指定または shot の必須要件に応じて選択します。静止画、ナレーション、音楽はそれぞれ GPT Image、Fish Audio、Suno へ振り分けます。Web 動画の取得には yt-dlp、決定論的な編集と QA には FFmpeg/ffprobe、実際の配信にはログイン済みの `mpau` runtime が必要です。
+完全な制作には上記 8 つの共通動画 Skill をまとめて導入してください。完成 engine が指定されていない場合、`video-production` は Remotion と動画モデルのどちらを使うか先に確認します。Remotion、video-shotcraft、具体的な動画モデルが指定済みなら直接対応 route に入ります。動画モデル route は MiniMax H3 → Grok → Seedance 2.0 の順で要件を満たす生成先を選びます。静止画、ナレーション、音楽はそれぞれ GPT Image、Fish Audio、Suno へ振り分けます。Web 動画の取得には yt-dlp、決定論的な編集と QA には FFmpeg/ffprobe、実際の配信にはログイン済みの `mpau` runtime が必要です。
 
 ### 画像・ゲーム・音声制作
 
@@ -155,7 +156,9 @@ $codex-app-development を Issue task から使い、実装計画と受け入れ
 
 $content-pipeline を使って中国語の記事を小紅書形式の画像投稿に変換し、原文の主張を保ち、先に表紙方針を確認して、再開可能なローカルパッケージを納品してください。
 
-$video-production を使ってこの商品アイデアを 30 秒の縦型動画にし、演出 package と shot list、素材検索または生成、EDL、render、完成動画 QA まで実行してください。
+$video-production を使ってこの商品アイデアを 30 秒の縦型動画にしてください。制作 route は未指定なので、最初に Remotion と動画モデルのどちらを使うか確認してください。
+
+$remotion-video-production と内蔵 video-shotcraft recipe を使い、この写真と字幕を 30 秒の縦型動画にして、復元可能な project、音声 2 version、keyframe、QA を納品してください。
 
 $video-source-research を使ってこの shot list 向け B-roll を検索・取得し、ffprobe metadata と SHA-256 を含む sources.json を作成してください。
 

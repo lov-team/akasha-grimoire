@@ -4,7 +4,7 @@
 
 **Turn successful Agent collaboration into reusable team capabilities.**
 
-[![Agent Skills](https://img.shields.io/badge/Agent_Skills-24-6C5CE7?style=flat-square)](#capability-catalog)
+[![Agent Skills](https://img.shields.io/badge/Agent_Skills-28-6C5CE7?style=flat-square)](#capability-catalog)
 [![Best on Codex App](https://img.shields.io/badge/Best_on-Codex_App-111827?style=flat-square)](#graph-engineering)
 [![Languages](https://img.shields.io/badge/Languages-中文_·_English_·_日本語-2D9CDB?style=flat-square)](#)
 [![Source of Truth](https://img.shields.io/badge/Source_of_Truth-Git-2EA44F?style=flat-square)](#design-principles)
@@ -74,7 +74,8 @@ A standalone `content-pipeline` install covers text-only HTML/CSS cards. Install
 
 | Skill | Best for | What it provides |
 | --- | --- | --- |
-| [`video-production`](skills/video-production/) | Producing a complete video from an idea, article, script, or existing media | Stage-gated direction → sourcing/generation → EDL editing → technical and creative QA |
+| [`video-production`](skills/video-production/) | Producing a complete video from an idea, article, script, or existing media | Chooses Remotion or video-model production before orchestrating direction, assets, finishing, and QA |
+| [`remotion-video-production`](skills/remotion-video-production/) | Code-driven motion graphics, interface demos, photo choreography, and recoverable Remotion videos | Bundled video-shotcraft recipes and exact demos, verified on-demand SFX, deterministic rendering, and delivery validation |
 | [`h3-kling-video-generation`](skills/h3-kling-video-generation/) | Generating directed shots with H3 and Kling | Prompt orchestration, model-aware validation, async polling, and safe MP4 downloads for MiniMax H3 and Kling 3.0 / 2.5 |
 | [`video-director`](skills/video-director/) | Writing, directing, storyboards, shot lists, and pre-generation planning | Narrative beats, coverage, cinematography, motion, continuity bible, and generation plan |
 | [`video-source-research`](skills/video-source-research/) | Finding, downloading, and organizing B-roll, video, image, or audio assets | Per-shot queries, yt-dlp/direct downloads, ffprobe, SHA-256, and traceable `sources.json` |
@@ -83,7 +84,7 @@ A standalone `content-pipeline` install covers text-only HTML/CSS cards. Install
 | [`article-to-short-video`](skills/article-to-short-video/) | Turning Chinese essays, profiles, or arguments into 60–120 second vertical videos | Evidence boundaries, Fish voiceover, Suno music, and vertical-video checks on top of the general production loop |
 | [`multi-platform-video-publishing`](skills/multi-platform-video-publishing/) | Publishing animation, talking-head, or knowledge videos to Douyin, Xiaohongshu, Bilibili, and WeChat Channels in parallel | Parallel account checks/uploads, per-platform logs and ledgers, SHA confirmation, duplicate prevention, and remote status verification |
 
-For complete production, install all seven general video skills. When no model is specified, `video-production` tries the first capable direct-video provider in this order: MiniMax H3 → Grok → Seedance 2.0. Kling, Gemini Omni, and other specialized capabilities are selected when the user requests them or a shot has incompatible hard requirements. Static visuals, narration, and music continue to route to GPT Image, Fish Audio, and Suno respectively. Web video downloads additionally require yt-dlp; deterministic editing and QA require FFmpeg/ffprobe; live distribution requires an already signed-in `mpau` runtime.
+For complete production, install all eight general video skills. When no finishing engine is specified, `video-production` first asks whether to use Remotion or video-model generation; explicit Remotion, video-shotcraft, or model requests route directly. The video-model route tries the first capable provider in this order: MiniMax H3 → Grok → Seedance 2.0. Static visuals, narration, and music continue to route to GPT Image, Fish Audio, and Suno respectively. Web video downloads additionally require yt-dlp; deterministic editing and QA require FFmpeg/ffprobe; live distribution requires an already signed-in `mpau` runtime.
 
 ### Image, game, and audio production
 
@@ -155,7 +156,9 @@ Use $codex-app-development from the Issue task to define the implementation plan
 
 Use $content-pipeline to turn this Chinese article into a Xiaohongshu image post, preserve its argument, confirm the cover direction first, and deliver a recoverable local package.
 
-Use $video-production to turn this product idea into a 30-second vertical video: finish the director package and shot list, source or generate media, produce an EDL, render, and run complete final QA.
+Use $video-production to turn this product idea into a 30-second vertical video. I have not selected a production route, so ask whether to use Remotion or a video model first.
+
+Use $remotion-video-production and the bundled video-shotcraft recipes to turn these photos and captions into a 30-second vertical video, including a recoverable project, both audio versions, keyframes, and QA.
 
 Use $video-source-research to find B-roll for this shot list, download selected assets, and write sources.json with ffprobe metadata and SHA-256 hashes.
 
