@@ -1,0 +1,4 @@
+interface:
+  display_name: "Remotion 视频生产"
+  short_description: "用 video-shotcraft 镜头语法制作可恢复、可验收的 Remotion 成片"
+  default_prompt: "使用 $remotion-video-production 把这些内容制作成完整 Remotion 视频，并交付工程、成片、关键帧和 QA。"

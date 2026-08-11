@@ -4,7 +4,7 @@
 
 **把一次成功的 Agent 协作，沉淀成团队可以反复调用的能力。**
 
-[![Agent Skills](https://img.shields.io/badge/Agent_Skills-27-6C5CE7?style=flat-square)](#能力目录)
+[![Agent Skills](https://img.shields.io/badge/Agent_Skills-28-6C5CE7?style=flat-square)](#能力目录)
 [![Best on Codex App](https://img.shields.io/badge/Best_on-Codex_App-111827?style=flat-square)](#graph-engineering)
 [![Languages](https://img.shields.io/badge/Languages-中文_·_English_·_日本語-2D9CDB?style=flat-square)](#)
 [![Source of Truth](https://img.shields.io/badge/Source_of_Truth-Git-2EA44F?style=flat-square)](#为什么使用)
@@ -55,7 +55,7 @@ Graph Engineering 把交付建模为一张可追踪的工作图，而不是一�
 
 ## 能力目录
 
-仓库当前包含 **27 个 Skill**。可以只安装一个，也可以组合成从内容理解、媒体生成、剪辑 QA 到多 Agent 开发和发布的完整流水线。
+仓库当前包含 **28 个 Skill**。可以只安装一个，也可以组合成从内容理解、媒体生成、剪辑 QA 到多 Agent 开发和发布的完整流水线。
 
 ### 最近更新
 
@@ -64,6 +64,7 @@ Graph Engineering 把交付建模为一张可追踪的工作图，而不是一�
 - **GitHub 异步流水线**：`github-issue-pipeline` 用 Issue、label、comment 和 PR 串起需求、开发与 Review 三种异步角色。
 - **UI 对标与视觉收敛**：`ui-ux-imitation-development` 用同视口截图、半透明叠加和差异热区驱动界面修改。
 - **视频能力扩展**：新增/增强 Gemini Omni 视频编辑、Seedance 尾帧续拍、H3/Kling 游戏 PV、视频号口播以及秒级导演提示词。
+- **Remotion 成片引擎**：`remotion-video-production` 固化 video-shotcraft 镜头卡、准确 Demo、可追溯 SFX 清单、确定性渲染和独立终检。
 
 ### 凭证与入口
 
@@ -90,7 +91,8 @@ Graph Engineering 把交付建模为一张可追踪的工作图，而不是一�
 
 | Skill | 适用场景 | 核心能力 |
 | --- | --- | --- |
-| [`video-production`](skills/video-production/) | 从创意、文章、脚本或已有素材生产完整视频 | 编导 → 素材/生成 → EDL 剪辑 → 技术与创作 QA 的阶段门总编排 |
+| [`video-production`](skills/video-production/) | 从创意、文章、脚本或已有素材生产完整视频 | 先选择 Remotion 或视频大模型，再编排编导、素材、成片与 QA |
+| [`remotion-video-production`](skills/remotion-video-production/) | 代码动画、界面演示、图文/照片编排和可恢复 Remotion 成片 | video-shotcraft 镜头语法、准确 Demo、按需 SFX、双版渲染和专项验收 |
 | [`video-director`](skills/video-director/) | 编剧、导演、分镜和生成前规划 | 叙事节拍、镜头覆盖、摄影运动、连续性 Bible 和生成计划 |
 | [`video-source-research`](skills/video-source-research/) | 搜索、下载和整理 B-roll、图片或音频 | 逐镜查询、下载、ffprobe、SHA-256 和可追溯 `sources.json` |
 | [`video-editing`](skills/video-editing/) | 通用粗剪、精剪、B-roll、声音、字幕和导出 | 可审阅 `edl.json`、确定性 FFmpeg 渲染、音画同步和多画幅导出 |
@@ -103,7 +105,7 @@ Graph Engineering 把交付建模为一张可追踪的工作图，而不是一�
 | [`gemini-omni-video-generation`](skills/gemini-omni-video-generation/) | Gemini Omni 视频生成与视频编辑 | 公开素材/历史任务续接、任务轮询、MP4 校验和意外音轨诊断 |
 | [`multi-platform-video-publishing`](skills/multi-platform-video-publishing/) | 将已验收成片发布到四个平台 | 并行账号校验与上传、平台化文案、SHA 防重、台账、远端状态核验与恢复 |
 
-未指定模型时，`video-production` 按镜头需求选择 H3、Grok 或 Seedance；静态视觉、旁白和音乐分别路由到 GPT Image、Fish Audio 与 Suno。网页视频下载额外需要 `yt-dlp`，确定性剪辑和 QA 需要 FFmpeg/ffprobe；正式分发需要已登录的 `mpau` 运行时。
+未指定成片引擎时，`video-production` 先询问 Remotion 或视频大模型；明确点名 Remotion、video-shotcraft 或具体视频模型时直接进入对应路线。视频大模型路线按镜头需求选择 H3、Grok 或 Seedance；静态视觉、旁白和音乐分别路由到 GPT Image、Fish Audio 与 Suno。网页视频下载额外需要 `yt-dlp`，确定性剪辑和 QA 需要 FFmpeg/ffprobe；正式分发需要已登录的 `mpau` 运行时。
 
 ### 图像、游戏与音频
 
@@ -271,7 +273,9 @@ done
 
 使用 $content-pipeline 把这篇中文文章制作成一套小红书图文；保留原意，先确认封面方向，最后交付可恢复的本地内容包。
 
-使用 $video-production 把这份产品创意制作成 30 秒竖屏视频：先完成编导包和镜头表，再搜索或生成素材、输出 EDL、渲染并做完整成片 QA。
+使用 $video-production 把这份产品创意制作成 30 秒竖屏视频；我还没有指定制作路线，请先询问使用 Remotion 还是视频大模型。
+
+使用 $remotion-video-production 和内置 video-shotcraft 镜头卡，把这些照片与文案制作成 30 秒竖屏视频，交付可恢复工程、双版成片、关键帧和 QA。
 
 使用 $wechat-channels-talking-head 把这段手机口播剪成视频号成片：先做语义地图和防过剪粗剪，再按最终音轨生成字幕、信息卡、封面与发布包。
 
