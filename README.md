@@ -204,25 +204,7 @@ Multi-Agent collaboration is not “opening many chat windows at once.” It fol
 
 E11, “Shared Charge Meter and Ultimate Moves,” demonstrates fork/join further: [#449](https://github.com/lov-team/mahjong-game/issues/449) unlocks #450/#451 simultaneously, after which energy, protocol, items, and abilities for 12 characters advance in parallel before joining at HUD, AI/simulation, and [#460 full acceptance](https://github.com/lov-team/mahjong-game/issues/460). This pattern fits long-running projects spanning frontend, backend, protocols, content, and QA.
 
-## Case study 4: Snowy Forbidden City paper zine—turn an image workflow into video with Remotion
-
-“How does an ordinary photo become a vintage-paper journal page?” This case breaks the transformation of a snowy Forbidden City photo into a paper poster into eight readable steps: source arrival, prompt compilation, subject reduction, expanded negative space, paper aging, vermilion registration, final reveal, and Before/After. `remotion-video-production` turns the operating logic, shots, captions, and sound into a reproducible 35-second vertical case film.
-
-[![Contact sheet for the Snowy Forbidden City Remotion case; click to play the SFX-only preview](docs/assets/snowy-forbidden-city-remotion-case-contact-sheet.jpg)](docs/assets/snowy-forbidden-city-remotion-case-sfx-preview.mp4)
-
-The public preview is the SFX-only version: 540 × 960, 30 fps, H.264/AAC, preserving typing, paper, registration, and slider sounds.
-
-| Stage | Capabilities used | Reproducible result |
-| --- | --- | --- |
-| Narrative and timeline | `video-director` + `remotion-video-production` | Eight scenes continuously cover frames 0–1049, with each scene explaining one visual change |
-| Shot design | Remotion motion choreography | Terminal typing, paper placement, two-color registration, and the Before/After slider are controlled frame by frame in code |
-| Deterministic animation | Remotion frame calculations | 1080 × 1920, 30 fps, 1,050 frames; source code has no dependency on live dates or nondeterministic randomness |
-| Sound design | Six traceable SFX assets | Typing, return bell, paper slide, cutting, placement, and quick sweep are pinned as offsets from scene start frames |
-| Final acceptance | `video-qc` | One SFX-only version is public; full decode passed, all 1,050 frames are continuous, and black-frame count is zero |
-
-The key rule captured by this case is: **Remotion makes the material transformation understandable**. Inputs may come from image generation, video models, screenshots, or user files; once they enter the timeline, shots, captions, sound, parameters, and QA remain deterministic, inspectable, and rebuildable.
-
-## Smaller cases: image, video, speech, and music generation
+## Case study 4: Image, video, speech, and music generation
 
 | Goal | Skill combination | Completed example |
 | --- | --- | --- |
@@ -238,6 +220,24 @@ The key rule captured by this case is: **Remotion makes the material transformat
 [▶ Play or download the 60-second *The Team Behind One Egg*](docs/assets/fanjingshan-eggs-behind-team-60s.mp4)
 
 The shared rule for media generation is: **smoke one item before batching; save the raw response and task ID before downloading; finally inspect the real file instead of treating an API “success” response as delivery.**
+
+## Case study 5: Snowy Forbidden City paper zine—turn an image workflow into video with Remotion
+
+“How does an ordinary photo become a vintage-paper journal page?” This case breaks the transformation of a snowy Forbidden City photo into a paper poster into eight readable steps: source arrival, prompt compilation, subject reduction, expanded negative space, paper aging, vermilion registration, final reveal, and Before/After. `remotion-video-production` turns the operating logic, shots, captions, and sound into a reproducible 35-second vertical case film.
+
+https://github.com/user-attachments/assets/96fe95f6-2558-4e70-b03d-bc30fae36372
+
+The public preview is the SFX-only version: 540 × 960, 30 fps, H.264/AAC, preserving typing, paper, registration, and slider sounds.
+
+| Stage | Capabilities used | Reproducible result |
+| --- | --- | --- |
+| Narrative and timeline | `video-director` + `remotion-video-production` | Eight scenes continuously cover frames 0–1049, with each scene explaining one visual change |
+| Shot design | Remotion motion choreography | Terminal typing, paper placement, two-color registration, and the Before/After slider are controlled frame by frame in code |
+| Deterministic animation | Remotion frame calculations | 1080 × 1920, 30 fps, 1,050 frames; source code has no dependency on live dates or nondeterministic randomness |
+| Sound design | Six traceable SFX assets | Typing, return bell, paper slide, cutting, placement, and quick sweep are pinned as offsets from scene start frames |
+| Final acceptance | `video-qc` | One SFX-only version is public; full decode passed, all 1,050 frames are continuous, and black-frame count is zero |
+
+The key rule captured by this case is: **Remotion makes the material transformation understandable**. Inputs may come from image generation, video models, screenshots, or user files; once they enter the timeline, shots, captions, sound, parameters, and QA remain deterministic, inspectable, and rebuildable.
 
 ## Quick installation
 
