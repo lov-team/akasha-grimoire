@@ -204,6 +204,24 @@ graph LR
 
 E11“共享充能条与超必杀”进一步展示了 fork/join：[#449](https://github.com/lov-team/mahjong-game/issues/449) 同时解锁 #450/#451，随后并行推进能量、协议、道具和 12 名角色能力，最后在 HUD、AI/模拟和 [#460 总验收](https://github.com/lov-team/mahjong-game/issues/460) 汇合。它适合跨前端、后端、协议、内容与 QA 的长期项目。
 
+## 案例四：雪后故宫旧纸手帐——用 Remotion 把图片流程做成视频
+
+“一张普通照片，如何变成旧纸手帐？”这个案例把一张雪后故宫照片到旧纸海报的变化拆成 8 个可读步骤：原图进入、Prompt 编译、主体缩小、扩大留白、纸张做旧、朱红套印、成片揭晓和 Before/After。`remotion-video-production` 负责把操作逻辑、镜头、字幕和声音编排成一支可重复渲染的 35 秒竖屏 Case Film。
+
+[![雪后故宫旧纸手帐 Remotion 案例联系表；点击播放仅 SFX 预览](docs/assets/snowy-forbidden-city-remotion-case-contact-sheet.jpg)](docs/assets/snowy-forbidden-city-remotion-case-sfx-preview.mp4)
+
+公开预览为仅 SFX 版本：540 × 960、30 fps、H.264/AAC，保留打字、纸张、套印和滑动音效。
+
+| 环节 | 使用能力 | 可复验结果 |
+| --- | --- | --- |
+| 叙事与时间线 | `video-director` + `remotion-video-production` | 8 段时间线连续覆盖 0–1049 帧，每段只解释一个视觉变化 |
+| 镜头设计 | Remotion 动效编排 | 终端逐字输入、纸片拍定、双色套印和 Before/After 滑动均由代码逐帧控制 |
+| 确定性动画 | Remotion 帧号计算 | 1080 × 1920、30 fps、1050 帧；源码不依赖实时日期或非确定性随机数 |
+| 声音设计 | 6 个可追溯 SFX | 打字、回车、纸张滑动、剪切、拍定和快速掠过全部按场景起始帧加 offset 钉帧 |
+| 成片验收 | `video-qc` | 公开一个仅 SFX 版本；完整解码通过，1050 帧连续，黑帧为 0 |
+
+这个案例沉淀出的关键规则是：**Remotion 负责把素材变化过程讲清楚**。素材可以来自图片生成、视频模型、截图或用户文件；进入时间线后，镜头、字幕、声音、参数和 QA 都保持确定、可检查、可重建。
+
 ## 小案例：生图、生视频、生语音与生歌
 
 | 目标 | Skill 组合 | 已完成样例 |
