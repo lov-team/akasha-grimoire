@@ -1,236 +1,236 @@
 <div align="center">
 
-# Akasha Grimoire · 阿卡夏秘典
+# Akasha Grimoire
 
-**把一次成功的 Agent 协作，沉淀成团队可以反复调用的能力。**
+**Turn successful Agent collaboration into reusable team capabilities.**
 
-[![Agent Skills](https://img.shields.io/badge/Agent_Skills-28-6C5CE7?style=flat-square)](#能力目录)
+[![Agent Skills](https://img.shields.io/badge/Agent_Skills-28-6C5CE7?style=flat-square)](#capability-catalog)
 [![Best on Codex App](https://img.shields.io/badge/Best_on-Codex_App-111827?style=flat-square)](#graph-engineering)
 [![Languages](https://img.shields.io/badge/Languages-中文_·_English_·_日本語-2D9CDB?style=flat-square)](#)
-[![Source of Truth](https://img.shields.io/badge/Source_of_Truth-Git-2EA44F?style=flat-square)](#为什么使用)
+[![Source of Truth](https://img.shields.io/badge/Source_of_Truth-Git-2EA44F?style=flat-square)](#why-use-it)
 [![License: Apache 2.0 + Commercial](https://img.shields.io/badge/License-Apache_2.0_%2B_Commercial-F59E0B?style=flat-square)](LICENSE)
 
-**简体中文** · [English](README.en.md) · [日本語](README.ja.md)
+[简体中文](README.zh-CN.md) · **English** · [日本語](README.ja.md)
 
 </div>
 
 ---
 
-Akasha Grimoire 是团队共享的 Agent Skill 合集，最佳使用环境是 **Codex App**。它把任务边界、工具事实、执行脚本、低噪声等待和独立验收组织成可安装的能力包，让 Agent 在真实项目中少猜、少重复轮询，并用证据完成交付。其他兼容 Agent 与 CLI 仍可使用其中的独立 Skill。
+Akasha Grimoire is a team-shared collection of Agent Skills, best used in **Codex App**. It packages task boundaries, tool facts, execution scripts, low-noise waiting, and independent acceptance into installable capabilities so Agents can guess less, avoid repeated polling, and deliver with evidence in real projects. Individual Skills also work with other compatible Agents and CLIs.
 
-> **想直接体验图片、视频、语音和音乐生成？** 访问 [LovBrowser](https://lovbrowser.com) 注册账号并开通额度。阿卡夏秘典默认连接 `https://newapi.1234bot.com/v1`，拿到一把 new-api Key 后即可调用 GPT Image、Grok、Seedance、MiniMax H3、Kling、Gemini Omni、Fish Audio 与 Suno，无需逐项配置 Base URL。
+> **Want to try image, video, speech, and music generation right away?** Register at [LovBrowser](https://lovbrowser.com) and add credits. Akasha Grimoire connects to `https://newapi.1234bot.com/v1` by default. One new-api key unlocks GPT Image, Grok, Seedance, MiniMax H3, Kling, Gemini Omni, Fish Audio, and Suno without configuring a separate Base URL for each service.
 
-## 一分钟开通
+## Get started in one minute
 
-1. 在 Codex 中直接要求 GPT Image、Grok、Seedance、MiniMax H3、Kling、Gemini Omni、Fish Audio 或 Suno 执行媒体任务。
-2. 首次缺少 Key 时，Agent 会生成 LovBrowser 设备授权二维码，并同时显示可点击链接与短码。
-3. 用手机扫码，注册或登录后确认同一短码；本机随后自动轮询、保存凭证并用 `/v1/models` 验证。
-4. 验证成功后，最初的媒体任务自动继续一次。真实 Key 不经过对话、剪贴板或命令参数。
+1. In Codex, directly ask GPT Image, Grok, Seedance, MiniMax H3, Kling, Gemini Omni, Fish Audio, or Suno to perform a media task.
+2. If no key is available on first use, the Agent generates a LovBrowser device-authorization QR code together with a clickable link and short code.
+3. Scan it on your phone, register or sign in, and confirm the same short code. The local client then polls automatically, saves the credential, and verifies it with `/v1/models`.
+4. After verification, the original media task resumes once automatically. The real key never passes through the conversation, clipboard, or command arguments.
 
-也可运行 `python3 shared/akasha_credentials.py status|start|finish|cancel|rollback` 管理配置。凭证默认保存到 `~/.config/akasha/credentials.env`。已有环境变量仍兼容，优先级为专用变量 > `NEW_API_API_KEY` > 用户凭证 > `OPENAI_API_KEY`。
+You can also run `python3 shared/akasha_credentials.py status|start|finish|cancel|rollback` to manage the configuration. Credentials are stored in `~/.config/akasha/credentials.env` by default. Existing environment variables remain supported, with precedence: dedicated variable > `NEW_API_API_KEY` > user credential > `OPENAI_API_KEY`.
 
-## 为什么使用
+## Why use it
 
-- **合同优先**：先明确触发条件、输入输出、禁止项和完成标准。
-- **事实驱动**：CLI 版本、参数、端点和限制以当前运行环境及可靠实现为准。
-- **低噪声执行**：把固定轮询和机械动作交给脚本，保留 token 给判断与 Review。
-- **独立验收**：worker 自述不能替代累计 diff、测试、产物和远端事实核查。
-- **唯一事实源**：仓库是通用 Skill 的唯一来源，本地通过符号链接安装。
+- **Contract first**: define triggers, inputs, outputs, exclusions, and completion criteria before execution.
+- **Fact driven**: verify CLI versions, arguments, endpoints, and constraints against the current runtime and reliable implementations.
+- **Low-noise execution**: delegate fixed polling and mechanical work to scripts, preserving tokens for judgment and Review.
+- **Independent acceptance**: a worker's own report never replaces cumulative diff, tests, artifacts, and remote-state verification.
+- **Single source of truth**: the repository is the canonical source for shared Skills; install them locally with symbolic links.
 
 ## Graph Engineering
 
-Graph Engineering 把交付建模为一张可追踪的工作图，而不是一串临时 prompt：
+Graph Engineering models delivery as a traceable work graph rather than a sequence of disposable prompts:
 
 `Spec → Epic → Issue → Agent Task → Evidence`
 
-| 层级 | 职责 |
+| Layer | Responsibility |
 | --- | --- |
-| **Spec** | 定义目标、边界、非目标、关键决策和最终验收，作为根合同 |
-| **Epic** | 把 Spec 拆成里程碑子图，组织跨 Issue 依赖和汇总验收 |
-| **Issue** | 最小可执行节点，包含 owner、范围、依赖、输出与验证 |
-| **Agent Task** | Issue 在 Codex App 或外部 worker 中的运行实例，不替代 Issue 事实 |
-| **Evidence** | 用 diff、测试、产物、Review 与远端 SHA 关闭 Issue，并向上关闭 Epic 和 Spec |
+| **Spec** | Defines goals, boundaries, non-goals, key decisions, and final acceptance as the root contract |
+| **Epic** | Decomposes the Spec into a milestone subgraph and organizes cross-Issue dependencies and aggregate acceptance |
+| **Issue** | The smallest executable node, with an owner, scope, dependencies, outputs, and verification |
+| **Agent Task** | A runtime instance of an Issue in Codex App or an external worker; it does not replace the Issue record |
+| **Evidence** | Closes an Issue with diff, tests, artifacts, Review, and remote SHA, then rolls completion up to the Epic and Spec |
 
-所有需要实施和验收的工作都由 Issue 驱动。任务必须映射到 Issue；依赖以 `depends_on`、`blocks`、`produces`、`validates` 关系边表达；只有依赖已满足的节点才能并行。方向变化先更新 Spec/Epic/Issue，完成状态则按 Evidence 自底向上汇总。Codex App 负责展示任务、承载隔离 worktree、长等待与验收闭环，因此是这套方法的首选控制平面。
+All implementation and acceptance work is Issue-driven. Every task maps to an Issue; dependencies are expressed as `depends_on`, `blocks`, `produces`, and `validates` edges; only nodes whose dependencies are satisfied may run in parallel. Direction changes update the Spec/Epic/Issue first, while Evidence rolls completion upward from the leaves. Codex App is the preferred control plane because it exposes tasks, hosts isolated worktrees, supports long bounded waits, and closes the acceptance loop.
 
-## 能力目录
+## Capability catalog
 
-仓库当前包含 **28 个 Skill**。可以只安装一个，也可以组合成从内容理解、媒体生成、剪辑 QA 到多 Agent 开发和发布的完整流水线。
+The repository currently contains **28 Skills**. Install just one or combine them into a complete pipeline spanning content understanding, media generation, editing QA, multi-Agent development, and publishing.
 
-### 最近更新
+### Recent updates
 
-- **并行内容分发**：`multi-platform-video-publishing` 统一抖音、小红书、B站和视频号的账号校验、平台化文案、上传、台账与远端核验。
-- **事件驱动多 Agent**：`agent-task-supervisor` 与 `codex-app-development` 已收敛为两层结构；多个隔离 worker 先完成先验收，主任务独立审阅 diff 和复跑风险验证。
-- **GitHub 异步流水线**：`github-issue-pipeline` 用 Issue、label、comment 和 PR 串起需求、开发与 Review 三种异步角色。
-- **UI 对标与视觉收敛**：`ui-ux-imitation-development` 用同视口截图、半透明叠加和差异热区驱动界面修改。
-- **视频能力扩展**：新增/增强 Gemini Omni 视频编辑、Seedance 尾帧续拍、H3/Kling 游戏 PV、视频号口播以及秒级导演提示词。
-- **Remotion 成片引擎**：`remotion-video-production` 固化 video-shotcraft 镜头卡、准确 Demo、可追溯 SFX 清单、确定性渲染和独立终检。
+- **Parallel content distribution**: `multi-platform-video-publishing` unifies account checks, platform-specific copy, uploads, ledgers, and remote verification across Douyin, Xiaohongshu, Bilibili, and WeChat Channels.
+- **Event-driven multi-Agent work**: `agent-task-supervisor` and `codex-app-development` now use a two-layer structure; isolated workers are accepted as soon as each finishes, while the supervising task independently reviews diffs and reruns risk-based verification.
+- **Asynchronous GitHub pipeline**: `github-issue-pipeline` connects requirements, development, and Review roles through Issues, labels, comments, and PRs.
+- **UI benchmarking and visual convergence**: `ui-ux-imitation-development` drives interface changes with same-viewport screenshots, translucent overlays, and difference hotspots.
+- **Expanded video capabilities**: new or improved support for Gemini Omni video editing, Seedance last-frame continuation, H3/Kling game promos, WeChat Channels talking-head editing, and second-by-second directing prompts.
+- **Remotion finishing engine**: `remotion-video-production` standardizes video-shotcraft shot recipes, exact demos, a traceable SFX manifest, deterministic rendering, and independent final Review.
 
-### 凭证与入口
+### Credentials and entry point
 
-| Skill | 适用场景 | 核心能力 |
+| Skill | Use case | Core capabilities |
 | --- | --- | --- |
-| [`akasha-key-setup`](skills/akasha-key-setup/) | 首次使用媒体 Skill 或管理 new-api 凭证 | LovBrowser 设备授权、Key 本地保存、连通性验证、取消与回滚 |
+| [`akasha-key-setup`](skills/akasha-key-setup/) | First use of a media Skill or new-api credential management | LovBrowser device authorization, local key storage, connectivity verification, cancellation, and rollback |
 
-### 协作与治理
+### Coordination and governance
 
-| Skill | 适用场景 | 核心能力 |
+| Skill | Use case | Core capabilities |
 | --- | --- | --- |
-| [`agent-task-supervisor`](skills/agent-task-supervisor/) | 用 Spec/Epic/Issue 图谱监工多个任务 | 两层任务结构、依赖调度、隔离 worker、逐任务 cursor、先完成先验收与独立 Evidence 核查 |
-| [`github-issue-pipeline`](skills/github-issue-pipeline/) | 通过 GitHub 异步推进多任务开发 | Epic/Issue 创建、ready Issue 派发、PR Review、label/comment 状态机与合并闭环 |
+| [`agent-task-supervisor`](skills/agent-task-supervisor/) | Supervise multiple tasks with a Spec/Epic/Issue graph | Two-layer task structure, dependency scheduling, isolated workers, per-task cursors, accept-first-on-finish, and independent Evidence checks |
+| [`github-issue-pipeline`](skills/github-issue-pipeline/) | Advance multi-task development asynchronously through GitHub | Epic/Issue creation, ready-Issue dispatch, PR Review, label/comment state machine, and merge closure |
 
-### 内容生产
+### Content production
 
-| Skill | 适用场景 | 核心能力 |
+| Skill | Use case | Core capabilities |
 | --- | --- | --- |
-| [`content-pipeline`](skills/content-pipeline/) | 把中文想法、文章或资料制作成小红书式图文内容包 | 内容合同、来源研究、文案、内容地图、HTML/CSS 卡片、按需生图和移动端 QA |
+| [`content-pipeline`](skills/content-pipeline/) | Turn Chinese ideas, articles, or source material into a Xiaohongshu-style image-post package | Content contract, source research, copy, content map, HTML/CSS cards, optional image generation, and mobile QA |
 
-单独安装 `content-pipeline` 可完成纯文字 HTML/CSS 卡片；需要生成照片或插画时，同时安装 `gpt-image-generation` 和 `akasha-key-setup`。
+`content-pipeline` alone can produce text-only HTML/CSS cards. To generate photos or illustrations, also install `gpt-image-generation` and `akasha-key-setup`.
 
-### 视频生产
+### Video production
 
-| Skill | 适用场景 | 核心能力 |
+| Skill | Use case | Core capabilities |
 | --- | --- | --- |
-| [`video-production`](skills/video-production/) | 从创意、文章、脚本或已有素材生产完整视频 | 先选择 Remotion 或视频大模型，再编排编导、素材、成片与 QA |
-| [`remotion-video-production`](skills/remotion-video-production/) | 代码动画、界面演示、图文/照片编排和可恢复 Remotion 成片 | video-shotcraft 镜头语法、准确 Demo、按需 SFX、双版渲染和专项验收 |
-| [`video-director`](skills/video-director/) | 编剧、导演、分镜和生成前规划 | 叙事节拍、镜头覆盖、摄影运动、连续性 Bible 和生成计划 |
-| [`video-source-research`](skills/video-source-research/) | 搜索、下载和整理 B-roll、图片或音频 | 逐镜查询、下载、ffprobe、SHA-256 和可追溯 `sources.json` |
-| [`video-editing`](skills/video-editing/) | 通用粗剪、精剪、B-roll、声音、字幕和导出 | 可审阅 `edl.json`、确定性 FFmpeg 渲染、音画同步和多画幅导出 |
-| [`video-qc`](skills/video-qc/) | 生成片段、预览和成片验收 | 完整解码、黑帧/冻结/静音/响度/字幕、代表帧与连续性审阅 |
-| [`wechat-channels-talking-head`](skills/wechat-channels-talking-head/) | 剪辑视频号口播、采访和知识讲解 | 语义粗剪、最终音轨逐字字幕、信息卡/画中画、封面、发布包与防过剪复验 |
-| [`article-to-short-video`](skills/article-to-short-video/) | 把中文长文或观点稿制作成 60—120 秒竖屏短视频 | 证据边界、旁白压缩、动态镜头、Fish 配音、Suno 配乐和竖屏验收 |
-| [`seedance-video-generation`](skills/seedance-video-generation/) | Seedance 文生、图生、首尾帧和多参考视频 | 秒级导演提示、模型级约束、异步轮询、安全下载和成片探测 |
-| [`seedance-video-continuation`](skills/seedance-video-continuation/) | 从已有 MP4 尾帧继续生成 | 最后有效帧提取、首帧续拍、连续性提示、分段拼接与复验 |
-| [`h3-kling-video-generation`](skills/h3-kling-video-generation/) | MiniMax H3、Kling 镜头和游戏 PV | T2V/I2V、导演式 Prompt、二维动画/MG/UI 合成、模型校验和 MP4 下载 |
-| [`gemini-omni-video-generation`](skills/gemini-omni-video-generation/) | Gemini Omni 视频生成与视频编辑 | 公开素材/历史任务续接、任务轮询、MP4 校验和意外音轨诊断 |
-| [`multi-platform-video-publishing`](skills/multi-platform-video-publishing/) | 将已验收成片发布到四个平台 | 并行账号校验与上传、平台化文案、SHA 防重、台账、远端状态核验与恢复 |
+| [`video-production`](skills/video-production/) | Produce a complete video from an idea, article, script, or existing media | Select Remotion or a video model first, then orchestrate direction, assets, finishing, and QA |
+| [`remotion-video-production`](skills/remotion-video-production/) | Code animation, interface demos, photo/copy choreography, and recoverable Remotion videos | video-shotcraft shot recipes, exact demos, on-demand SFX, dual-version rendering, and specialized acceptance |
+| [`video-director`](skills/video-director/) | Writing, directing, storyboards, and pre-generation planning | Narrative beats, shot coverage, camera movement, continuity bible, and generation plan |
+| [`video-source-research`](skills/video-source-research/) | Search, download, and organize B-roll, images, or audio | Per-shot queries, downloads, ffprobe, SHA-256, and traceable `sources.json` |
+| [`video-editing`](skills/video-editing/) | General rough/fine cuts, B-roll, sound, subtitles, and export | Reviewable `edl.json`, deterministic FFmpeg rendering, A/V synchronization, and multi-aspect exports |
+| [`video-qc`](skills/video-qc/) | Accept generated clips, previews, and finished videos | Full decode, black-frame/freeze/silence/loudness/subtitle checks, representative frames, and continuity Review |
+| [`wechat-channels-talking-head`](skills/wechat-channels-talking-head/) | Edit WeChat Channels monologues, interviews, and explainers | Semantic rough cut, word-level subtitles from the final audio, info cards/PiP, cover, publishing package, and anti-overcut verification |
+| [`article-to-short-video`](skills/article-to-short-video/) | Turn a Chinese long-form article or opinion piece into a 60–120 second vertical video | Evidence boundaries, narration compression, dynamic shots, Fish voiceover, Suno music, and vertical-video acceptance |
+| [`seedance-video-generation`](skills/seedance-video-generation/) | Seedance text-to-video, image-to-video, first/last-frame, and multi-reference generation | Second-by-second directing prompts, model-level constraints, asynchronous polling, safe downloads, and output probing |
+| [`seedance-video-continuation`](skills/seedance-video-continuation/) | Continue from the final frame of an existing MP4 | Last-valid-frame extraction, first-frame continuation, continuity prompting, segment concatenation, and re-verification |
+| [`h3-kling-video-generation`](skills/h3-kling-video-generation/) | MiniMax H3 and Kling shots and game promos | T2V/I2V, director-style prompts, 2D animation/MG/UI composition, model validation, and MP4 downloads |
+| [`gemini-omni-video-generation`](skills/gemini-omni-video-generation/) | Gemini Omni video generation and editing | Continue from public media or past tasks, job polling, MP4 validation, and unexpected-audio diagnosis |
+| [`multi-platform-video-publishing`](skills/multi-platform-video-publishing/) | Publish accepted videos to four platforms | Parallel account checks and uploads, platform-specific copy, SHA duplicate prevention, ledgers, remote-state verification, and recovery |
 
-未指定成片引擎时，`video-production` 先询问 Remotion 或视频大模型；明确点名 Remotion、video-shotcraft 或具体视频模型时直接进入对应路线。视频大模型路线按镜头需求选择 H3、Grok 或 Seedance；静态视觉、旁白和音乐分别路由到 GPT Image、Fish Audio 与 Suno。网页视频下载额外需要 `yt-dlp`，确定性剪辑和 QA 需要 FFmpeg/ffprobe；正式分发需要已登录的 `mpau` 运行时。
+When no finishing engine is specified, `video-production` first asks whether to use Remotion or a video model; an explicit request for Remotion, video-shotcraft, or a specific video model routes directly to that path. The video-model path chooses H3, Grok, or Seedance according to shot requirements; still visuals, narration, and music route to GPT Image, Fish Audio, and Suno respectively. Web video downloads additionally require `yt-dlp`, deterministic editing and QA require FFmpeg/ffprobe, and production distribution requires a signed-in `mpau` runtime.
 
-### 图像、游戏与音频
+### Image, game, and audio
 
-| Skill | 适用场景 | 核心能力 |
+| Skill | Use case | Core capabilities |
 | --- | --- | --- |
-| [`game-asset-forge`](skills/game-asset-forge/) | 角色、场景、UI、图标、Tileset、Sprite 和动画帧 | 资产合同、先 smoke 后批量、透明度/halo、角色一致性、动画循环和引擎导入验收 |
-| [`gpt-image-generation`](skills/gpt-image-generation/) | GPT Image 或 Gemini 参考图生图/改图 | generations/edits、多参考合成、安全落盘、真实格式/像素校验和端点诊断 |
-| [`grok-media-generation`](skills/grok-media-generation/) | Grok 图片/视频生成与编辑 | 稳定版/预览版端点、图片编辑、视频任务轮询、结果解析和真实文件验收 |
-| [`fish-audio-speech`](skills/fish-audio-speech/) | TTS、STT、声线搜索/克隆与角色配音 | 公开/私人声线、情感控制、逐角色绑定、时间戳转写和音频落盘 |
-| [`suno-music-generation`](skills/suno-music-generation/) | 歌曲、歌词或纯音乐生成 | 异步任务、本地静默轮询、多候选音频/封面下载和逐项验收 |
+| [`game-asset-forge`](skills/game-asset-forge/) | Characters, scenes, UI, icons, tilesets, sprites, and animation frames | Asset contracts, smoke-before-batch, alpha/halo checks, character consistency, animation loops, and engine-import acceptance |
+| [`gpt-image-generation`](skills/gpt-image-generation/) | GPT Image or Gemini reference-based image generation/editing | Generations/edits, multi-reference composition, safe persistence, real format/dimension validation, and endpoint diagnosis |
+| [`grok-media-generation`](skills/grok-media-generation/) | Grok image/video generation and editing | Stable/preview endpoints, image editing, video-job polling, result parsing, and real-file acceptance |
+| [`fish-audio-speech`](skills/fish-audio-speech/) | TTS, STT, voice search/cloning, and character voices | Public/private voices, emotion control, per-character binding, timestamped transcription, and audio persistence |
+| [`suno-music-generation`](skills/suno-music-generation/) | Songs, lyrics, or instrumental music | Asynchronous jobs, silent local polling, multi-candidate audio/cover downloads, and per-item acceptance |
 
-### App 子任务与 CLI 开发 worker
+### App subtasks and CLI development workers
 
-默认代码开发采用两层闭环：**监工任务定义需求合同与验收条件 → 创建隔离 Codex App worker 自主计划、TDD 实现和自测 → 监工任务独立审阅累计 diff、复跑必要验证并完成 Git 交付**。并行 worker 使用独立 worktree 和逐任务 cursor，任一任务完成后立即验收，不等待同批其他任务。用户点名 CLI TUI worker 时，才切换为 Epic 监工 → Issue 负责/验收 → CLI developer 三层分工。
+Code development uses a two-layer loop by default: **the supervising task defines the requirements contract and acceptance criteria → an isolated Codex App worker plans autonomously, implements with TDD, and self-tests → the supervising task independently reviews the cumulative diff, reruns risk-based verification, and completes Git delivery**. Parallel workers use isolated worktrees and per-task cursors; each is accepted immediately when it finishes, without waiting for the rest of the batch. Only when the user explicitly requests a CLI TUI worker does the flow switch to three layers: Epic supervision → Issue ownership/acceptance → CLI developer.
 
-| Skill | Worker / 场景 | 特点 |
+| Skill | Worker / use case | Characteristics |
 | --- | --- | --- |
-| [`codex-app-development`](skills/codex-app-development/) | 默认代码开发 worker | GPT-5.6 Sol、按难度选择 thinking、隔离 worktree、Red → Green → Refactor、独立 diff Review |
-| [`claude-code-cli-development`](skills/claude-code-cli-development/) | 用户指定 Claude Code | 可见 Terminal + tmux、状态/交付文件、同会话返工与父层验收 |
-| [`codex-cli-development`](skills/codex-cli-development/) | 用户指定 Codex CLI/TUI | 单一交互会话中的计划、Red 门、实现、Review 与返工 |
-| [`gemini-cli-development`](skills/gemini-cli-development/) | 用户指定 Gemini CLI | 前端与通用开发、可见 TUI、状态交付和独立验收 |
-| [`grok-cli-development`](skills/grok-cli-development/) | 用户指定 Grok CLI | 边界明确的小型代码/UI 任务，也可生成视觉与视频概念 |
-| [`ui-ux-imitation-development`](skills/ui-ux-imitation-development/) | 让现有界面对齐参考产品 | 参考/现状同视口截图、叠加差异、范围确认、修改和复截图验证 |
+| [`codex-app-development`](skills/codex-app-development/) | Default code-development worker | GPT-5.6 Sol, difficulty-based thinking, isolated worktree, Red → Green → Refactor, and independent diff Review |
+| [`claude-code-cli-development`](skills/claude-code-cli-development/) | User requests Claude Code | Visible Terminal + tmux, status/delivery files, same-session rework, and parent acceptance |
+| [`codex-cli-development`](skills/codex-cli-development/) | User requests Codex CLI/TUI | Planning, Red gate, implementation, Review, and rework in one interactive session |
+| [`gemini-cli-development`](skills/gemini-cli-development/) | User requests Gemini CLI | Frontend and general development, visible TUI, status delivery, and independent acceptance |
+| [`grok-cli-development`](skills/grok-cli-development/) | User requests Grok CLI | Bounded small code/UI tasks plus visual and video concepts |
+| [`ui-ux-imitation-development`](skills/ui-ux-imitation-development/) | Align an existing UI with a reference product | Same-viewport reference/current screenshots, overlay differences, scope confirmation, modification, and screenshot re-verification |
 
-## 案例一：`lov-talk`——把 6 分钟随手口播剪成可发布成片
+## Case study 1: `lov-talk`—turn a casual six-minute monologue into a publishable video
 
-《跨会话通讯与 Agent 工作流》从一段带 90° 显示旋转的手机原片开始。Agent 先做语义地图，再把 365.424 秒素材压缩为 309.566 秒；不是按静音机械切割，而是保留“新特性 → 旧问题 → Goal 模式反例 → 三 Agent 工作流 → 产能结论”的完整论证链。
+*Cross-Session Communication and Agent Workflows* began as a phone recording carrying a 90° display rotation. The Agent first built a semantic map, then compressed 365.424 seconds into 309.566 seconds—not by mechanically cutting on silence, but by preserving the complete argument: “new feature → old problem → Goal-mode counterexample → three-Agent workflow → capacity conclusion.”
 
-[![lov-talk《跨会话通讯与 Agent 工作流》成片联系表；点击播放视频预览](docs/assets/lov-talk-agent-workflow-contact-sheet.jpg)](docs/assets/lov-talk-agent-workflow-preview.mp4)
+[![Contact sheet for the finished lov-talk “Cross-Session Communication and Agent Workflows” video; click to play the preview](docs/assets/lov-talk-agent-workflow-contact-sheet.jpg)](docs/assets/lov-talk-agent-workflow-preview.mp4)
 
-[▶ 播放或下载 32 秒口播剪辑预览](docs/assets/lov-talk-agent-workflow-preview.mp4)（从开场、Goal 模式、三 Agent 工作流和产能结论四处各取 8 秒；保留成片声音）
+[▶ Play or download the 32-second talking-head preview](docs/assets/lov-talk-agent-workflow-preview.mp4) (four eight-second excerpts from the opening, Goal mode, three-Agent workflow, and capacity conclusion; finished audio preserved)
 
-| 环节 | 使用能力 | 可复验结果 |
+| Stage | Capabilities used | Reproducible result |
 | --- | --- | --- |
-| 语义剪辑 | `wechat-channels-talking-head` + `video-editing` | 1 个全长基线片段变为 39 个语义片段，输出 `cut-plan.csv`、`edl.json` 与可应用 patch |
-| 信息增强 | `wechat-channels-talking-head` | 7 张解释型信息卡，保持人物主画面与字幕安全区 |
-| 字幕与声音 | 最终 A-roll 音轨对齐 + FFmpeg | 75 条逐字字幕、对白侧链配乐；字幕无重叠、负时长或越界 |
-| 成片验收 | `video-qc` | 1080 × 1920、30 fps、H.264/AAC；完整解码通过，-15.69 LUFS，True Peak -0.98 dBTP |
-| 可恢复交付 | Patch + rollback + SHA-256 | 修改版可重建；回滚副本与原片哈希一致 |
+| Semantic edit | `wechat-channels-talking-head` + `video-editing` | One full-length baseline clip became 39 semantic clips, with `cut-plan.csv`, `edl.json`, and an applicable patch |
+| Information enhancement | `wechat-channels-talking-head` | Seven explanatory info cards while preserving the speaker frame and subtitle safe area |
+| Subtitles and sound | Final A-roll alignment + FFmpeg | 75 word-level subtitles and dialogue-sidechained music; no overlap, negative duration, or out-of-range cue |
+| Final acceptance | `video-qc` | 1080 × 1920, 30 fps, H.264/AAC; full decode passed, -15.69 LUFS, True Peak -0.98 dBTP |
+| Recoverable delivery | Patch + rollback + SHA-256 | Modified version rebuildable; rollback copy hash matches the source |
 
-这个案例沉淀出的关键规则是：**先锁定语义与最终音轨，再做字幕和视觉增强**。否则字幕会跟中间版本漂移，或为了“节奏快”剪掉论证所需的上下文。
+The key rule captured by this case is: **lock the semantics and final audio before adding subtitles and visual enhancements**. Otherwise subtitles drift with intermediate versions, or context essential to the argument gets cut in pursuit of “faster pacing.”
 
-## 案例二：`lov-anime`——《履卦·回身》75 秒二维动画
+## Case study 2: `lov-anime`—the 75-second 2D animation *Lü Hexagram · Turning Back*
 
-动画生产不是“一条 Prompt 出片”。`lov-anime` 先冻结内容合同和视觉合同，验收角色/场景锚点与困难镜头 smoke，再批量生成六段统一风格镜头，最后完成 Fish Audio 女声讲解、Suno 音乐、字幕、混音和发布包。
+Animation production is not “one prompt, one finished film.” `lov-anime` first froze the content and visual contracts, accepted character/scene anchors and difficult-shot smokes, then generated six stylistically consistent segments in batch, and finally completed Fish Audio female narration, Suno music, subtitles, mixing, and the publishing package.
 
-[![lov-anime《履卦·回身》75 秒动画代表帧；点击播放完整视频](docs/assets/lov-anime-lugua-contact-sheet.jpg)](docs/assets/lov-anime-lugua-75s-preview.mp4)
+[![Representative frames from the 75-second lov-anime “Lü Hexagram · Turning Back” animation; click to play the full video](docs/assets/lov-anime-lugua-contact-sheet.jpg)](docs/assets/lov-anime-lugua-75s-preview.mp4)
 
-[▶ 播放或下载《履卦·回身》75 秒完整压缩预览](docs/assets/lov-anime-lugua-75s-preview.mp4)（540 × 960、24 fps、H.264/AAC，保留女声讲解和音乐）
+[▶ Play or download the complete compressed 75-second preview of *Lü Hexagram · Turning Back*](docs/assets/lov-anime-lugua-75s-preview.mp4) (540 × 960, 24 fps, H.264/AAC, with female narration and music)
 
-| 环节 | 使用能力 | 可复验结果 |
+| Stage | Capabilities used | Reproducible result |
 | --- | --- | --- |
-| 编导与一致性 | `video-director` + `h3-kling-video-generation` | 内容/视觉合同、六段导演计划、锚点与困难镜头 smoke、逐镜 QA |
-| 配音与配乐 | `fish-audio-speech` + `suno-music-generation` | 独立女声旁白、纯器乐 BGM、声线选择记录与候选验收 |
-| 剪辑与混音 | `video-editing` | 2.5 kHz 常驻让位 1.5 dB，音乐不随旁白动态闪避；对白仍清晰 |
-| 成片验收 | `video-qc` | 75 秒、1080 × 1920、24 fps、1800 帧；-16.0 LUFS、True Peak -2.0 dBFS、完整解码通过、黑帧 0 |
-| 发布包与回退 | `video-editing` + 可执行 rollback | 双规格封面、字幕、manifest、SHA-256、发布文案与可执行回退；验收后可继续交给四平台分发 Skill |
+| Direction and consistency | `video-director` + `h3-kling-video-generation` | Content/visual contracts, six-segment directing plan, anchor and difficult-shot smokes, and per-shot QA |
+| Voice and music | `fish-audio-speech` + `suno-music-generation` | Separate female narration, instrumental BGM, voice-selection record, and candidate acceptance |
+| Edit and mix | `video-editing` | Persistent 1.5 dB carve at 2.5 kHz; music does not dynamically duck with narration, while dialogue remains clear |
+| Final acceptance | `video-qc` | 75 seconds, 1080 × 1920, 24 fps, 1,800 frames; -16.0 LUFS, True Peak -2.0 dBFS, full decode passed, zero black frames |
+| Publishing package and fallback | `video-editing` + executable rollback | Two cover specifications, subtitles, manifest, SHA-256, publishing copy, and executable rollback; ready for four-platform distribution after acceptance |
 
-这套流程适合知识动画、品牌短片和 AI MV：先用最少的 smoke 暴露角色漂移、镜头不可控和声音遮蔽问题，再扩大生成规模。
+This workflow suits educational animation, brand shorts, and AI music videos: use the smallest possible smoke set to expose character drift, uncontrollable shots, and audio masking before scaling generation.
 
-## 案例三：`mahjong-game`——用 Issue 图调度多 Agent 开发
+## Case study 3: `mahjong-game`—schedule multi-Agent development with an Issue graph
 
-[麻将王](https://github.com/lov-team/mahjong-game) 把大型 Godot 项目拆成 `Spec → Epic → Issue → Agent Task → Evidence`。以 E10“个人空间、背包与出场配置”为例，[#424](https://github.com/lov-team/mahjong-game/issues/424)—[#433](https://github.com/lov-team/mahjong-game/issues/433) 将产品合同、schema、control-plane API、开局扣次事务、Godot 投影、大厅/雀士页和总回归组成有向无环图；这些叶子 Issue 已在 2026-08-06 至 2026-08-09 依次完成。
+[Mahjong King](https://github.com/lov-team/mahjong-game) decomposes a large Godot project into `Spec → Epic → Issue → Agent Task → Evidence`. For E10, “Personal Space, Inventory, and Match Loadout,” [#424](https://github.com/lov-team/mahjong-game/issues/424)–[#433](https://github.com/lov-team/mahjong-game/issues/433) form a directed acyclic graph across the product contract, schema, control-plane API, match-start deduction transaction, Godot projection, lobby/character pages, and full regression. These leaf Issues were completed in sequence from 2026-08-06 through 2026-08-09.
 
 ```mermaid
 graph LR
-  A["#424 合同"] --> B["#425 schema"]
+  A["#424 contract"] --> B["#425 schema"]
   B --> C["#426 API"]
-  B --> F["#429 大厅入口"]
-  C --> D["#427 开局事务"]
-  C --> E["#428 Godot 投影"]
-  E --> F["#429 大厅入口"]
-  E --> G["#430 雀士与装备"]
+  B --> F["#429 lobby entry"]
+  C --> D["#427 match-start transaction"]
+  C --> E["#428 Godot projection"]
+  E --> F["#429 lobby entry"]
+  E --> G["#430 characters and equipment"]
   F --> G
-  K["#439 次数语义纠偏"] --> F
+  K["#439 usage-semantics correction"] --> F
   K --> G
-  D --> H["#431 开局收口"]
+  D --> H["#431 match-start closure"]
   E --> H
   G --> H
-  D --> I["#432 祈愿与次数"]
+  D --> I["#432 wishes and uses"]
   F --> I
   G --> I
   K --> H
   K --> I
-  H --> J["#433 总回归"]
+  H --> J["#433 full regression"]
   I --> J
   K --> J
 ```
 
-多 Agent 协作不是“同时开很多聊天框”，而是遵守四条调度约束：
+Multi-Agent collaboration is not “opening many chat windows at once.” It follows four scheduling constraints:
 
-1. `agent-task-supervisor` 只启动硬依赖已满足的 ready Issue，并在派发前排除文件级软冲突。
-2. 每个 `codex-app-development` worker 使用隔离 task/worktree，自主完成计划、TDD、实现和自测。
-3. 多 worker 按逐任务 cursor 等待；谁先完成就先审阅谁，不做整批轮询，也不让快任务等待慢任务。
-4. 父层不采信 worker 自述，必须独立检查累计 diff、测试、产物、PR 和远端 SHA；P0—P2 问题发回原 worker 继续返工。
+1. `agent-task-supervisor` starts only ready Issues whose hard dependencies are satisfied, and excludes file-level soft conflicts before dispatch.
+2. Every `codex-app-development` worker uses an isolated task/worktree and autonomously completes planning, TDD, implementation, and self-testing.
+3. Multiple workers are awaited through per-task cursors; whichever finishes first is reviewed first, with no batch polling and no fast task waiting for a slow one.
+4. The parent never accepts a worker's self-report as evidence. It independently checks the cumulative diff, tests, artifacts, PR, and remote SHA; P0–P2 findings return to the original worker for rework.
 
-E11“共享充能条与超必杀”进一步展示了 fork/join：[#449](https://github.com/lov-team/mahjong-game/issues/449) 同时解锁 #450/#451，随后并行推进能量、协议、道具和 12 名角色能力，最后在 HUD、AI/模拟和 [#460 总验收](https://github.com/lov-team/mahjong-game/issues/460) 汇合。它适合跨前端、后端、协议、内容与 QA 的长期项目。
+E11, “Shared Charge Meter and Ultimate Moves,” demonstrates fork/join further: [#449](https://github.com/lov-team/mahjong-game/issues/449) unlocks #450/#451 simultaneously, after which energy, protocol, items, and abilities for 12 characters advance in parallel before joining at HUD, AI/simulation, and [#460 full acceptance](https://github.com/lov-team/mahjong-game/issues/460). This pattern fits long-running projects spanning frontend, backend, protocols, content, and QA.
 
-## 小案例：生图、生视频、生语音与生歌
+## Smaller cases: image, video, speech, and music generation
 
-| 目标 | Skill 组合 | 已完成样例 |
+| Goal | Skill combination | Completed example |
 | --- | --- | --- |
-| 生图/改图 | `gpt-image-generation` / `grok-media-generation` + `game-asset-forge` | [麻将王 #230](https://github.com/lov-team/mahjong-game/issues/230) 先确认 12 名原创角色 brief 与小批量样张，再批量生成立绘，并验证 Godot import、12 条 `portrait_path`、序列化和旧 IP 负向审计 |
-| 生视频 | `seedance-video-generation` + `seedance-video-continuation` | [60 秒《一枚鸡蛋的幕后团队》](docs/cases/fanjingshan-eggs-behind-team.md) 由 4 段 × 15 秒 Seedance 2.0 竖屏动画组成，以真实尾部视频和前景遮挡维持连续性 |
-| 生语音 | `fish-audio-speech` | 为《履卦·回身》选择中文女声、分段 TTS、合成 75 秒旁白，并用 STT/CER 回听检查可懂度 |
-| 生歌/配乐 | `suno-music-generation` | 生成《回身》歌曲与纯器乐 BGM，多候选下载后逐项执行 ffprobe、完整解码、响度、静音和 SHA-256 验收 |
+| Generate/edit images | `gpt-image-generation` / `grok-media-generation` + `game-asset-forge` | [Mahjong King #230](https://github.com/lov-team/mahjong-game/issues/230) confirmed briefs and a small sample batch for 12 original characters before bulk portrait generation, then verified Godot imports, 12 `portrait_path` entries, serialization, and a negative audit for legacy IP |
+| Generate video | `seedance-video-generation` + `seedance-video-continuation` | [The Team Behind One Egg, 60 seconds](docs/cases/fanjingshan-eggs-behind-team.md) combines four 15-second Seedance 2.0 vertical animations, using real tail video and foreground occlusion to preserve continuity |
+| Generate speech | `fish-audio-speech` | Selected a Chinese female voice for *Lü Hexagram · Turning Back*, generated segmented TTS, assembled 75 seconds of narration, and checked intelligibility by listening back with STT/CER |
+| Generate songs/music | `suno-music-generation` | Generated the *Turning Back* song and instrumental BGM, then ran ffprobe, full decode, loudness, silence, and SHA-256 acceptance on each downloaded candidate |
 
-![麻将王原创角色“林夜彻”立绘样例](docs/assets/mahjong-lin-yeche-portrait.jpg)
+![Portrait example of Mahjong King's original character Lin Yeche](docs/assets/mahjong-lin-yeche-portrait.jpg)
 
-[![60 秒《一枚鸡蛋的幕后团队》封面；点击播放完整视频](docs/assets/fanjingshan-eggs-behind-team-poster.jpg)](docs/assets/fanjingshan-eggs-behind-team-60s.mp4)
+[![Poster for the 60-second “The Team Behind One Egg”; click to play the full video](docs/assets/fanjingshan-eggs-behind-team-poster.jpg)](docs/assets/fanjingshan-eggs-behind-team-60s.mp4)
 
-[▶ 播放或下载 60 秒《一枚鸡蛋的幕后团队》](docs/assets/fanjingshan-eggs-behind-team-60s.mp4)
+[▶ Play or download the 60-second *The Team Behind One Egg*](docs/assets/fanjingshan-eggs-behind-team-60s.mp4)
 
-媒体生成的共同原则是：**先单个 smoke，再批量；先保存原始响应与任务 ID，再下载；最后检查真实文件，而不是把接口返回“成功”当成交付完成。**
+The shared rule for media generation is: **smoke one item before batching; save the raw response and task ID before downloading; finally inspect the real file instead of treating an API “success” response as delivery.**
 
-## 快速安装
+## Quick installation
 
-克隆仓库后，优先用符号链接安装，让仓库持续充当唯一事实源。
+After cloning the repository, prefer symbolic-link installation so the repository remains the single source of truth.
 
 ```bash
 git clone git@github.com:lov-team/akasha-grimoire.git
 cd akasha-grimoire
 ```
 
-安装单项 Skill：
+Install one Skill:
 
 ```bash
 skill_name="suno-music-generation"
@@ -239,7 +239,7 @@ mkdir -p "$skills_home"
 ln -s "$PWD/skills/$skill_name" "$skills_home/$skill_name"
 ```
 
-安装全部 Skill，并保留已有目标：
+Install all Skills while preserving existing targets:
 
 ```bash
 skills_home="${CODEX_HOME:-$HOME/.codex}/skills"
@@ -249,69 +249,69 @@ for skill_dir in "$PWD"/skills/*; do
   skill_name="$(basename "$skill_dir")"
   target="$skills_home/$skill_name"
   if [ -e "$target" ] || [ -L "$target" ]; then
-    echo "保留已有目标：$target"
+    echo "Preserving existing target: $target"
   else
     ln -s "$skill_dir" "$target"
   fi
 done
 ```
 
-不要使用强制覆盖。若目标已存在，先审计差异，并用可恢复方式保留未知内容。
+Do not force-overwrite an existing target. Audit the difference first and preserve unknown content in a recoverable form.
 
-## 使用示例
+## Example prompts
 
-在 Codex 中直接点名 Skill：
+Name the Skill directly in Codex:
 
 ```text
-使用 $agent-task-supervisor 轻量监工这些任务，并在交付后独立验收。
+Use $agent-task-supervisor to supervise these tasks with low noise and independently accept them after delivery.
 
-使用 $agent-task-supervisor 把这份 Spec 拆成 Epic/Issue 依赖图，在 Codex App 中只启动已就绪的 Issue，并用证据自底向上关闭整张图。
+Use $agent-task-supervisor to decompose this Spec into an Epic/Issue dependency graph, start only ready Issues in Codex App, and close the graph bottom-up with Evidence.
 
-使用 $codex-app-development 创建 GPT-5.6 Sol、按任务难度选择 thinking 的隔离 worker；让 worker 自主计划、TDD 实现和自测，当前任务独立 Review 累计 diff，并把 P0–P2 发回原会话。
+Use $codex-app-development to create an isolated GPT-5.6 Sol worker with thinking selected by task difficulty. Let the worker plan autonomously, implement with TDD, and self-test; have the current task independently Review the cumulative diff and return P0–P2 findings to the original session.
 
-使用 $github-issue-pipeline 把这份 Epic 拆成带依赖的 GitHub Issue；定时派发 ready Issue，验收对应 PR，通过后合并并关闭 Issue。
+Use $github-issue-pipeline to decompose this Epic into dependent GitHub Issues, periodically dispatch ready Issues, accept the corresponding PRs, then merge them and close the Issues.
 
-使用 $content-pipeline 把这篇中文文章制作成一套小红书图文；保留原意，先确认封面方向，最后交付可恢复的本地内容包。
+Use $content-pipeline to turn this Chinese article into a Xiaohongshu image-post set, preserve its meaning, confirm the cover direction first, and deliver a recoverable local package.
 
-使用 $video-production 把这份产品创意制作成 30 秒竖屏视频；我还没有指定制作路线，请先询问使用 Remotion 还是视频大模型。
+Use $video-production to turn this product idea into a 30-second vertical video. I have not selected a production path, so first ask whether to use Remotion or a video model.
 
-使用 $remotion-video-production 和内置 video-shotcraft 镜头卡，把这些照片与文案制作成 30 秒竖屏视频，交付可恢复工程、双版成片、关键帧和 QA。
+Use $remotion-video-production and the bundled video-shotcraft recipes to turn these photos and captions into a 30-second vertical video, delivering a recoverable project, two audio versions, keyframes, and QA.
 
-使用 $wechat-channels-talking-head 把这段手机口播剪成视频号成片：先做语义地图和防过剪粗剪，再按最终音轨生成字幕、信息卡、封面与发布包。
+Use $wechat-channels-talking-head to edit this phone monologue into a WeChat Channels video: build the semantic map and anti-overcut rough cut first, then generate subtitles, info cards, cover, and publishing package from the final audio.
 
-使用 $seedance-video-continuation 从这个 MP4 的最后有效画面继续生成下一段，保持人物、场景和镜头方向一致，拼接后复验接缝。
+Use $seedance-video-continuation to generate the next segment from the last valid frame of this MP4, preserve the character, scene, and camera direction, concatenate it, and recheck the seam.
 
-使用 $video-source-research 为这份镜头表检索 B-roll，下载采用项并输出带 ffprobe 元数据和 SHA-256 的 sources.json。
+Use $video-source-research to find B-roll for this shot list, download the selected assets, and output sources.json with ffprobe metadata and SHA-256.
 
-使用 $game-asset-forge 为 2D 游戏制作一套透明背景角色动画帧，先 smoke 再批量。
+Use $game-asset-forge to create transparent-background character animation frames for a 2D game, smoke one first, then generate the batch.
 
-使用 $grok-media-generation 生成或编辑这段图片/视频，并验收下载后的真实文件。
+Use $grok-media-generation to generate or edit this image/video and accept the actual downloaded file.
 
-使用 $suno-music-generation 根据这段歌曲描述生成音乐，并下载所有候选结果。
+Use $suno-music-generation to generate music from this song description and download every candidate.
 
-使用 $fish-audio-speech 把旁白文本合成为语音，并检查开头、中段和结尾。
+Use $fish-audio-speech to synthesize this narration and inspect the beginning, middle, and end.
 
-使用 $multi-platform-video-publishing 把已验收的动画成片分发到抖音、小红书、B站和视频号；分别适配文案，保存台账并核对远端状态。
+Use $multi-platform-video-publishing to distribute this accepted animation to Douyin, Xiaohongshu, Bilibili, and WeChat Channels; adapt the copy per platform, save the ledger, and verify remote status.
 
-使用 $ui-ux-imitation-development 让当前界面对齐这张参考图：同视口截图、叠加分析差异，修改后复截图验证收敛。
+Use $ui-ux-imitation-development to align the current interface with this reference image: capture both at the same viewport, analyze overlay differences, modify, and verify convergence with another screenshot.
 ```
 
-## 凭证与运行环境
+## Credentials and runtime
 
-| 能力 | 配置来源 | 约定 |
+| Capability | Configuration source | Contract |
 | --- | --- | --- |
-| 默认 new-api | `https://newapi.1234bot.com/v1` | 无需配置 Base URL；充值签票也支持 `llmapi.lovbrowser.com` 与 `llmapi-direct.lovbrowser.com` 官方入口；私有部署才用 `NEW_API_BASE_URL` 或 `--base-url` 覆盖 |
-| GPT Image | `IMAGE_PROXY_API_KEY`、`NEW_API_API_KEY` 或 `OPENAI_API_KEY` | 不把 key 写进命令参数、prompt、日志或仓库 |
-| Grok / Seedance / H3 / Kling / Gemini Omni | 专用 key、`NEW_API_API_KEY` 或 `OPENAI_API_KEY` | 真实调用会计费，先做单个 smoke，再扩大任务规模 |
-| Suno / Fish Audio | `NEW_API_API_KEY` 或 `OPENAI_API_KEY` | 真实调用会消耗额度；基础测试不调用外部服务 |
-| 官方主动/余额不足充值 | 运行 `python3 shared/akasha_recharge.py` 创建支付会话；金额在 LovBrowser 页面选择 | 主动充值不需要余额不足；仅官方 new-api；Agent 只给出可点击的 `publicPageUrl`，不显示二维码；不泄露 Key/票据 |
-| Codex App 两层任务 | 监工 task、Sol 按难度选择 thinking 的隔离 worker task/worktree | 监工下发合同；worker 自主计划和实现；监工独立验收完整 diff。仅 CLI TUI worker 保留三层分工 |
-| CLI worker | 本机已安装的对应 CLI、macOS Terminal、tmux | 首次使用或版本变化时重新核对 `--version` 与 `--help` |
-| 视频剪辑与素材 | FFmpeg/ffprobe；网页下载另需 yt-dlp | macOS 可使用 `brew install ffmpeg yt-dlp`；下载后仍必须探测媒体并记录来源与哈希 |
+| Default new-api | `https://newapi.1234bot.com/v1` | No Base URL configuration required; recharge ticket signing also supports the official `llmapi.lovbrowser.com` and `llmapi-direct.lovbrowser.com` entry points; use `NEW_API_BASE_URL` or `--base-url` only for private deployments |
+| GPT Image | `IMAGE_PROXY_API_KEY`, `NEW_API_API_KEY`, or `OPENAI_API_KEY` | Never place keys in command arguments, prompts, logs, or the repository |
+| Grok / Seedance / H3 / Kling / Gemini Omni | Dedicated key, `NEW_API_API_KEY`, or `OPENAI_API_KEY` | Real calls are billed; run one smoke before expanding the task |
+| Suno / Fish Audio | `NEW_API_API_KEY` or `OPENAI_API_KEY` | Real calls consume credits; basic tests do not call external services |
+| Official proactive / low-balance recharge | Run `python3 shared/akasha_recharge.py` to create a payment session; choose the amount on the LovBrowser page | Proactive recharge does not require a low balance; official new-api only; the Agent returns only the clickable `publicPageUrl`, shows no QR code, and never leaks keys or tickets |
+| Two-layer Codex App tasks | Supervising task plus an isolated Sol worker task/worktree with difficulty-based thinking | Supervisor sends the contract; worker plans and implements autonomously; supervisor independently accepts the full diff. Only CLI TUI workers retain three layers |
+| CLI worker | Corresponding locally installed CLI, macOS Terminal, and tmux | Recheck `--version` and `--help` on first use or after a version change |
+| Video editing and sourcing | FFmpeg/ffprobe; yt-dlp additionally for web downloads | On macOS use `brew install ffmpeg yt-dlp`; after download, probe the media and record its source and hash |
 
-## 验证
+## Validation
 
-每个 Skill 都包含标准 frontmatter 和 `agents/openai.yaml`。修改后至少运行：
+Every Skill includes standard frontmatter and `agents/openai.yaml`. At minimum, run the following after changes:
 
 ```bash
 validator="${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-creator/scripts/quick_validate.py"
@@ -322,35 +322,35 @@ done
 git diff --check
 ```
 
-新增脚本还必须执行语法检查和无副作用行为测试。涉及生图、音乐、语音、视频或外部写入时，默认先使用本地假服务或 smoke；未真实端到端验证的能力必须明确披露。
+New scripts also require syntax checks and side-effect-free behavioral tests. For image, music, speech, video, or external writes, start with a local fake service or a limited smoke test. Explicitly disclose any capability that has not been verified end to end.
 
-## 目录与维护
+## Structure and maintenance
 
 ```text
 skills/<skill-name>/
-├── SKILL.md              # 触发描述与核心工作合同
-├── agents/openai.yaml    # Agent UI 元数据
-├── scripts/              # 可重复、确定性的执行逻辑（按需）
-├── references/           # 工具事实与专项合同（按需）
-└── assets/               # 可复制到交付物中的模板与资源（按需）
+├── SKILL.md              # Trigger description and core work contract
+├── agents/openai.yaml    # Agent UI metadata
+├── scripts/              # Repeatable, deterministic execution logic (optional)
+├── references/           # Tool facts and specialized contracts (optional)
+└── assets/               # Templates and resources copied into deliverables (optional)
 ```
 
-- Skill 正文保持简洁，复杂事实放到一层 `references/` 中渐进披露。
-- 不在 Skill 目录加入 README、变更日志、缓存或过程总结。
-- 修改 CLI/API 合同时重新核对真实版本、帮助信息、schema 和可靠实现。
-- 正式交付前通读累计 diff，检查 TODO、凭证、本机绝对路径、缓存和生成产物。
-- 推送后核对本地 SHA、远端 SHA 和关键文件内容。
+- Keep Skill bodies concise and progressively disclose complex facts one level down in `references/`.
+- Do not add READMEs, changelogs, caches, or process summaries inside Skill directories.
+- When CLI/API contracts change, recheck the real version, help output, schema, and reliable implementation.
+- Before final delivery, read the cumulative diff and scan for TODOs, credentials, local absolute paths, caches, and generated artifacts.
+- After push, verify the local SHA, remote SHA, and critical file contents.
 
-## 许可证
+## License
 
-当前版本采用 [Apache License 2.0 + 附加商业条件](LICENSE)：非商业支付使用按 Apache 2.0 条款授权；生产环境中的商业支付使用，累计支付总额不超过 1,000,000 美元（USD 1,000,000）免费，超过前须取得书面商业授权。该组合许可证不是未经修改的 Apache License 2.0。完整说明见 [授权说明](LICENSING.md)，中文商业条件见 [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md)。
+The current release uses the [Apache License 2.0 with Additional Commercial Conditions](LICENSE): non-commercial-payment use follows the Apache 2.0 terms; commercial payment use in production is free up to USD 1,000,000 in cumulative payment volume and requires a written commercial license before exceeding that threshold. This combined license is not the unmodified Apache License 2.0. See [Licensing](LICENSING.md) for full details and [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md) for the Chinese commercial conditions.
 
-此前按 GPLv3 发布的版本仍适用原许可证。
+Releases previously distributed under GPLv3 remain under their original license.
 
 ---
 
 <div align="center">
 
-**让 Agent 的能力不只存在于一次会话，而成为团队可以验证、复用和进化的工作系统。**
+**Make Agent capability more than a single conversation: make it a verifiable, reusable, evolving work system.**
 
 </div>
