@@ -204,25 +204,7 @@ graph LR
 
 E11「共有 charge meter と ultimate move」は fork/join をさらに示します。[#449](https://github.com/lov-team/mahjong-game/issues/449) が #450/#451 を同時に解放し、その後 energy、protocol、item、12 character の ability を並列で進め、最後に HUD、AI/simulation、[#460 全体受け入れ](https://github.com/lov-team/mahjong-game/issues/460) で合流します。この pattern は frontend、backend、protocol、content、QA にまたがる長期 project に適しています。
 
-## ケーススタディ4：雪の故宮・古紙手帳——Remotion で画像ワークフローを動画化
-
-「一枚の普通の写真は、どうすれば古紙の手帳ページになるのか？」このケースでは、雪の故宮写真が古紙ポスターへ変化する過程を、元画像の登場、Prompt の組み立て、主題の縮小、余白の拡大、紙の経年加工、朱赤の版ずれ、完成版の提示、Before/After という八つの読み取れる段階に分けています。`remotion-video-production` が操作ロジック、ショット、字幕、サウンドを、再現可能な35秒の縦型 Case Film にまとめます。
-
-[![雪の故宮・古紙手帳 Remotion ケースのコンタクトシート。クリックすると SFX のみのプレビューを再生します](docs/assets/snowy-forbidden-city-remotion-case-contact-sheet.jpg)](docs/assets/snowy-forbidden-city-remotion-case-sfx-preview.mp4)
-
-公開プレビューは SFX のみの版です。540 × 960、30 fps、H.264/AAC で、タイプ音、紙、版ずれ、スライダーの効果音を残しています。
-
-| 工程 | 使用する能力 | 再検証できる結果 |
-| --- | --- | --- |
-| 物語と timeline | `video-director` + `remotion-video-production` | 8 scene が frame 0–1049 を連続して覆い、各 scene は一つの視覚変化だけを説明します |
-| ショット設計 | Remotion の motion choreography | terminal の逐字入力、紙片の固定、二色の版ずれ、Before/After slider をコードで frame 単位に制御します |
-| 決定論的 animation | Remotion の frame 計算 | 1080 × 1920、30 fps、1050 frame。source code は実時間の日付や非決定論的な乱数に依存しません |
-| sound design | 追跡可能な6個の SFX | タイプ音、return bell、紙の slide、裁断、固定、quick sweep を scene 開始 frame からの offset で固定します |
-| 成片の受け入れ | `video-qc` | 公開するのは SFX のみの1版。完全 decode、1050 frame の連続性、black frame 0 を確認しています |
-
-このケースから得られた重要な原則は、**Remotion が素材の変化を理解できる形で伝えること**です。素材は画像生成、動画 model、screenshot、user file から受け取れます。timeline に入った後は、shot、字幕、sound、parameter、QA が決定可能で、検査でき、再構築できます。
-
-## 小規模ケース：画像・動画・音声・音楽の生成
+## ケーススタディ4：画像・動画・音声・音楽の生成
 
 | 目的 | Skill の組み合わせ | 完了済みの例 |
 | --- | --- | --- |
@@ -238,6 +220,24 @@ E11「共有 charge meter と ultimate move」は fork/join をさらに示し�
 [▶ 60 秒「一枚の卵を支えるチーム」を再生または download](docs/assets/fanjingshan-eggs-behind-team-60s.mp4)
 
 メディア生成に共通する規則は、**batch 前に 1 件を smoke する。download 前に raw response と task ID を保存する。最後に API の「success」を納品とみなさず、実 file を確認する**ことです。
+
+## ケーススタディ5：雪の故宮・古紙手帳——Remotion で画像ワークフローを動画化
+
+「一枚の普通の写真は、どうすれば古紙の手帳ページになるのか？」このケースでは、雪の故宮写真が古紙ポスターへ変化する過程を、元画像の登場、Prompt の組み立て、主題の縮小、余白の拡大、紙の経年加工、朱赤の版ずれ、完成版の提示、Before/After という八つの読み取れる段階に分けています。`remotion-video-production` が操作ロジック、ショット、字幕、サウンドを、再現可能な35秒の縦型 Case Film にまとめます。
+
+https://github.com/user-attachments/assets/96fe95f6-2558-4e70-b03d-bc30fae36372
+
+公開プレビューは SFX のみの版です。540 × 960、30 fps、H.264/AAC で、タイプ音、紙、版ずれ、スライダーの効果音を残しています。
+
+| 工程 | 使用する能力 | 再検証できる結果 |
+| --- | --- | --- |
+| 物語と timeline | `video-director` + `remotion-video-production` | 8 scene が frame 0–1049 を連続して覆い、各 scene は一つの視覚変化だけを説明します |
+| ショット設計 | Remotion の motion choreography | terminal の逐字入力、紙片の固定、二色の版ずれ、Before/After slider をコードで frame 単位に制御します |
+| 決定論的 animation | Remotion の frame 計算 | 1080 × 1920、30 fps、1050 frame。source code は実時間の日付や非決定論的な乱数に依存しません |
+| sound design | 追跡可能な6個の SFX | タイプ音、return bell、紙の slide、裁断、固定、quick sweep を scene 開始 frame からの offset で固定します |
+| 成片の受け入れ | `video-qc` | 公開するのは SFX のみの1版。完全 decode、1050 frame の連続性、black frame 0 を確認しています |
+
+このケースから得られた重要な原則は、**Remotion が素材の変化を理解できる形で伝えること**です。素材は画像生成、動画 model、screenshot、user file から受け取れます。timeline に入った後は、shot、字幕、sound、parameter、QA が決定可能で、検査でき、再構築できます。
 
 ## クイックインストール
 

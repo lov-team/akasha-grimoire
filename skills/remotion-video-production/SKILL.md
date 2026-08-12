@@ -52,4 +52,4 @@ python3 scripts/validate_remotion_delivery.py /ABS/PROJECT \
 
 交付前派干净上下文 Agent，按 `references/video-shotcraft/final-review.md` 对照 brief、分镜、镜头卡、准确 Demo、成片和关键帧独立终检。Blocker 与 major 清零后交付源码、素材、时间线、渲染命令、成片、关键帧、设计说明和 QA 报告。默认写入独立本地内容包；发布或写入业务仓库由用户另行指定。
 
-能力示例见[案例四：雪后故宫旧纸手帐 Remotion Case](../../docs/cases/snowy-forbidden-city-remotion-case.md)：用 8 段确定性时间线组合终端打字、纸片重构、双色套印、Before/After、SFX 钉帧和双版本渲染。
+能力示例见[案例五：雪后故宫旧纸手帐 Remotion Case](../../docs/cases/snowy-forbidden-city-remotion-case.md)：用 8 段确定性时间线组合终端打字、纸片重构、双色套印、Before/After、SFX 钉帧和双版本渲染。
