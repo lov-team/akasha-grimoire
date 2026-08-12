@@ -116,14 +116,16 @@ class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def _api_key() -> str:
+def _api_key(explicit_base_url: str | None = None, timeout: float = 10) -> str:
     credentials = _load_akasha_recharge().load_akasha_credentials_module(Path(__file__))
-    found = credentials.discover_credential(("IMAGE_PROXY_API_KEY",))
-    if found is None:
-        try:
-            found = credentials.bootstrap(specialized_names=("IMAGE_PROXY_API_KEY",))
-        except credentials.CredentialError as exc:
-            raise SystemExit(str(exc)) from exc
+    try:
+        found = credentials.select_credential(
+            specialized_names=("IMAGE_PROXY_API_KEY",),
+            explicit_base_url=explicit_base_url,
+            timeout=timeout,
+        )
+    except credentials.CredentialError as exc:
+        raise SystemExit(str(exc)) from exc
     return found.api_key
 
 
@@ -510,7 +512,7 @@ def main() -> int:
         parser.error("--n greater than 1 is only supported for image generations")
 
     _load_env_file(args.env_file)
-    api_key = _api_key()
+    api_key = _api_key(args.base_url, args.timeout)
     args.base_url = args.base_url or _base_url()
     try:
         # Explicit CLI amount only; env is resolved lazily if/when recharge triggers.

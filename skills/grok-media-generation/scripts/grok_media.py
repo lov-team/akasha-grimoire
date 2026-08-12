@@ -144,14 +144,16 @@ def resolve_base_url(explicit: str | None) -> str:
     return normalize_base_url(raw)
 
 
-def read_api_key() -> str:
+def read_api_key(explicit_base_url: str | None = None, timeout: float = 10) -> str:
     credentials = _load_akasha_recharge().load_akasha_credentials_module(Path(__file__))
-    found = credentials.discover_credential(("GROK_MEDIA_API_KEY",))
-    if found is None:
-        try:
-            found = credentials.bootstrap(specialized_names=("GROK_MEDIA_API_KEY",))
-        except credentials.CredentialError as exc:
-            raise GrokMediaError(str(exc)) from exc
+    try:
+        found = credentials.select_credential(
+            specialized_names=("GROK_MEDIA_API_KEY",),
+            explicit_base_url=explicit_base_url,
+            timeout=timeout,
+        )
+    except credentials.CredentialError as exc:
+        raise GrokMediaError(str(exc)) from exc
     return found.api_key
 
 
@@ -369,7 +371,8 @@ def wait_for_video(
 
 
 def run(args: argparse.Namespace) -> None:
-    api_key = read_api_key()
+    explicit_base_url = resolve_base_url(args.base_url) if args.base_url else None
+    api_key = read_api_key(explicit_base_url, args.timeout)
     base_url = resolve_base_url(args.base_url)
     recharge = _load_akasha_recharge()
     recharge.validate_cli_recharge_usd(getattr(args, "recharge_usd", None))

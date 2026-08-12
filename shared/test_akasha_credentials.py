@@ -96,6 +96,10 @@ def fixture_server():
 
 
 class CredentialDiscoveryTests(unittest.TestCase):
+    def setUp(self):
+        credentials._ACTIVE_CREDENTIAL = None
+        credentials._VALIDATED_CREDENTIALS.clear()
+
     def test_priority_special_new_file_openai(self):
         with tempfile.TemporaryDirectory() as tmp:
             env = {"AKASHA_CONFIG_DIR": tmp, "SPECIAL_KEY": "special", "NEW_API_API_KEY": "new", "OPENAI_API_KEY": "openai"}
@@ -119,6 +123,126 @@ class CredentialDiscoveryTests(unittest.TestCase):
             self.assertTrue(credentials.rollback(environ=env))
             self.assertIn("old", path.read_text())
 
+    def test_runtime_candidates_try_local_openai_before_configured_key(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = {
+                "AKASHA_CONFIG_DIR": tmp,
+                "SPECIAL_API_KEY": "special",
+                "SPECIAL_BASE_URL": "https://special.example/v1",
+                "NEW_API_API_KEY": "new",
+                "OPENAI_API_KEY": "openai",
+                "OPENAI_BASE_URL": "https://openai.example/v1",
+            }
+            candidates = credentials.credential_candidates(("SPECIAL_API_KEY",), environ=env)
+            self.assertEqual(
+                [
+                    (candidate.api_key, candidate.base_url, candidate.source)
+                    for candidate in candidates
+                ],
+                [
+                    ("openai", "https://openai.example/v1", "env:OPENAI_API_KEY"),
+                    ("special", "https://special.example/v1", "env:SPECIAL_API_KEY"),
+                    ("new", credentials.OFFICIAL_NEWAPI_BASE_URL, "env:NEW_API_API_KEY"),
+                ],
+            )
+
+    def test_unreachable_local_openai_falls_back_to_configured_key(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = {
+                "AKASHA_CONFIG_DIR": tmp,
+                "NEW_API_API_KEY": "configured",
+                "OPENAI_API_KEY": "local-openai",
+                "OPENAI_BASE_URL": "https://openai.example/v1",
+            }
+            attempts: list[tuple[str, str]] = []
+
+            def probe(api_key: str, base_url: str, **_kwargs):
+                attempts.append((api_key, base_url))
+                if api_key == "local-openai":
+                    raise credentials.CredentialError("fixture unavailable")
+
+            with mock.patch.object(credentials, "validate_credential", side_effect=probe):
+                found = credentials.resolve_usable_credential(environ=env)
+            self.assertEqual(found.api_key, "configured")
+            self.assertEqual(attempts, [
+                ("local-openai", "https://openai.example/v1"),
+                ("configured", credentials.OFFICIAL_NEWAPI_BASE_URL),
+            ])
+
+    def test_selected_local_openai_base_is_used_by_media_call(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = {
+                "AKASHA_CONFIG_DIR": tmp,
+                "NEW_API_API_KEY": "configured",
+                "NEW_API_BASE_URL": "https://configured.example/v1",
+                "OPENAI_API_KEY": "local-openai",
+                "OPENAI_BASE_URL": "https://openai.example/v1",
+            }
+            with mock.patch.object(credentials, "validate_credential"):
+                found = credentials.bootstrap(environ=env)
+            self.assertEqual(found.source, "env:OPENAI_API_KEY")
+            self.assertEqual(
+                credentials.resolve_base_url(environ=env),
+                "https://openai.example/v1",
+            )
+            self.assertEqual(
+                credentials.resolve_base_url(
+                    explicit="https://command.example/v1", environ=env
+                ),
+                "https://command.example/v1",
+            )
+
+    def test_all_configured_candidates_failing_returns_none(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = {
+                "AKASHA_CONFIG_DIR": tmp,
+                "NEW_API_API_KEY": "configured",
+                "OPENAI_API_KEY": "local-openai",
+            }
+            with mock.patch.object(
+                credentials,
+                "validate_credential",
+                side_effect=credentials.CredentialError("fixture unavailable"),
+            ):
+                self.assertIsNone(credentials.resolve_usable_credential(environ=env))
+
+    def test_working_local_openai_skips_configured_fallback(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = {
+                "AKASHA_CONFIG_DIR": tmp,
+                "NEW_API_API_KEY": "configured",
+                "OPENAI_API_KEY": "local-openai",
+                "OPENAI_BASE_URL": "https://openai.example/v1",
+            }
+            attempts: list[str] = []
+
+            def probe(api_key: str, _base_url: str, **_kwargs):
+                attempts.append(api_key)
+
+            with mock.patch.object(credentials, "validate_credential", side_effect=probe):
+                found = credentials.resolve_usable_credential(environ=env)
+            self.assertEqual(found.api_key, "local-openai")
+            self.assertEqual(attempts, ["local-openai"])
+
+    def test_explicit_base_probes_selected_key_at_that_base(self):
+        with tempfile.TemporaryDirectory() as tmp, fixture_server() as origin:
+            env = {
+                "AKASHA_CONFIG_DIR": tmp,
+                "SPECIAL_API_KEY": API_KEY,
+                "AKASHA_ALLOW_TEST_HTTP": "1",
+            }
+            found = credentials.select_credential(
+                ("SPECIAL_API_KEY",),
+                explicit_base_url=origin + "/v1",
+                environ=env,
+            )
+            self.assertEqual(found.api_key, API_KEY)
+            self.assertEqual(found.base_url, origin + "/v1")
+            self.assertEqual(
+                credentials.resolve_base_url(environ=env),
+                origin + "/v1",
+            )
+
     def test_concurrent_writes_remain_parseable(self):
         with tempfile.TemporaryDirectory() as tmp:
             env = {"AKASHA_CONFIG_DIR": tmp}
@@ -138,6 +262,10 @@ class CredentialDiscoveryTests(unittest.TestCase):
 
 
 class DeviceFlowTests(unittest.TestCase):
+    def setUp(self):
+        credentials._ACTIVE_CREDENTIAL = None
+        credentials._VALIDATED_CREDENTIALS.clear()
+
     def test_standard_api_response_timestamp_is_accepted(self):
         payload = {
             "code": 200,
@@ -200,12 +328,23 @@ class DeviceFlowTests(unittest.TestCase):
         fake_start = credentials.DeviceStart("ABCD-EFGH", "https://lovbrowser.com/akasha/device?user_code=ABCD-EFGH", Path("/tmp/akasha-device.png"), 600, 5)
         fake_result = credentials.DeviceResult(credentials.Credential(API_KEY, credentials.OFFICIAL_NEWAPI_BASE_URL, "akasha-device"), "existing_login")
         output = io.StringIO()
-        with mock.patch.object(credentials, "discover_credential", return_value=None), mock.patch.object(credentials, "start_device_flow", return_value=fake_start), mock.patch.object(credentials, "finish_device_flow", return_value=fake_result):
+        with mock.patch.object(credentials, "resolve_usable_credential", return_value=None), mock.patch.object(credentials, "start_device_flow", return_value=fake_start), mock.patch.object(credentials, "finish_device_flow", return_value=fake_result):
             credentials.bootstrap(event_file=output)
         rendered = output.getvalue()
         self.assertNotIn(API_KEY, rendered)
         self.assertNotIn(DEVICE_CODE, rendered)
         self.assertIn("ABCD-EFGH", rendered)
+
+    def test_bootstrap_guides_after_local_and_configured_keys_fail(self):
+        fake_start = credentials.DeviceStart("ABCD-EFGH", "https://lovbrowser.com/akasha/device?user_code=ABCD-EFGH", Path("/tmp/akasha-device.png"), 600, 5)
+        fake_result = credentials.DeviceResult(credentials.Credential(API_KEY, credentials.OFFICIAL_NEWAPI_BASE_URL, "akasha-device"), "existing_login")
+        output = io.StringIO()
+        with mock.patch.object(credentials, "resolve_usable_credential", return_value=None) as resolve, mock.patch.object(credentials, "start_device_flow", return_value=fake_start) as start, mock.patch.object(credentials, "finish_device_flow", return_value=fake_result):
+            result = credentials.bootstrap(event_file=output)
+        self.assertEqual(result, fake_result.credential)
+        resolve.assert_called_once_with((), environ=None)
+        start.assert_called_once_with(environ=None)
+        self.assertIn("verificationUriComplete", output.getvalue())
 
     def test_expired_state_is_cleaned(self):
         with tempfile.TemporaryDirectory() as tmp, fixture_server() as origin:
@@ -247,6 +386,10 @@ class DeviceFlowTests(unittest.TestCase):
 
 
 class MediaIntegrationTests(unittest.TestCase):
+    def setUp(self):
+        credentials._ACTIVE_CREDENTIAL = None
+        credentials._VALIDATED_CREDENTIALS.clear()
+
     def test_all_six_media_entries_use_the_shared_bootstrap(self):
         root = Path(__file__).resolve().parents[1]
         cases = [
@@ -271,9 +414,13 @@ class MediaIntegrationTests(unittest.TestCase):
                     recharge = module._load_akasha_recharge()
                     shared = recharge.load_akasha_credentials_module(script)
                     fixture = shared.Credential("media-fixture-key", shared.OFFICIAL_NEWAPI_BASE_URL, "fixture")
-                    with mock.patch.object(shared, "discover_credential", return_value=None), mock.patch.object(shared, "bootstrap", return_value=fixture) as start:
+                    with mock.patch.object(shared, "bootstrap", return_value=fixture) as start:
                         self.assertEqual(getattr(module, function_name)(), "media-fixture-key")
-                    start.assert_called_once_with(specialized_names=(specialized,))
+                    start.assert_called_once_with(
+                        specialized_names=(specialized,),
+                        environ=None,
+                        event_file=None,
+                    )
 
 
 if __name__ == "__main__":

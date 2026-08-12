@@ -70,6 +70,14 @@ class _FishHandler(BaseHTTPRequestHandler):
         if self.headers.get("Authorization") != "Bearer local-test-key":
             self.send_error(401)
             return
+        if self.path == "/gateway/v1/models":
+            response = json.dumps({"object": "list", "data": []}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(response)))
+            self.end_headers()
+            self.wfile.write(response)
+            return
         if self.path != "/gateway/v1/audio/voice-models/private-voice-id":
             self.send_error(404)
             return
@@ -619,6 +627,17 @@ class FishAudioTests(unittest.TestCase):
                 self.send_header("Content-Length", str(len(body)))
                 self.end_headers()
                 self.wfile.write(body)
+
+            def do_GET(self):  # noqa: N802
+                if self.path == "/v1/models":
+                    body = b'{"object":"list","data":[]}'
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
+                self.send_error(404)
 
         server = ThreadingHTTPServer(("127.0.0.1", 0), H)
         thread = threading.Thread(target=server.serve_forever, daemon=True)

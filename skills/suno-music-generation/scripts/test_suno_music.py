@@ -52,6 +52,9 @@ class _SunoHandler(BaseHTTPRequestHandler):
         self._json({"code": "success", "data": "task_public"})
 
     def do_GET(self) -> None:
+        if self.path == "/gateway/v1/models":
+            self._json({"object": "list", "data": []})
+            return
         if self.path == "/gateway/suno/fetch/task_public":
             type(self).polls += 1
             if type(self).polls == 1:

@@ -109,6 +109,17 @@ class ImageConfigTest(unittest.TestCase):
                 self.end_headers()
                 self.wfile.write(body)
 
+            def do_GET(self):  # noqa: N802
+                if self.path == "/v1/models":
+                    body = b'{"object":"list","data":[]}'
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
+                self.send_error(404)
+
         server = ThreadingHTTPServer(("127.0.0.1", 0), H)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()

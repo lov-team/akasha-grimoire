@@ -2,9 +2,9 @@
 
 实现：`shared/akasha_credentials.py`。协议版本为 `AKASHA_DEVICE_V1`，服务端契约固定于 [LovBrowser #1256](https://github.com/jingx8885/lovbrowser/issues/1256)。
 
-## 发现顺序
+## 运行时降级顺序
 
-专用环境变量 > `NEW_API_API_KEY` > 用户级 Akasha 凭证 > `OPENAI_API_KEY`。用户文件固定为 `~/.config/akasha/credentials.env`，只允许 `NEW_API_API_KEY` 与 `NEW_API_BASE_URL` 两个单值字段。
+先读取本地 `OPENAI_API_KEY` 与 `OPENAI_BASE_URL`，以 `/v1/models` 验证；可用即复用。不可用时依次验证专用环境变量、`NEW_API_API_KEY` 与用户级 Akasha 凭证。全部缺失或验证失败后，才进入 LovBrowser Device Flow 并给出二维码、链接与短码引导。用户文件固定为 `~/.config/akasha/credentials.env`，只允许 `NEW_API_API_KEY` 与 `NEW_API_BASE_URL` 两个单值字段。
 
 ## 客户端流程
 

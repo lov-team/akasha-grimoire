@@ -73,6 +73,10 @@ class DeviceResult:
     account_flow: str
 
 
+_ACTIVE_CREDENTIAL: Credential | None = None
+_VALIDATED_CREDENTIALS: dict[tuple[str, str], Credential] = {}
+
+
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):  # type: ignore[no-untyped-def]
         return None
@@ -80,7 +84,7 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 
 def bootstrap_instructions() -> str:
     return (
-        "No API key is configured. Run `python3 shared/akasha_credentials.py start`, "
+        "No usable API key was found. Run `python3 shared/akasha_credentials.py start`, "
         "open https://lovbrowser.com through the emitted device link or QR code, "
         "then run `python3 shared/akasha_credentials.py finish`."
     )
@@ -146,6 +150,91 @@ def discover_credential(
     return None
 
 
+def credential_candidates(
+    specialized_names: tuple[str, ...] = (),
+    *,
+    environ: Mapping[str, str] | None = None,
+) -> tuple[Credential, ...]:
+    """Return configured candidates in runtime fallback order.
+
+    The local OpenAI-compatible credential is tried first when present.  An
+    explicitly configured Akasha/media credential is then used as fallback.
+    Duplicate key/base pairs are collapsed without exposing secret values.
+    """
+    env = os.environ if environ is None else environ
+    candidates: list[Credential] = []
+    compatible = env.get("OPENAI_API_KEY", "")
+    if isinstance(compatible, str) and compatible.strip():
+        candidates.append(Credential(
+            compatible.strip(),
+            env.get("OPENAI_BASE_URL", "").strip() or OFFICIAL_NEWAPI_BASE_URL,
+            "env:OPENAI_API_KEY",
+        ))
+
+    for name in (*specialized_names, "NEW_API_API_KEY"):
+        value = env.get(name, "")
+        if isinstance(value, str) and value.strip():
+            base_name = (
+                name[:-len("_API_KEY")] + "_BASE_URL"
+                if name.endswith("_API_KEY")
+                else "NEW_API_BASE_URL"
+            )
+            candidates.append(Credential(
+                value.strip(),
+                env.get(base_name, "").strip()
+                or env.get("NEW_API_BASE_URL", "").strip()
+                or OFFICIAL_NEWAPI_BASE_URL,
+                f"env:{name}",
+            ))
+
+    stored = _read_env_file(credentials_path(env))
+    if stored.get("NEW_API_API_KEY"):
+        candidates.append(Credential(
+            stored["NEW_API_API_KEY"],
+            stored.get("NEW_API_BASE_URL", OFFICIAL_NEWAPI_BASE_URL),
+            "akasha-user-file",
+        ))
+
+    unique: list[Credential] = []
+    seen: set[tuple[str, str]] = set()
+    for candidate in candidates:
+        identity = (candidate.api_key, candidate.base_url)
+        if identity not in seen:
+            seen.add(identity)
+            unique.append(candidate)
+    return tuple(unique)
+
+
+def resolve_usable_credential(
+    specialized_names: tuple[str, ...] = (),
+    *,
+    environ: Mapping[str, str] | None = None,
+    timeout: float = 10,
+    urlopen: Callable[..., Any] | None = None,
+    allow_test_http: bool = False,
+) -> Credential | None:
+    """Probe configured credentials and return the first working candidate."""
+    for candidate in credential_candidates(specialized_names, environ=environ):
+        identity = (candidate.api_key, candidate.base_url)
+        cached = _VALIDATED_CREDENTIALS.get(identity)
+        if cached is not None:
+            return cached
+        try:
+            validate_credential(
+                candidate.api_key,
+                candidate.base_url,
+                timeout=timeout,
+                urlopen=urlopen,
+                allow_compatible_base=True,
+                allow_test_http=allow_test_http,
+            )
+        except CredentialError:
+            continue
+        _VALIDATED_CREDENTIALS[identity] = candidate
+        return candidate
+    return None
+
+
 def resolve_base_url(
     specialized_names: tuple[str, ...] = (),
     *,
@@ -155,6 +244,8 @@ def resolve_base_url(
 ) -> str:
     if explicit:
         return explicit
+    if _ACTIVE_CREDENTIAL is not None:
+        return _ACTIVE_CREDENTIAL.base_url
     env = os.environ if environ is None else environ
     for name in (*specialized_names, "NEW_API_BASE_URL"):
         value = env.get(name, "")
@@ -420,8 +511,18 @@ def cancel(*, environ: Mapping[str, str] | None = None) -> None:
         qr.parent.rmdir()
 
 
-def validate_credential(api_key: str, base_url: str, *, timeout: float = 30, urlopen: Callable[..., Any] | None = None, allow_test_http: bool = False) -> None:
-    if not allow_test_http: _require_exact_url(base_url, OFFICIAL_NEWAPI_BASE_URL, "new-api base URL")
+def validate_credential(api_key: str, base_url: str, *, timeout: float = 30, urlopen: Callable[..., Any] | None = None, allow_compatible_base: bool = False, allow_test_http: bool = False) -> None:
+    if allow_compatible_base:
+        try:
+            parsed = urllib.parse.urlsplit(base_url)
+            _ = parsed.port
+        except (TypeError, ValueError) as exc:
+            raise CredentialError("invalid compatible API base URL") from exc
+        allowed_schemes = {"https"} | ({"http"} if allow_test_http else set())
+        if parsed.scheme not in allowed_schemes or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
+            raise CredentialError("invalid compatible API base URL")
+    elif not allow_test_http:
+        _require_exact_url(base_url, OFFICIAL_NEWAPI_BASE_URL, "new-api base URL")
     request = urllib.request.Request(base_url.rstrip("/") + "/models", method="GET", headers={"Accept":"application/json", "Authorization":f"Bearer {api_key}", "User-Agent":"akasha-device/1"})
     opener = urlopen or urllib.request.build_opener(_NoRedirect()).open
     try:
@@ -480,8 +581,11 @@ def finish_device_flow(
 
 
 def bootstrap(*, specialized_names: tuple[str, ...] = (), environ: Mapping[str, str] | None = None, event_file: TextIO | None = None) -> Credential:
-    existing = discover_credential(specialized_names, environ=environ)
-    if existing: return existing
+    global _ACTIVE_CREDENTIAL
+    existing = resolve_usable_credential(specialized_names, environ=environ)
+    if existing:
+        _ACTIVE_CREDENTIAL = existing
+        return existing
     values = os.environ if environ is None else environ
     if values.get("AKASHA_DISABLE_AUTO_BOOTSTRAP") == "1":
         raise CredentialError("automatic bootstrap is disabled; " + bootstrap_instructions())
@@ -493,7 +597,54 @@ def bootstrap(*, specialized_names: tuple[str, ...] = (), environ: Mapping[str, 
     except KeyboardInterrupt:
         cancel(environ=environ); raise CredentialError("device authorization cancelled") from None
     print(f"AKASHA_DEVICE_CONFIGURED source={result.credential.source} validation=/v1/models account_flow={result.account_flow}", file=output, flush=True)
+    _ACTIVE_CREDENTIAL = result.credential
     return result.credential
+
+
+def select_credential(
+    specialized_names: tuple[str, ...] = (),
+    *,
+    explicit_base_url: str | None = None,
+    timeout: float = 10,
+    environ: Mapping[str, str] | None = None,
+    event_file: TextIO | None = None,
+) -> Credential:
+    """Select a credential, treating an explicit CLI base URL as the probe target."""
+    if explicit_base_url:
+        env = dict(os.environ if environ is None else environ)
+        parsed = urllib.parse.urlsplit(explicit_base_url)
+        selected_name = next(
+            (
+                name
+                for name in (*specialized_names, "NEW_API_API_KEY", "OPENAI_API_KEY")
+                if isinstance(env.get(name), str) and env[name].strip()
+            ),
+            None,
+        )
+        if selected_name is not None:
+            key = env[selected_name].strip()
+            probe = Credential(key, explicit_base_url, f"env:{selected_name}")
+            identity = (probe.api_key, probe.base_url)
+            if identity not in _VALIDATED_CREDENTIALS:
+                validate_credential(
+                    probe.api_key,
+                    probe.base_url,
+                    timeout=timeout,
+                    allow_compatible_base=True,
+                    allow_test_http=(
+                        env.get("AKASHA_ALLOW_TEST_HTTP") == "1"
+                        or parsed.hostname in {"127.0.0.1", "localhost", "::1"}
+                    ),
+                )
+                _VALIDATED_CREDENTIALS[identity] = probe
+            global _ACTIVE_CREDENTIAL
+            _ACTIVE_CREDENTIAL = probe
+            return probe
+    return bootstrap(
+        specialized_names=specialized_names,
+        environ=environ,
+        event_file=event_file,
+    )
 
 
 def status(*, environ: Mapping[str, str] | None = None) -> dict[str, Any]:

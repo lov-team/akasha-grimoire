@@ -52,7 +52,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         self.requests.append((self.path, self.headers.get("Content-Type", ""), b""))
-        if self.path == "/v1/videos/task-123":
+        if self.path == "/v1/models":
+            self.send_json({"object": "list", "data": []})
+        elif self.path == "/v1/videos/task-123":
             self.send_json({"id": "task-123", "status": "completed", "metadata": {"url": "https://example.invalid/result.mp4"}})
         elif self.path == "/v1/videos/task-123/content":
             self.send_response(200)
@@ -88,9 +90,14 @@ class GrokMediaScriptTest(unittest.TestCase):
         self.temp_dir.cleanup()
 
     def invoke(self, *args: str) -> subprocess.CompletedProcess[str]:
+        env = os.environ.copy()
+        env.update({
+            "GROK_MEDIA_API_KEY": "test-key",
+            "AKASHA_ALLOW_TEST_HTTP": "1",
+        })
         return subprocess.run(
             ["python3", str(SCRIPT), "--base-url", self.base_url, "--timeout", "5", *args],
-            env={"GROK_MEDIA_API_KEY": "test-key"},
+            env=env,
             text=True,
             capture_output=True,
             check=False,
@@ -312,7 +319,7 @@ class GrokMediaScriptTest(unittest.TestCase):
             str(self.directory / "out.png"),
         )
         self.assertEqual(result.returncode, 1)
-        self.assertEqual(Handler.requests, [])
+        self.assertEqual([request for request in Handler.requests if request[0] != "/v1/models"], [])
         self.assertIn("image URL must be an absolute public HTTPS URL", result.stderr)
 
     def test_missing_key_recommends_lovbrowser_without_request(self) -> None:
@@ -366,7 +373,7 @@ class GrokMediaScriptTest(unittest.TestCase):
                 Handler.requests.clear()
                 result = self.invoke("video-edit", "--video-url", url, "--prompt", "edit", "--output", str(self.directory / "out.mp4"))
                 self.assertEqual(result.returncode, 1)
-                self.assertEqual(Handler.requests, [])
+                self.assertEqual([request for request in Handler.requests if request[0] != "/v1/models"], [])
                 self.assertNotIn("user:secret", result.stderr)
 
     def test_loader_identity_and_controller_catches_quota_from_real_request_wrapper(self) -> None:

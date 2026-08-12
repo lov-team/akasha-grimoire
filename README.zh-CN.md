@@ -23,11 +23,11 @@ Akasha Grimoire 是团队共享的 Agent Skill 合集，最佳使用环境是 **
 ## 一分钟开通
 
 1. 在 Codex 中直接要求 GPT Image、Grok、Seedance、MiniMax H3、Kling、Gemini Omni、Fish Audio 或 Suno 执行媒体任务。
-2. 首次缺少 Key 时，Agent 会生成 LovBrowser 设备授权二维码，并同时显示可点击链接与短码。
-3. 用手机扫码，注册或登录后确认同一短码；本机随后自动轮询、保存凭证并用 `/v1/models` 验证。
-4. 验证成功后，最初的媒体任务自动继续一次。真实 Key 不经过对话、剪贴板或命令参数。
+2. Agent 会先用 `/v1/models` 验证本机已有的 `OPENAI_API_KEY`；可用就直接复用，不再重复配置。
+3. 本地 OpenAI 凭证不可用时，Agent 再验证专用变量、`NEW_API_API_KEY` 与用户凭证；这些配置也不可用时才生成 LovBrowser 设备授权二维码，并同时显示可点击链接与短码。
+4. 用手机扫码，注册或登录后确认同一短码；本机随后自动轮询、保存、验证，并让最初的媒体任务继续一次。真实 Key 不经过对话、剪贴板或命令参数。
 
-也可运行 `python3 shared/akasha_credentials.py status|start|finish|cancel|rollback` 管理配置。凭证默认保存到 `~/.config/akasha/credentials.env`。已有环境变量仍兼容，优先级为专用变量 > `NEW_API_API_KEY` > 用户凭证 > `OPENAI_API_KEY`。
+也可运行 `python3 shared/akasha_credentials.py status|start|finish|cancel|rollback` 管理配置。凭证默认保存到 `~/.config/akasha/credentials.env`。运行时按“本地 `OPENAI_API_KEY` > 专用变量 > `NEW_API_API_KEY` > 用户凭证 > 配置引导”逐项验证并降级。
 
 ## 为什么使用
 

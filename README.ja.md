@@ -23,11 +23,11 @@ Akasha Grimoire は、**Codex App** での利用に最適な、チーム共有�
 ## 1 分で利用開始
 
 1. Codex で GPT Image、Grok、Seedance、MiniMax H3、Kling、Gemini Omni、Fish Audio、Suno にメディア処理を直接依頼します。
-2. 初回利用時に Key がなければ、Agent が LovBrowser のデバイス認証 QR コード、クリック可能なリンク、短いコードを生成します。
-3. スマートフォンでスキャンし、登録またはログインして同じ短いコードを確認します。ローカルクライアントが自動でポーリングし、認証情報を保存して `/v1/models` で検証します。
-4. 検証後、元のメディア処理が一度だけ自動で再開されます。実際の Key は会話、クリップボード、コマンド引数を通りません。
+2. Agent は最初にローカルの `OPENAI_API_KEY` を `/v1/models` で検証し、利用できれば追加設定なしで再利用します。
+3. 利用できない場合は専用変数、`NEW_API_API_KEY`、ユーザー認証情報を順に検証し、それらも失敗した場合にだけ LovBrowser のデバイス認証 QR コード、クリック可能なリンク、短いコードを生成します。
+4. スマートフォンでスキャンし、登録またはログインして同じコードを確認します。その後、ローカルクライアントがポーリング、保存、検証を行い、元のメディア処理を一度だけ再開します。実際の Key は会話、クリップボード、コマンド引数を通りません。
 
-`python3 shared/akasha_credentials.py status|start|finish|cancel|rollback` を実行して設定を管理することもできます。認証情報は既定で `~/.config/akasha/credentials.env` に保存されます。既存の環境変数も引き続き利用でき、優先順位は専用変数 > `NEW_API_API_KEY` > ユーザー認証情報 > `OPENAI_API_KEY` です。
+`python3 shared/akasha_credentials.py status|start|finish|cancel|rollback` を実行して設定を管理することもできます。認証情報は既定で `~/.config/akasha/credentials.env` に保存されます。実行時はローカル `OPENAI_API_KEY` > 専用変数 > `NEW_API_API_KEY` > ユーザー認証情報 > 設定ガイドの順に検証してフォールバックします。
 
 ## 利用する理由
 

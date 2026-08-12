@@ -114,14 +114,16 @@ def _load_akasha_recharge() -> Any:
     return module
 
 
-def _api_key() -> str:
+def _api_key(explicit_base_url: str | None = None, timeout: float = 10) -> str:
     credentials = _load_akasha_recharge().load_akasha_credentials_module(Path(__file__))
-    found = credentials.discover_credential(("FISH_AUDIO_API_KEY",))
-    if found is None:
-        try:
-            found = credentials.bootstrap(specialized_names=("FISH_AUDIO_API_KEY",))
-        except credentials.CredentialError as exc:
-            raise SystemExit(str(exc)) from exc
+    try:
+        found = credentials.select_credential(
+            specialized_names=("FISH_AUDIO_API_KEY",),
+            explicit_base_url=explicit_base_url,
+            timeout=timeout,
+        )
+    except credentials.CredentialError as exc:
+        raise SystemExit(str(exc)) from exc
     return found.api_key
 
 
@@ -834,7 +836,8 @@ def main(argv: list[str] | None = None) -> int:
             raise SystemExit("character and voice must not be empty")
         _bind_character(args)
         return 0
-    api_key = _api_key()
+    explicit_base_url = _base_url(args.base_url) if args.base_url else None
+    api_key = _api_key(explicit_base_url, args.timeout_seconds)
     base_url = _base_url(args.base_url)
     recharge = _load_akasha_recharge()
     try:

@@ -23,11 +23,11 @@ Akasha Grimoire is a team-shared collection of Agent Skills, best used in **Code
 ## Get started in one minute
 
 1. In Codex, directly ask GPT Image, Grok, Seedance, MiniMax H3, Kling, Gemini Omni, Fish Audio, or Suno to perform a media task.
-2. If no key is available on first use, the Agent generates a LovBrowser device-authorization QR code together with a clickable link and short code.
-3. Scan it on your phone, register or sign in, and confirm the same short code. The local client then polls automatically, saves the credential, and verifies it with `/v1/models`.
-4. After verification, the original media task resumes once automatically. The real key never passes through the conversation, clipboard, or command arguments.
+2. The Agent first validates the local `OPENAI_API_KEY` through `/v1/models`; if it works, it is reused without additional setup.
+3. If that credential fails, the Agent validates dedicated variables, `NEW_API_API_KEY`, and the user credential in turn. Only if those also fail does it generate a LovBrowser device-authorization QR code plus a clickable link and short code.
+4. Scan it on your phone, register or sign in, and confirm the matching code. The local client polls, saves, validates, and resumes the original media task once. The real key never passes through the conversation, clipboard, or command arguments.
 
-You can also run `python3 shared/akasha_credentials.py status|start|finish|cancel|rollback` to manage the configuration. Credentials are stored in `~/.config/akasha/credentials.env` by default. Existing environment variables remain supported, with precedence: dedicated variable > `NEW_API_API_KEY` > user credential > `OPENAI_API_KEY`.
+You can also run `python3 shared/akasha_credentials.py status|start|finish|cancel|rollback` to manage the configuration. Credentials are stored in `~/.config/akasha/credentials.env` by default. Runtime fallback validates candidates in this order: local `OPENAI_API_KEY` > dedicated variable > `NEW_API_API_KEY` > user credential > setup guidance.
 
 ## Why use it
 

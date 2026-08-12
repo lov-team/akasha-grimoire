@@ -1,21 +1,23 @@
 ---
 name: akasha-key-setup
-description: 当 Akasha 媒体 Skill 缺少 new-api Key，或用户要求配置、查看、取消、恢复 Akasha 凭证时，使用 LovBrowser AKASHA_DEVICE_V1 扫码授权流程。
+description: 当 Akasha 媒体 Skill 需要复用本地 OpenAI Key、验证并降级到显式配置，或用户要求配置、查看、取消、恢复 Akasha 凭证时，使用共享凭证探测与 LovBrowser AKASHA_DEVICE_V1 扫码授权流程。
 ---
 
 # Akasha Key Setup
 
 所有媒体 Skill 共用 `shared/akasha_credentials.py`，不要复制实现，也不要要求用户把真实 Key 发到对话中。
 
-## 缺 Key 自动流程
+## 自动降级流程
 
 GPT Image、Grok、Seedance、Fish Audio、Suno 的入口会自动：
 
-1. 调用 LovBrowser Device Flow，生成 PKCE S256 verifier/challenge。
-2. 输出 `akasha.device_authorization` 事件，其中只有短码、公开验证链接和本地 PNG 绝对路径。
-3. 用 Markdown 图片语法渲染 `qrPngPath`，并同时给出可点击的 `verificationUriComplete` 与 `userCode`。
-4. 保持原命令运行，低噪声等待用户在手机上确认。
-5. 兑换 Key 后原子写入用户凭证文件，调用官方 `/v1/models` 验证，再让最初的媒体动作继续执行一次。
+1. 优先读取本地 `OPENAI_API_KEY` 与 `OPENAI_BASE_URL`，调用该地址的 `/v1/models`；验证成功就直接复用。
+2. 本地 OpenAI 凭证不可达、被拒绝或响应不兼容时，依次验证专用环境变量、`NEW_API_API_KEY` 和 `~/.config/akasha/credentials.env`；首个可用配置胜出。
+3. 所有候选都缺失或验证失败时，调用 LovBrowser Device Flow，生成 PKCE S256 verifier/challenge。
+4. 输出 `akasha.device_authorization` 事件，其中只有短码、公开验证链接和本地 PNG 绝对路径。
+5. 用 Markdown 图片语法渲染 `qrPngPath`，并同时给出可点击的 `verificationUriComplete` 与 `userCode`。
+6. 保持原命令运行，低噪声等待用户在手机上确认。
+7. 兑换 Key 后原子写入用户凭证文件，调用官方 `/v1/models` 验证，再让最初的媒体动作继续执行一次。
 
 不要显示或转述 device code、PKCE verifier、真实 Key、状态文件或凭证文件内容。
 
@@ -39,9 +41,11 @@ python3 shared/akasha_credentials.py rollback
 
 用户中断、拒绝或会话过期后清理状态；过期会话重新执行 `start`，不复活旧会话。
 
-## 凭证优先级
+## 配置发现与运行优先级
 
-专用环境变量 > `NEW_API_API_KEY` > `~/.config/akasha/credentials.env` > `OPENAI_API_KEY`。
+`discover_credential` 保留兼容发现顺序：专用环境变量 > `NEW_API_API_KEY` > `~/.config/akasha/credentials.env` > `OPENAI_API_KEY`。
+
+媒体入口必须走 `bootstrap` 的验证式运行顺序：本地 `OPENAI_API_KEY` > 专用环境变量 > `NEW_API_API_KEY` > `~/.config/akasha/credentials.env` > LovBrowser 配置引导。不要只检查变量是否存在；每个候选都要先通过 `/v1/models`。
 
 用户目录权限为 0700，凭证、备份、锁、Device 状态及二维码文件为 0600。生产只接受精确的 `https://lovbrowser.com` 和 `https://llmapi.lovbrowser.com/v1`，且不跟随重定向。
 

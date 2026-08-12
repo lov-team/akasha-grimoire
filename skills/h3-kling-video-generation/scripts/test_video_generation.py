@@ -45,7 +45,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         self.requests.append((self.command, self.path, b""))
-        if self.path == "/v1/video/generations/task-video-123":
+        if self.path == "/v1/models":
+            self.send_json({"object": "list", "data": []})
+        elif self.path == "/v1/video/generations/task-video-123":
             self.send_json({"data": {"task_id": "task-video-123", "status": "SUCCESS"}})
         elif self.path == "/v1/videos/task-video-123/content":
             self.send_response(200)
@@ -82,6 +84,7 @@ class VideoGenerationTest(unittest.TestCase):
     def invoke(self, *args: str) -> subprocess.CompletedProcess[str]:
         env = os.environ.copy()
         env["H3_KLING_VIDEO_API_KEY"] = "test-key"
+        env["AKASHA_ALLOW_TEST_HTTP"] = "1"
         return subprocess.run(
             ["python3", str(SCRIPT), "--base-url", self.base_url, "--timeout", "5", *args],
             env=env,
@@ -94,7 +97,7 @@ class VideoGenerationTest(unittest.TestCase):
         return str(Path(self.temp_dir.name) / name)
 
     def submit_payload(self) -> dict:
-        method, path, body = Handler.requests[0]
+        method, path, body = [request for request in Handler.requests if request[1] != "/v1/models"][0]
         self.assertEqual((method, path), ("POST", "/v1/video/generations"))
         return json.loads(body)
 
@@ -154,7 +157,7 @@ class VideoGenerationTest(unittest.TestCase):
         )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("requires at least one", result.stderr)
-        self.assertFalse(Handler.requests)
+        self.assertFalse([request for request in Handler.requests if request[1] != "/v1/models"])
 
     def test_kling_25_uses_string_duration_and_native_options(self) -> None:
         result = self.invoke(
@@ -203,7 +206,7 @@ class VideoGenerationTest(unittest.TestCase):
         )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("4-15", result.stderr)
-        self.assertFalse(Handler.requests)
+        self.assertFalse([request for request in Handler.requests if request[1] != "/v1/models"])
 
         result = self.invoke(
             "generate", "--model", "kling-2.5-t2v", "--prompt", "x",
@@ -211,7 +214,7 @@ class VideoGenerationTest(unittest.TestCase):
         )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("increments of 0.1", result.stderr)
-        self.assertFalse(Handler.requests)
+        self.assertFalse([request for request in Handler.requests if request[1] != "/v1/models"])
 
 
 if __name__ == "__main__":

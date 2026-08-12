@@ -45,7 +45,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         self.requests.append((self.command, self.path, b""))
-        if self.path == "/v1/video/generations/task-seedance-123":
+        if self.path == "/v1/models":
+            self.send_json({"object": "list", "data": []})
+        elif self.path == "/v1/video/generations/task-seedance-123":
             self.send_json({"code": "success", "data": {"task_id": "task-seedance-123", "status": "SUCCESS"}})
         elif self.path == "/v1/videos/task-seedance-123/content":
             self.send_response(200)
@@ -127,6 +129,7 @@ class SeedanceVideoScriptTest(unittest.TestCase):
     def invoke(self, *args: str) -> subprocess.CompletedProcess[str]:
         env = os.environ.copy()
         env["SEEDANCE_VIDEO_API_KEY"] = "test-key"
+        env["AKASHA_ALLOW_TEST_HTTP"] = "1"
         return subprocess.run(
             ["python3", str(SCRIPT), "--base-url", self.base_url, "--timeout", "5", *args],
             env=env,
@@ -150,7 +153,7 @@ class SeedanceVideoScriptTest(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(output.read_bytes(), MP4)
-        method, path, body = Handler.requests[0]
+        method, path, body = [request for request in Handler.requests if request[1] != "/v1/models"][0]
         self.assertEqual((method, path), ("POST", "/v1/video/generations"))
         payload = json.loads(body)
         self.assertEqual(payload["prompt"], "wave to camera")
@@ -181,7 +184,7 @@ class SeedanceVideoScriptTest(unittest.TestCase):
         )
 
         self.assertEqual(result.returncode, 0, result.stderr)
-        payload = json.loads(Handler.requests[0][2])
+        payload = json.loads([request for request in Handler.requests if request[1] != "/v1/models"][0][2])
         self.assertEqual(payload["prompt"], prompt_file.read_text(encoding="utf-8").strip())
 
     def test_generate_rejects_empty_prompt_file_before_request(self) -> None:
@@ -197,7 +200,7 @@ class SeedanceVideoScriptTest(unittest.TestCase):
 
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("prompt file is empty", result.stderr)
-        self.assertFalse(Handler.requests)
+        self.assertFalse([request for request in Handler.requests if request[1] != "/v1/models"])
         self.assertFalse(output.exists())
 
     def test_generate_requires_exactly_one_prompt_source(self) -> None:
@@ -214,7 +217,7 @@ class SeedanceVideoScriptTest(unittest.TestCase):
 
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("not allowed with argument", result.stderr)
-        self.assertFalse(Handler.requests)
+        self.assertFalse([request for request in Handler.requests if request[1] != "/v1/models"])
 
     def test_seedance_1_pro_uses_ark_model_and_twelve_second_limit(self) -> None:
         output = Path(self.temp_dir.name) / "pro.mp4"
@@ -228,7 +231,7 @@ class SeedanceVideoScriptTest(unittest.TestCase):
         )
 
         self.assertEqual(result.returncode, 0, result.stderr)
-        payload = json.loads(Handler.requests[0][2])
+        payload = json.loads([request for request in Handler.requests if request[1] != "/v1/models"][0][2])
         self.assertEqual(payload["model"], "doubao-seedance-1-0-pro-250528")
         self.assertFalse(payload["metadata"]["generate_audio"])
 
@@ -242,7 +245,7 @@ class SeedanceVideoScriptTest(unittest.TestCase):
             "--output", str(text_output),
         )
         self.assertEqual(text_result.returncode, 0, text_result.stderr)
-        text_payload = json.loads(Handler.requests[0][2])
+        text_payload = json.loads([request for request in Handler.requests if request[1] != "/v1/models"][0][2])
         self.assertEqual(text_payload["model"], "doubao-seedance-1-0-lite-t2v-250428")
 
         Handler.requests.clear()
@@ -256,7 +259,7 @@ class SeedanceVideoScriptTest(unittest.TestCase):
             "--output", str(image_output),
         )
         self.assertEqual(image_result.returncode, 0, image_result.stderr)
-        image_payload = json.loads(Handler.requests[0][2])
+        image_payload = json.loads([request for request in Handler.requests if request[1] != "/v1/models"][0][2])
         self.assertEqual(image_payload["model"], "doubao-seedance-1-0-lite-i2v-250428")
 
     def test_rejects_unsupported_seedance_1_inputs_before_request(self) -> None:
@@ -271,7 +274,7 @@ class SeedanceVideoScriptTest(unittest.TestCase):
 
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("does not accept video or audio references", result.stderr)
-        self.assertFalse(Handler.requests)
+        self.assertFalse([request for request in Handler.requests if request[1] != "/v1/models"])
         self.assertFalse(output.exists())
 
     def test_loader_identity_and_controller_catches_quota_from_real_loader(self) -> None:
@@ -492,7 +495,7 @@ class SeedanceVideoScriptTest(unittest.TestCase):
         )
 
         self.assertEqual(result.returncode, 0, result.stderr)
-        payload = json.loads(Handler.requests[0][2])
+        payload = json.loads([request for request in Handler.requests if request[1] != "/v1/models"][0][2])
         self.assertTrue(payload["metadata"]["generate_audio"])
 
     def test_explicit_lite_modes_validate_image_input(self) -> None:
@@ -515,7 +518,7 @@ class SeedanceVideoScriptTest(unittest.TestCase):
         )
         self.assertNotEqual(t2v_result.returncode, 0)
         self.assertIn("does not accept image references", t2v_result.stderr)
-        self.assertFalse(Handler.requests)
+        self.assertFalse([request for request in Handler.requests if request[1] != "/v1/models"])
         self.assertFalse(output.exists())
 
     def test_rejects_duration_above_model_limit_before_request(self) -> None:
@@ -530,7 +533,7 @@ class SeedanceVideoScriptTest(unittest.TestCase):
 
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("between 4 and 12 seconds", result.stderr)
-        self.assertFalse(Handler.requests)
+        self.assertFalse([request for request in Handler.requests if request[1] != "/v1/models"])
         self.assertFalse(output.exists())
 
     def test_rejects_non_https_reference_before_request(self) -> None:
@@ -543,7 +546,7 @@ class SeedanceVideoScriptTest(unittest.TestCase):
         )
 
         self.assertNotEqual(result.returncode, 0)
-        self.assertFalse(Handler.requests)
+        self.assertFalse([request for request in Handler.requests if request[1] != "/v1/models"])
         self.assertFalse(output.exists())
 
 
