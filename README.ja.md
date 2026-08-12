@@ -100,7 +100,7 @@ Graph Engineering は、納品を一時的な prompt の列ではなく、追跡
 | [`video-editing`](skills/video-editing/) | 一般的な rough/fine cut、B-roll、音声、字幕、書き出し | Review 可能な `edl.json`、決定論的 FFmpeg render、音画同期、複数 aspect の export |
 | [`video-qc`](skills/video-qc/) | 生成 clip、preview、完成動画の受け入れ確認 | 全体 decode、黒画面/freeze/silence/loudness/subtitle 検査、代表 frame、連続性 Review |
 | [`wechat-channels-talking-head`](skills/wechat-channels-talking-head/) | WeChat Channels の口播、interview、解説動画を編集 | 意味ベースの rough cut、最終音声からの単語単位字幕、info card/PiP、cover、配信 package、過剰編集防止の再検証 |
-| [`article-to-short-video`](skills/article-to-short-video/) | 中国語の長文記事や論説を 60〜120 秒の縦型動画へ変換 | 証拠境界、narration 圧縮、dynamic shot、Fish voiceover、Suno music、縦型動画の受け入れ確認 |
+| [`article-to-short-video`](skills/article-to-short-video/) | 中国語の長文記事や論説をタイトル主導の Remotion 縦型動画へ変換 | ナレーション分割確認、ページ別レイアウトと動き、音声合成サンプル、実音声タイムライン、マルチトラック、完全な文の字幕、完成版確認 |
 | [`seedance-video-generation`](skills/seedance-video-generation/) | Seedance の text-to-video、image-to-video、first/last-frame、multi-reference 生成 | 秒単位の演出 prompt、model-level 制約、非同期 polling、安全な download、出力 probe |
 | [`seedance-video-continuation`](skills/seedance-video-continuation/) | 既存 MP4 の最終 frame から続きを生成 | 最後の有効 frame 抽出、first-frame continuation、連続性 prompt、segment 結合、再検証 |
 | [`h3-kling-video-generation`](skills/h3-kling-video-generation/) | MiniMax H3、Kling の shot とゲーム PV | T2V/I2V、director-style prompt、2D animation/MG/UI 合成、model 検証、MP4 download |

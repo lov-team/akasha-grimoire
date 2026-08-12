@@ -100,7 +100,7 @@ Graph Engineering 把交付建模为一张可追踪的工作图，而不是一�
 | [`video-editing`](skills/video-editing/) | 通用粗剪、精剪、B-roll、声音、字幕和导出 | 可审阅 `edl.json`、确定性 FFmpeg 渲染、音画同步和多画幅导出 |
 | [`video-qc`](skills/video-qc/) | 生成片段、预览和成片验收 | 完整解码、黑帧/冻结/静音/响度/字幕、代表帧与连续性审阅 |
 | [`wechat-channels-talking-head`](skills/wechat-channels-talking-head/) | 剪辑视频号口播、采访和知识讲解 | 语义粗剪、最终音轨逐字字幕、信息卡/画中画、封面、发布包与防过剪复验 |
-| [`article-to-short-video`](skills/article-to-short-video/) | 把中文长文或观点稿制作成 60—120 秒竖屏短视频 | 证据边界、旁白压缩、动态镜头、Fish 配音、Suno 配乐和竖屏验收 |
+| [`article-to-short-video`](skills/article-to-short-video/) | 把中文长文、人物故事或观点稿制作成标题主导的 Remotion 竖屏短视频 | 旁白分页确认、逐页排版动效、声音合成样片、实际语音时间线、多轨混音、完整句字幕与成片确认 |
 | [`seedance-video-generation`](skills/seedance-video-generation/) | Seedance 文生、图生、首尾帧和多参考视频 | 秒级导演提示、模型级约束、异步轮询、安全下载和成片探测 |
 | [`seedance-video-continuation`](skills/seedance-video-continuation/) | 从已有 MP4 尾帧继续生成 | 最后有效帧提取、首帧续拍、连续性提示、分段拼接与复验 |
 | [`h3-kling-video-generation`](skills/h3-kling-video-generation/) | MiniMax H3、Kling 镜头和游戏 PV | T2V/I2V、导演式 Prompt、二维动画/MG/UI 合成、模型校验和 MP4 下载 |

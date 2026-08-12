@@ -1,86 +1,137 @@
-# 文章转 90 秒短视频制作合同
+# 文章转 Remotion 视频制作合同
 
 ## 目录约定
 
 ```text
 topic/
 ├── article.md
-├── images/                     # 已确认使用的人物事实图片
+├── images/                         # 已确认使用的事实图片
 ├── video_project/
-│   ├── narration.txt
+│   ├── narration.md                # 核心判断、小标题、页面结论和旁白
 │   ├── narration_tts.txt
+│   ├── visual-contract.md          # 排版方向和逐页动效说明
+│   ├── captions.json               # Remotion Caption[]
 │   ├── captions.srt
-│   ├── storyboard.csv
-│   ├── make_overlays.py
-│   └── render_video.sh
-└── production-record.md
+│   ├── timeline.ts                 # 页面、字幕和 SFX 的唯一时间线
+│   └── src/                        # Remotion 工程
+└── production-record.md            # 五个确认门和素材来源
 
 staging-outside-repo/
-├── ai-images/
 ├── voice/
 ├── music/
+├── sfx/
+├── samples/
 ├── final/
 └── qa/
 ```
 
 仓库内文件表达可重复的决策；仓库外目录承载可再生成的大文件。
 
-## 90 秒时间线参考
+## 五个确认门
 
-| 时间 | 作用 | 画面 |
+| 门 | 提交给用户 | 放行后才能做 |
 |---|---|---|
-| 0—8 秒 | 反差钩子 | 三个事实锚点与标题 |
-| 8—64 秒 | 三段人物或案例 | 真实图片与非肖像意象交替 |
-| 64—82 秒 | 观点汇流 | 履历符号淡出，具体生活物件留下 |
-| 82—90 秒 | 核心句与来源 | 情绪收束、片尾来源 |
+| 1 内容 | 核心判断、逐页标题/结论/旁白、预计时长 | 排版设计 |
+| 2 视觉 | 2—3 种方向、选定方向的逐页动效和转场 | 声音与画面样片 |
+| 3 声音 | 8—15 秒合成样片；样片确认后的全文旁白和完整配乐 | 最终时间线 |
+| 4 时间线 | 最终页面帧、完整句字幕、SFX 表 | 完整渲染 |
+| 5 成片 | 两版 MP4、代表帧、QA 报告 | 宣称完成 |
 
-实际镜头必须跟随语音时间码；表格只定义叙事功能，不是固定切点。
+用户明确说“直接生成”不等于跳过确认门。用户只能在看过当前门交付物后确认该门。
+
+## 分页与视觉合同
+
+- 一个小标题对应一个页面，标题是旁白章节、Remotion 场景和时间线的共同 ID。
+- 页面只表达一个核心结论。过载时先精简，仍过载再拆出有独立含义的小标题，最后才延长总时长。
+- 每页文字分镜固定包含：`标题 / 页面目的 / 主视觉 / 信息层级 / 出现顺序 / 停留 / 转场 / 音效意图`。
+- 页面只保留标题、关键词、数字和必要短句；不得通过缩小字号容纳正文。
+- 每页一个主动画，信息落定后必须留出可读停顿；转场应延续上一页的元素或语义，而不是统一套淡入淡出。
+
+## Remotion 时间线
+
+最终旁白确定后再计算时间线，所有时间统一落到整数帧。页面时长、顺序和 SFX 只在一个中央文件维护：
+
+```ts
+export const CAPTION_LEAD_MS = 150;
+
+export const PAGES = [
+  {id: 'context', title: '上下文为什么会爆炸', from: 0, duration: 240},
+  {id: 'handoff', title: '跨会话如何传递', from: 240, duration: 300},
+] as const;
+
+export const SFX = [
+  {pageId: 'context', offset: 12, src: 'transition/transition-soft.mp3', role: 'primary'},
+  {pageId: 'handoff', offset: 18, src: 'transition/swoosh-quick.mp3', role: 'primary'},
+] as const;
+
+export const absoluteSfxFrame = (item: (typeof SFX)[number]) => {
+  const page = PAGES.find((candidate) => candidate.id === item.pageId);
+  if (!page) throw new Error(`Unknown SFX page: ${item.pageId}`);
+  return page.from + item.offset;
+};
+```
+
+改变任一页面的 `duration` 或顺序后，重新累计所有 `from`，并重新生成该页及后续字幕、转场和 SFX 绝对帧；不要手工平移散落在组件里的 `<Audio>`。
 
 ## 字幕合同
 
-- UTF-8 SRT，序号连续，时间递增，不重叠，不超过成片时长。
-- 每屏最多两行；单行优先控制在 16—18 个中文字符内。
-- 1080×1920 画布可把字幕视觉中心放在约 y=1540—1600，底部来源信息留在平台安全区内。
-- TTS 文本可以展开 `IMO`、`Cos`、`Nature`、`EVA`，字幕仍使用受众熟悉的正确写法。
-- 人名识别出现同音字时，不能仅凭 STT 判断读音正确；需人工试听或用多条短句 smoke 比较。
+- Remotion 内部使用 `@remotion/captions` 的 `Caption[]`；同时导出 UTF-8 SRT 供交付和检查。
+- `startMs = max(0, voiceStartMs - CAPTION_LEAD_MS)`，默认提前量为 150ms；不得因提前造成上一条字幕重叠。
+- 每条字幕是一句完整语义句，序号连续、时间递增、不重叠且不超过成片时长。
+- 每屏最多两行；单行优先控制在 16—18 个中文字符内，视觉中心约在 y=1540—1600，并保留平台安全区。
+- 两行放不下时回改旁白并重合成受影响语句；不缩小字号、不删改意思、不在句中硬切。
+- TTS 可以展开易误读缩写，字幕保留受众熟悉的正确写法。人名同音字不能只依赖 STT，必须人工试听。
 
-## Fish Audio 合同
+## 声音合同
 
-1. 用公开音色检索取得 `reference_id`，不从未知真人音频克隆。
-2. smoke 文本覆盖最容易错的姓名、数字和术语。
-3. 记录模型、音色名、reference ID、原始时长和 STT 结果，不记录密钥。
-4. 长文只做必要的微幅变速；超过约 5% 时优先改稿或重合成，避免声线失真。
-5. 逐句时间码必须来自最终实际使用的语音版本。
+### 合成样片
 
-## Suno 配乐合同
+先选最能代表全片的一页制作 8—15 秒合成样片。它必须包含最终候选音色、BGM、至少一个转场 SFX、至少一个关键动作 SFX、临时完整句字幕和基础动效。用户确认合成关系后才批量生成；批量完成后提交全文旁白和完整配乐供用户试听，两者确认后才进入最终时间线。
 
-1. 使用纯音乐模式，描述中明确“为旁白留空间、无歌词、无突发高潮”。
-2. 下载全部候选，逐个检查前 90 秒，不只听第一首。
-3. 先裁切、淡入淡出和归一化，再进入侧链压缩。
-4. 成片中说话段的音乐通常应比旁白低约 10—16 dB；停顿处应能被听见。
+### 三层总线
 
-## FFmpeg 混音参考
+| 总线 | 起始目标 | 关系 |
+|---|---|---|
+| VOICE | 约 -16 LUFS | 始终保证最高可懂度 |
+| BGM | 约 -25～-22 LUFS | 由 VOICE sidechain ducking，停顿时缓慢恢复 |
+| SFX | 依素材峰值试听 | 不压 VOICE；重要钉点可短暂压 BGM 2—4 dB |
+
+同一时刻一个主 SFX、最多一个辅助 SFX。长尾跨页时避开下一页同频段声音；长样本按动作显式截断。先按 `video-shotcraft/references/sound-design.md` 换音色或预归一化偏轻素材，再考虑提高增益。
+
+FFmpeg 混音起点：
 
 ```text
 [voice] loudnorm=I=-16:LRA=7:TP=-1.5, asplit
-[music] atrim=0:90, afade=in/out, loudnorm=I=-22:LRA=9:TP=-3
+[music] atrim=0:<duration>, afade=in/out, loudnorm=I=-23:LRA=9:TP=-3
 [music][voice-control] sidechaincompress=threshold=0.035:ratio=4:attack=20:release=400
-[voice][ducked-music] amix=normalize=0, alimiter=limit=0.95
+[voice][ducked-music][sfx] amix=normalize=0, alimiter=limit=0.95
 ```
 
-这些数值是起点，不是免试听的标准答案。对白密度、音乐编制和平台响度都会改变最佳平衡。
+数值只是起点。分别试听说话段、停顿段和转场峰值，终渲检查整体 LUFS 与 True Peak。
+
+## 动态时长验收
+
+成片期望时长来自最终 Remotion 时间线，不使用固定 90 秒默认值，也不从待验 MP4 反推期望值。检查时用 `sum(PAGES.duration) / fps` 得到 `EXPECTED_DURATION_SECONDS`，再显式传入 `--duration`：
+
+```bash
+# 例：timeline.ts 导出的总帧数为 1674，fps 为 30。
+EXPECTED_DURATION_SECONDS="$(python3 -c 'print(1674 / 30)')"
+
+python3 scripts/validate_short_video.py \
+  ./staging/final-with-bgm.mp4 \
+  --duration "$EXPECTED_DURATION_SECONDS" \
+  --duration-tolerance 0.05 \
+  --srt ./video_project/captions.srt \
+  --report ./staging/validation.json
+```
+
+交付前人工抽查钩子页、信息最密页、转场最复杂页和结尾页；核对标题与旁白一致性、文字安全区、完整句字幕、音画钉帧、来源和 AI 意象声明。
+
+成片反馈必须重开最早受影响的确认门：旁白/标题/分页回门 1，排版/动效/转场回门 2，音色/BGM/SFX 回门 3，字幕/时长/钉帧回门 4。重新确认后再渲染，不能在门 5 静默修改。
 
 ## 证据边界
 
 - 人物履历、奖项和本人言论优先使用官方机构、大学主页或本人公开账号。
 - 网友二创不能写成本人事实；作者分析不能伪装成当事人自述。
-- 无法确认二创权限的视频不要直接截取成片。
-- AI 意象不代表真实实验、真实邮件、真实寺院或真实人物经历，片尾要明确声明。
-
-## 人工验收抽查点
-
-- 0—3 秒：钩子是否无需上下文也成立。
-- 第一次人物转折：旁白、人物图和姓名字幕是否一致。
-- 中段最快蒙太奇：是否出现音画错位或字幕来不及读。
-- 观点汇流：是否从履历推进到文章主判断，而非空泛励志。
-- 片尾：来源是否完整、安全区是否合格、最后一句是否留有呼吸。
+- 授权不明的视频只作研究参考，不直接截入成片。
+- AI 意象不代表真实实验、邮件、地点或人物经历，片尾要明确声明。

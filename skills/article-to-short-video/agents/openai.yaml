@@ -1,4 +1,4 @@
 interface:
   display_name: "文章与经典转短视频"
-  short_description: "把文章、古典文本和抽象观点制作成可复用、可验收的竖屏动画短视频"
-  default_prompt: "使用 $article-to-short-video 把这篇内容制作成竖屏短视频；先确认内容结构和代表性动态镜头，再生成配音、配乐、成片与发布素材。"
+  short_description: "把文章、古典文本和抽象观点制作成经逐阶段确认的 Remotion 竖屏视频"
+  default_prompt: "使用 $article-to-short-video 把这篇内容制作成 Remotion 竖屏视频；先提交按小标题分页的旁白与预计时长供我确认。"
