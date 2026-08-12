@@ -1,0 +1,4 @@
+interface:
+  display_name: "设计工具闭环"
+  short_description: "用墨刀、Figma、Gundam 或本地渲染完成并验收设计"
+  default_prompt: "使用 $design-tool-closed-loop 选择真实可用路线，完成设计、交互和同视口视觉比对，并提供可核验证据。"
