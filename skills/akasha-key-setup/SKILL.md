@@ -12,7 +12,7 @@ description: 当 Akasha 媒体 Skill 需要复用本地 OpenAI Key、验证并�
 GPT Image、Grok、Seedance、Fish Audio、Suno 的入口会自动：
 
 1. 优先读取本地 `OPENAI_API_KEY`，但 URL 仍使用当前媒体 Skill 的专用 Base URL、`NEW_API_BASE_URL` 或仓库默认 URL；忽略 `OPENAI_BASE_URL`。调用该 URL 的 `/v1/models`，验证成功就直接复用 Key。
-2. 本地 OpenAI Key 不可达、被拒绝或响应不兼容时，依次验证统一的 `LOVBROWSER_API_KEY` 和 `~/.config/akasha/credentials.env`；媒体专用 Key 一律忽略。
+2. 本地 OpenAI Key 不可达、被拒绝或响应不兼容时，依次验证统一的 `LOVBROWSER_API_KEY` 和 `~/.config/akasha/credentials.env`。
 3. 所有候选都缺失或验证失败时，调用 LovBrowser Device Flow，生成 PKCE S256 verifier/challenge。
 4. 输出 `akasha.device_authorization` 事件，其中只有短码、公开验证链接和本地 PNG 绝对路径。
 5. 用 Markdown 图片语法渲染 `qrPngPath`，并同时给出可点击的 `verificationUriComplete` 与 `userCode`。
@@ -43,7 +43,7 @@ python3 shared/akasha_credentials.py rollback
 
 ## 配置发现与运行优先级
 
-所有媒体 Skill 只使用一套共享 Key，不读取 `IMAGE_PROXY_API_KEY`、`GROK_MEDIA_API_KEY`、`SEEDANCE_VIDEO_API_KEY`、`H3_KLING_VIDEO_API_KEY`、`FISH_AUDIO_API_KEY`、`SUNO_API_KEY` 等媒体专用变量。
+新配置只写 `LOVBROWSER_API_KEY`。为兼容存量环境，统一 Key 不存在时才低优先级读取旧 `NEW_API_API_KEY` 及媒体专用 Key；不得在新配置中继续使用旧名称。旧 `credentials.env` 首次读取时自动原子改写字段名，并把原文件保存为 `credentials.env.bak`。
 
 媒体入口必须走 `bootstrap` 的验证式运行顺序：本地 `OPENAI_API_KEY` > `LOVBROWSER_API_KEY` > `~/.config/akasha/credentials.env` > LovBrowser 配置引导。只降级 Key，不跟随 Key 切换 URL；URL 始终由媒体 Skill 自身解析。不要只检查变量是否存在；每个候选都要先通过 `/v1/models`。
 

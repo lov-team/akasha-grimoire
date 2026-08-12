@@ -29,6 +29,8 @@ Akasha Grimoire 是团队共享的 Agent Skill 合集，最佳使用环境是 **
 
 也可运行 `python3 shared/akasha_credentials.py status|start|finish|cancel|rollback` 管理配置。凭证默认保存到 `~/.config/akasha/credentials.env`。运行时按“本地 `OPENAI_API_KEY` > `LOVBROWSER_API_KEY` > 用户凭证 > 配置引导”逐项验证并降级，所有媒体 Skill 共用同一 Key。
 
+存量 `NEW_API_API_KEY` 与媒体专用 Key 仍作为低优先级兼容来源；新配置统一使用 `LOVBROWSER_API_KEY`。旧版 `credentials.env` 会在首次读取时自动改写字段名并保留 0600 权限的 `.bak` 备份。
+
 ## 为什么使用
 
 - **合同优先**：先明确触发条件、输入输出、禁止项和完成标准。

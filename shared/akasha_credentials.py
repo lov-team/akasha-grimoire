@@ -40,6 +40,16 @@ MAX_HTTP_BODY = 64 * 1024
 _BASE64URL = re.compile(r"^[A-Za-z0-9_-]+$")
 _USER_CODE = re.compile(r"^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$")
 _ACCOUNT_FLOWS = {"new_registration", "existing_login"}
+LEGACY_KEY_NAMES = (
+    "NEW_API_API_KEY",
+    "IMAGE_PROXY_API_KEY",
+    "GROK_MEDIA_API_KEY",
+    "SEEDANCE_VIDEO_API_KEY",
+    "H3_KLING_VIDEO_API_KEY",
+    "FISH_AUDIO_API_KEY",
+    "SUNO_API_KEY",
+    "GEMINI_OMNI_VIDEO_API_KEY",
+)
 _ERROR_CODES = {
     "invalid_request", "invalid_grant", "authorization_pending", "slow_down",
     "access_denied", "expired_token", "consumed", "rate_limited",
@@ -123,12 +133,52 @@ def _read_env_file(path: Path) -> dict[str, str]:
         if "=" not in line:
             raise CredentialError("Akasha credential file is malformed")
         name, value = line.split("=", 1)
-        if name not in {"LOVBROWSER_API_KEY", "NEW_API_BASE_URL"} or name in values:
+        if name not in {"LOVBROWSER_API_KEY", "NEW_API_API_KEY", "NEW_API_BASE_URL"} or name in values:
             raise CredentialError("Akasha credential file contains unsupported or duplicate fields")
         if not value or "\n" in value or "\r" in value:
             raise CredentialError("Akasha credential file contains an invalid value")
         values[name] = value
+    if "NEW_API_API_KEY" in values:
+        if "LOVBROWSER_API_KEY" in values:
+            raise CredentialError("Akasha credential file contains duplicate key fields")
+        values = _migrate_legacy_credential_file(path, values)
     return values
+
+
+def _migrate_legacy_credential_file(path: Path, values: Mapping[str, str]) -> dict[str, str]:
+    """Atomically rename the legacy stored key and preserve the original backup."""
+    migrated = {
+        "LOVBROWSER_API_KEY": values["NEW_API_API_KEY"],
+        **(
+            {"NEW_API_BASE_URL": values["NEW_API_BASE_URL"]}
+            if values.get("NEW_API_BASE_URL")
+            else {}
+        ),
+    }
+    body = "".join(f"{name}={value}\n" for name, value in migrated.items()).encode()
+    with _locked(path.parent):
+        current = path.read_bytes()
+        if b"NEW_API_API_KEY=" not in current:
+            current_values: dict[str, str] = {}
+            for raw in current.decode().splitlines():
+                if raw.strip() and not raw.lstrip().startswith("#") and "=" in raw:
+                    name, value = raw.strip().split("=", 1)
+                    current_values[name] = value
+            return current_values
+        _atomic_bytes(path.with_suffix(".env.bak"), current)
+        _atomic_bytes(path, body)
+    return migrated
+
+
+def _legacy_environment_candidates(
+    env: Mapping[str, str], base_url: str
+) -> list[Credential]:
+    candidates: list[Credential] = []
+    for name in LEGACY_KEY_NAMES:
+        value = env.get(name, "")
+        if isinstance(value, str) and value.strip():
+            candidates.append(Credential(value.strip(), base_url, f"env-legacy:{name}"))
+    return candidates
 
 
 def discover_credential(*, environ: Mapping[str, str] | None = None) -> Credential | None:
@@ -142,6 +192,11 @@ def discover_credential(*, environ: Mapping[str, str] | None = None) -> Credenti
     stored = _read_env_file(credentials_path(env))
     if stored.get("LOVBROWSER_API_KEY"):
         return Credential(stored["LOVBROWSER_API_KEY"], stored.get("NEW_API_BASE_URL", OFFICIAL_NEWAPI_BASE_URL), "akasha-user-file")
+    legacy = _legacy_environment_candidates(
+        env, env.get("NEW_API_BASE_URL", "").strip() or OFFICIAL_NEWAPI_BASE_URL
+    )
+    if legacy:
+        return legacy[0]
     return None
 
 
@@ -181,6 +236,11 @@ def credential_candidates(
             base_url or stored.get("NEW_API_BASE_URL", OFFICIAL_NEWAPI_BASE_URL),
             "akasha-user-file",
         ))
+
+    candidates.extend(_legacy_environment_candidates(
+        env,
+        base_url or env.get("NEW_API_BASE_URL", "").strip() or OFFICIAL_NEWAPI_BASE_URL,
+    ))
 
     unique: list[Credential] = []
     seen: set[tuple[str, str]] = set()

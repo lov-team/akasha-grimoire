@@ -29,6 +29,8 @@ Akasha Grimoire は、**Codex App** での利用に最適な、チーム共有�
 
 `python3 shared/akasha_credentials.py status|start|finish|cancel|rollback` を実行して設定を管理することもできます。認証情報は既定で `~/.config/akasha/credentials.env` に保存されます。実行時はローカル `OPENAI_API_KEY` > `LOVBROWSER_API_KEY` > ユーザー認証情報 > 設定ガイドの順に検証し、すべてのメディア Skill が同じ Key を共有します。
 
+既存の `NEW_API_API_KEY` とメディア固有 Key は低優先度の互換入力として残します。新規設定は `LOVBROWSER_API_KEY` を使用し、旧 `credentials.env` は初回読み込み時に原子的にフィールド名を変更して 0600 の `.bak` を保存します。
+
 ## 利用する理由
 
 - **契約を先に定義**：実行前にトリガー、入力、出力、禁止事項、完了条件を明確にします。

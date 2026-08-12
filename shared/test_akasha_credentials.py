@@ -110,15 +110,51 @@ class CredentialDiscoveryTests(unittest.TestCase):
             credentials.save_credential("stored", credentials.OFFICIAL_NEWAPI_BASE_URL, environ=env)
             self.assertEqual(credentials.discover_credential(environ=env).api_key, "stored")
 
-    def test_media_specific_key_is_never_a_candidate(self):
+    def test_legacy_media_key_is_low_priority_compatibility_candidate(self):
         with tempfile.TemporaryDirectory() as tmp:
             env = {
                 "AKASHA_CONFIG_DIR": tmp,
                 "IMAGE_PROXY_API_KEY": "media-only",
                 "GROK_MEDIA_API_KEY": "media-only",
             }
-            self.assertIsNone(credentials.discover_credential(environ=env))
-            self.assertEqual(credentials.credential_candidates(environ=env), ())
+            found = credentials.discover_credential(environ=env)
+            self.assertEqual(found.api_key, "media-only")
+            self.assertEqual(found.source, "env-legacy:IMAGE_PROXY_API_KEY")
+            candidates = credentials.credential_candidates(environ=env)
+            self.assertEqual(len(candidates), 1)
+
+    def test_lovbrowser_key_wins_over_all_legacy_names(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = {
+                "AKASHA_CONFIG_DIR": tmp,
+                "LOVBROWSER_API_KEY": "current",
+                "NEW_API_API_KEY": "legacy-shared",
+                "IMAGE_PROXY_API_KEY": "legacy-media",
+            }
+            self.assertEqual(credentials.discover_credential(environ=env).api_key, "current")
+            self.assertEqual(
+                [candidate.api_key for candidate in credentials.credential_candidates(environ=env)],
+                ["current", "legacy-shared", "legacy-media"],
+            )
+
+    def test_legacy_user_file_is_atomically_migrated_and_backed_up(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = {"AKASHA_CONFIG_DIR": tmp}
+            path = Path(tmp, "credentials.env")
+            path.write_text(
+                "NEW_API_API_KEY=legacy-file-key\n"
+                "NEW_API_BASE_URL=https://llmapi.lovbrowser.com/v1\n",
+                encoding="utf-8",
+            )
+            path.chmod(0o600)
+            found = credentials.discover_credential(environ=env)
+            self.assertEqual(found.api_key, "legacy-file-key")
+            self.assertIn("LOVBROWSER_API_KEY=legacy-file-key", path.read_text())
+            self.assertNotIn("NEW_API_API_KEY", path.read_text())
+            backup = Path(tmp, "credentials.env.bak")
+            self.assertIn("NEW_API_API_KEY=legacy-file-key", backup.read_text())
+            self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
+            self.assertEqual(stat.S_IMODE(backup.stat().st_mode), 0o600)
 
     def test_atomic_backup_permissions_and_rollback(self):
         with tempfile.TemporaryDirectory() as tmp:

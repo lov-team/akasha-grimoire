@@ -29,6 +29,8 @@ Akasha Grimoire is a team-shared collection of Agent Skills, best used in **Code
 
 You can also run `python3 shared/akasha_credentials.py status|start|finish|cancel|rollback` to manage the configuration. Credentials are stored in `~/.config/akasha/credentials.env` by default. Runtime fallback validates candidates in this order: local `OPENAI_API_KEY` > `LOVBROWSER_API_KEY` > user credential > setup guidance. All media Skills share one key.
 
+Legacy `NEW_API_API_KEY` and media-specific keys remain low-priority compatibility sources. New configuration uses `LOVBROWSER_API_KEY`; an old `credentials.env` is renamed atomically on first read with a 0600 `.bak` backup.
+
 ## Why use it
 
 - **Contract first**: define triggers, inputs, outputs, exclusions, and completion criteria before execution.
