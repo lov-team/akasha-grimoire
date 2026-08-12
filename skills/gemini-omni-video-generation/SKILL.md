@@ -17,7 +17,7 @@ description: 通过 LovBrowser new-api 的异步 OpenAI-compatible 视频任务�
 
 ## 准备
 
-默认 API 为 `https://newapi.1234bot.com/v1`。按 `--base-url`、`GEMINI_OMNI_VIDEO_BASE_URL`、`NEW_API_BASE_URL`、`OPENAI_BASE_URL` 的顺序覆盖。凭证按 `GEMINI_OMNI_VIDEO_API_KEY`、`NEW_API_API_KEY`、`OPENAI_API_KEY` 的顺序读取。可用 `--env-file` 仅在当前进程加载配置；不回显内容。
+默认 API 为 `https://newapi.1234bot.com/v1`。按 `--base-url`、`GEMINI_OMNI_VIDEO_BASE_URL`、`NEW_API_BASE_URL` 的顺序覆盖，不读取 `OPENAI_BASE_URL`。所有媒体 Skill 共用 `LOVBROWSER_API_KEY`，也可优先复用本地 `OPENAI_API_KEY`；忽略媒体专用 Key。
 
 脚本显式使用 `akasha-gemini-omni-video/1.0` User-Agent。不要改回 Python urllib 默认标识；LovBrowser 入口已观察到 Cloudflare 1010 会在请求到达 new-api 前拦截默认 Python 签名。
 

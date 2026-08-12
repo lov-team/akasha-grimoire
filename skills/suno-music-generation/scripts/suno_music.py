@@ -109,7 +109,6 @@ def _api_key(explicit_base_url: str | None = None, timeout: float = 10) -> str:
     credentials = _load_akasha_recharge().load_akasha_credentials_module(Path(__file__))
     try:
         found = credentials.select_credential(
-            specialized_names=("SUNO_API_KEY",),
             explicit_base_url=explicit_base_url,
             timeout=timeout,
         )
@@ -432,9 +431,8 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit("timeout and poll interval must be positive")
     if args.model == "server-default":
         args.model = None
-    explicit_base_url = _base_url(args.base_url) if args.base_url else None
-    api_key = _api_key(explicit_base_url, args.timeout_seconds)
     base_url = _base_url(args.base_url)
+    api_key = _api_key(base_url, args.timeout_seconds)
     recharge = _load_akasha_recharge()
     try:
         recharge.validate_cli_recharge_usd(getattr(args, "recharge_usd", None))

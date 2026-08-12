@@ -111,24 +111,20 @@ def resolve_base_url(explicit: str | None) -> str:
         explicit
         or os.environ.get("GEMINI_OMNI_VIDEO_BASE_URL")
         or os.environ.get("NEW_API_BASE_URL")
-        or os.environ.get("OPENAI_BASE_URL")
         or DEFAULT_BASE_URL
     )
 
 
-def read_api_key() -> str:
-    key = (
-        os.environ.get("GEMINI_OMNI_VIDEO_API_KEY")
-        or os.environ.get("NEW_API_API_KEY")
-        or os.environ.get("OPENAI_API_KEY")
-        or ""
-    ).strip()
-    if not key:
-        raise GeminiOmniVideoError(
-            "missing API key; create a new-api key at https://lovbrowser.com, "
-            "set NEW_API_API_KEY, and never commit the key"
+def read_api_key(base_url: str | None = None, timeout: float = 10) -> str:
+    credentials = _load_akasha_recharge().load_akasha_credentials_module(Path(__file__))
+    try:
+        found = credentials.select_credential(
+            explicit_base_url=base_url,
+            timeout=timeout,
         )
-    return key
+    except credentials.CredentialError as exc:
+        raise GeminiOmniVideoError(str(exc)) from exc
+    return found.api_key
 
 
 def parse_json(raw: bytes) -> dict[str, Any]:
@@ -455,7 +451,7 @@ def run(args: argparse.Namespace) -> None:
         raise GeminiOmniVideoError("timeouts and poll interval must be positive")
     load_env_file(args.env_file)
     base_url = resolve_base_url(args.base_url)
-    api_key = read_api_key()
+    api_key = read_api_key(base_url, args.timeout)
     output = Path(args.output).expanduser().resolve()
     validate_output_target(output, args.overwrite)
     if not shutil.which("ffprobe"):

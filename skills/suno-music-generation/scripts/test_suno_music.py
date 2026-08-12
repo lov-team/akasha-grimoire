@@ -142,7 +142,7 @@ class SunoMusicTests(unittest.TestCase):
         try:
             with tempfile.TemporaryDirectory() as temp_dir, mock.patch.dict(
                 os.environ,
-                {"NEW_API_API_KEY": "local-test-key", "NEW_API_BASE_URL": ""},
+                {"LOVBROWSER_API_KEY": "local-test-key", "NEW_API_BASE_URL": ""},
                 clear=False,
             ):
                 stdout = io.StringIO()

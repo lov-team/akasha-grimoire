@@ -21,7 +21,7 @@ description: 通过 new-api 的 Suno 异步任务接口生成歌曲，在本地�
 
 ## 运行闭环
 
-设置 `NEW_API_API_KEY`（也兼容 `OPENAI_API_KEY`），默认 Base URL 无需配置，然后运行：
+设置 `LOVBROWSER_API_KEY`（也兼容 `OPENAI_API_KEY`），默认 Base URL 无需配置，然后运行：
 
 ```bash
 # 描述模式

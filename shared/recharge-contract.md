@@ -6,7 +6,7 @@
 python3 shared/akasha_recharge.py --recharge-usd 1
 ```
 
-CLI 按 `IMAGE_PROXY_API_KEY`、`NEW_API_API_KEY`、`OPENAI_API_KEY` 顺序读取环境变量中的 Key，不接受命令行明文 Key。
+CLI 按本地 `OPENAI_API_KEY`、`LOVBROWSER_API_KEY` 顺序读取统一共享 Key，不接受媒体专用 Key 或命令行明文 Key。
 
 ## 触发条件（同时满足）
 

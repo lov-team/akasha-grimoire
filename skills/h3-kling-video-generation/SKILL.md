@@ -96,8 +96,8 @@ H3 图生视频沿用参考帧宽高比，不发送 `aspect_ratio`。输入必�
 - 提交：`POST /v1/video/generations`。
 - 轮询：`GET /v1/video/generations/{task_id}`。
 - 下载：`GET /v1/videos/{task_id}/content`。
-- Base URL 优先级：`--base-url`、`H3_KLING_VIDEO_BASE_URL`、共享 Akasha 凭证、`OPENAI_BASE_URL`、默认 `https://llmapi.lovbrowser.com/v1`。
-- Key 优先级：`H3_KLING_VIDEO_API_KEY`、共享 Akasha 凭证、`OPENAI_API_KEY`；不得写入命令、日志或仓库。
+- Base URL 优先级：`--base-url`、`H3_KLING_VIDEO_BASE_URL`、共享 Akasha 凭证、默认 `https://llmapi.lovbrowser.com/v1`；不读取 `OPENAI_BASE_URL`。
+- Key 优先级：本地 `OPENAI_API_KEY`、统一的 `LOVBROWSER_API_KEY`、共享 Akasha 凭证；忽略媒体专用 Key，不得写入命令、日志或仓库。
 
 仅在需要覆盖既有输出时传 `--overwrite`。脚本验证 MP4 `ftyp` 签名并原子写入；随后使用 `ffprobe` 检查视频流、实际时长、分辨率和音轨，再抽帧或播放做视觉验收。
 

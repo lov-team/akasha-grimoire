@@ -11,7 +11,7 @@ description: 通过 new-api 的 OpenAI-compatible Grok 端点生成或编辑图�
 
 ## 准备
 
-默认连接 LovBrowser new-api：`https://newapi.1234bot.com/v1`。只配置 Bearer token 即可开始，按 `GROK_MEDIA_API_KEY`、`NEW_API_API_KEY`、`OPENAI_API_KEY` 的顺序读取。通过受控的环境注入或凭证管理器提供 key；不要把 key 写进参数、prompt、日志、代码或仓库。
+默认连接 LovBrowser new-api：`https://newapi.1234bot.com/v1`。所有媒体 Skill 共用 `LOVBROWSER_API_KEY`，也可优先复用本地 `OPENAI_API_KEY`；忽略媒体专用 Key。通过受控的环境注入或凭证管理器提供 Key。
 
 没有 Key 时，入口会调用共享 `shared/akasha_credentials.py` 进入 `AKASHA_DEVICE_V1`：在对话中渲染本地 PNG 二维码，同时显示可点击链接和短码，用户确认后自动轮询、原子保存、以 `/v1/models` 验证，并让原动作继续一次。不要显示 device code、PKCE verifier、真实 Key 或凭证文件内容。详见 [`akasha-key-setup`](../akasha-key-setup/SKILL.md) 与 [`credentials-contract.md`](../../shared/credentials-contract.md)。
 
@@ -22,10 +22,9 @@ description: 通过 new-api 的 OpenAI-compatible Grok 端点生成或编辑图�
 1. `--base-url`
 2. `GROK_MEDIA_BASE_URL`
 3. `NEW_API_BASE_URL`
-4. `OPENAI_BASE_URL`
-5. `https://newapi.1234bot.com/v1`
+4. `https://newapi.1234bot.com/v1`
 
-base URL 可传 host 根或以 `/v1` 结尾的 API 根；自定义前缀会在末尾补 `/v1`。拒绝 userinfo、query 和 fragment。覆盖配置只影响当前进程或受控运行环境，不要把团队密钥提交到配置文件。
+不读取 `OPENAI_BASE_URL`。base URL 可传 host 根或以 `/v1` 结尾的 API 根；自定义前缀会在末尾补 `/v1`。拒绝 userinfo、query 和 fragment。
 
 输出必须写到仓库外 staging。脚本拒绝静默覆盖已有文件；只有用户明确要求时才传 `--overwrite`。
 

@@ -92,7 +92,7 @@ class GrokMediaScriptTest(unittest.TestCase):
     def invoke(self, *args: str) -> subprocess.CompletedProcess[str]:
         env = os.environ.copy()
         env.update({
-            "GROK_MEDIA_API_KEY": "test-key",
+            "LOVBROWSER_API_KEY": "test-key",
             "AKASHA_ALLOW_TEST_HTTP": "1",
         })
         return subprocess.run(

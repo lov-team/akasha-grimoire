@@ -127,7 +127,7 @@ class ImageConfigTest(unittest.TestCase):
             with patch.dict(
                 os.environ,
                 {
-                    "NEW_API_API_KEY": "private-key",
+                    "LOVBROWSER_API_KEY": "private-key",
                     "AKASHA_RECHARGE_USD": "not-a-number",
                 },
                 clear=False,

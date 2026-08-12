@@ -100,17 +100,25 @@ class CredentialDiscoveryTests(unittest.TestCase):
         credentials._ACTIVE_CREDENTIAL = None
         credentials._VALIDATED_CREDENTIALS.clear()
 
-    def test_priority_special_new_file_openai(self):
+    def test_priority_openai_new_file_and_ignores_media_key(self):
         with tempfile.TemporaryDirectory() as tmp:
-            env = {"AKASHA_CONFIG_DIR": tmp, "SPECIAL_KEY": "special", "NEW_API_API_KEY": "new", "OPENAI_API_KEY": "openai"}
-            self.assertEqual(credentials.discover_credential(("SPECIAL_KEY",), environ=env).api_key, "special")
-            env.pop("SPECIAL_KEY")
+            env = {"AKASHA_CONFIG_DIR": tmp, "SPECIAL_KEY": "special", "LOVBROWSER_API_KEY": "new", "OPENAI_API_KEY": "openai"}
+            self.assertEqual(credentials.discover_credential(environ=env).api_key, "openai")
+            env.pop("OPENAI_API_KEY")
             self.assertEqual(credentials.discover_credential(environ=env).api_key, "new")
-            env.pop("NEW_API_API_KEY")
+            env.pop("LOVBROWSER_API_KEY")
             credentials.save_credential("stored", credentials.OFFICIAL_NEWAPI_BASE_URL, environ=env)
             self.assertEqual(credentials.discover_credential(environ=env).api_key, "stored")
-            Path(tmp, "credentials.env").unlink()
-            self.assertEqual(credentials.discover_credential(environ=env).api_key, "openai")
+
+    def test_media_specific_key_is_never_a_candidate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            env = {
+                "AKASHA_CONFIG_DIR": tmp,
+                "IMAGE_PROXY_API_KEY": "media-only",
+                "GROK_MEDIA_API_KEY": "media-only",
+            }
+            self.assertIsNone(credentials.discover_credential(environ=env))
+            self.assertEqual(credentials.credential_candidates(environ=env), ())
 
     def test_atomic_backup_permissions_and_rollback(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -127,22 +135,22 @@ class CredentialDiscoveryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             env = {
                 "AKASHA_CONFIG_DIR": tmp,
-                "SPECIAL_API_KEY": "special",
-                "SPECIAL_BASE_URL": "https://special.example/v1",
-                "NEW_API_API_KEY": "new",
+                "LOVBROWSER_API_KEY": "new",
                 "OPENAI_API_KEY": "openai",
                 "OPENAI_BASE_URL": "https://openai.example/v1",
             }
-            candidates = credentials.credential_candidates(("SPECIAL_API_KEY",), environ=env)
+            candidates = credentials.credential_candidates(
+                base_url="https://skill.example/v1",
+                environ=env,
+            )
             self.assertEqual(
                 [
                     (candidate.api_key, candidate.base_url, candidate.source)
                     for candidate in candidates
                 ],
                 [
-                    ("openai", "https://openai.example/v1", "env:OPENAI_API_KEY"),
-                    ("special", "https://special.example/v1", "env:SPECIAL_API_KEY"),
-                    ("new", credentials.OFFICIAL_NEWAPI_BASE_URL, "env:NEW_API_API_KEY"),
+                    ("openai", "https://skill.example/v1", "env:OPENAI_API_KEY"),
+                    ("new", "https://skill.example/v1", "env:LOVBROWSER_API_KEY"),
                 ],
             )
 
@@ -150,7 +158,7 @@ class CredentialDiscoveryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             env = {
                 "AKASHA_CONFIG_DIR": tmp,
-                "NEW_API_API_KEY": "configured",
+                "LOVBROWSER_API_KEY": "configured",
                 "OPENAI_API_KEY": "local-openai",
                 "OPENAI_BASE_URL": "https://openai.example/v1",
             }
@@ -162,28 +170,33 @@ class CredentialDiscoveryTests(unittest.TestCase):
                     raise credentials.CredentialError("fixture unavailable")
 
             with mock.patch.object(credentials, "validate_credential", side_effect=probe):
-                found = credentials.resolve_usable_credential(environ=env)
+                found = credentials.resolve_usable_credential(
+                    base_url="https://skill.example/v1", environ=env
+                )
             self.assertEqual(found.api_key, "configured")
             self.assertEqual(attempts, [
-                ("local-openai", "https://openai.example/v1"),
-                ("configured", credentials.OFFICIAL_NEWAPI_BASE_URL),
+                ("local-openai", "https://skill.example/v1"),
+                ("configured", "https://skill.example/v1"),
             ])
 
-    def test_selected_local_openai_base_is_used_by_media_call(self):
+    def test_local_openai_key_ignores_openai_base_url(self):
         with tempfile.TemporaryDirectory() as tmp:
             env = {
                 "AKASHA_CONFIG_DIR": tmp,
-                "NEW_API_API_KEY": "configured",
+                "LOVBROWSER_API_KEY": "configured",
                 "NEW_API_BASE_URL": "https://configured.example/v1",
                 "OPENAI_API_KEY": "local-openai",
                 "OPENAI_BASE_URL": "https://openai.example/v1",
             }
             with mock.patch.object(credentials, "validate_credential"):
-                found = credentials.bootstrap(environ=env)
+                found = credentials.bootstrap(
+                    base_url="https://skill.example/v1", environ=env
+                )
             self.assertEqual(found.source, "env:OPENAI_API_KEY")
+            self.assertEqual(found.base_url, "https://skill.example/v1")
             self.assertEqual(
                 credentials.resolve_base_url(environ=env),
-                "https://openai.example/v1",
+                "https://configured.example/v1",
             )
             self.assertEqual(
                 credentials.resolve_base_url(
@@ -196,7 +209,7 @@ class CredentialDiscoveryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             env = {
                 "AKASHA_CONFIG_DIR": tmp,
-                "NEW_API_API_KEY": "configured",
+                "LOVBROWSER_API_KEY": "configured",
                 "OPENAI_API_KEY": "local-openai",
             }
             with mock.patch.object(
@@ -210,7 +223,7 @@ class CredentialDiscoveryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             env = {
                 "AKASHA_CONFIG_DIR": tmp,
-                "NEW_API_API_KEY": "configured",
+                "LOVBROWSER_API_KEY": "configured",
                 "OPENAI_API_KEY": "local-openai",
                 "OPENAI_BASE_URL": "https://openai.example/v1",
             }
@@ -220,19 +233,21 @@ class CredentialDiscoveryTests(unittest.TestCase):
                 attempts.append(api_key)
 
             with mock.patch.object(credentials, "validate_credential", side_effect=probe):
-                found = credentials.resolve_usable_credential(environ=env)
+                found = credentials.resolve_usable_credential(
+                    base_url="https://skill.example/v1", environ=env
+                )
             self.assertEqual(found.api_key, "local-openai")
+            self.assertEqual(found.base_url, "https://skill.example/v1")
             self.assertEqual(attempts, ["local-openai"])
 
     def test_explicit_base_probes_selected_key_at_that_base(self):
         with tempfile.TemporaryDirectory() as tmp, fixture_server() as origin:
             env = {
                 "AKASHA_CONFIG_DIR": tmp,
-                "SPECIAL_API_KEY": API_KEY,
+                "LOVBROWSER_API_KEY": API_KEY,
                 "AKASHA_ALLOW_TEST_HTTP": "1",
             }
             found = credentials.select_credential(
-                ("SPECIAL_API_KEY",),
                 explicit_base_url=origin + "/v1",
                 environ=env,
             )
@@ -240,7 +255,7 @@ class CredentialDiscoveryTests(unittest.TestCase):
             self.assertEqual(found.base_url, origin + "/v1")
             self.assertEqual(
                 credentials.resolve_base_url(environ=env),
-                origin + "/v1",
+                credentials.OFFICIAL_NEWAPI_BASE_URL,
             )
 
     def test_concurrent_writes_remain_parseable(self):
@@ -255,7 +270,7 @@ class CredentialDiscoveryTests(unittest.TestCase):
     def test_rejects_permissive_file(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp, "credentials.env")
-            path.write_text("NEW_API_API_KEY=x\n")
+            path.write_text("LOVBROWSER_API_KEY=x\n")
             path.chmod(0o644)
             with self.assertRaisesRegex(credentials.CredentialError, "0600"):
                 credentials.discover_credential(environ={"AKASHA_CONFIG_DIR": tmp})
@@ -342,7 +357,7 @@ class DeviceFlowTests(unittest.TestCase):
         with mock.patch.object(credentials, "resolve_usable_credential", return_value=None) as resolve, mock.patch.object(credentials, "start_device_flow", return_value=fake_start) as start, mock.patch.object(credentials, "finish_device_flow", return_value=fake_result):
             result = credentials.bootstrap(event_file=output)
         self.assertEqual(result, fake_result.credential)
-        resolve.assert_called_once_with((), environ=None)
+        resolve.assert_called_once_with(base_url=None, environ=None)
         start.assert_called_once_with(environ=None)
         self.assertIn("verificationUriComplete", output.getvalue())
 
@@ -393,17 +408,17 @@ class MediaIntegrationTests(unittest.TestCase):
     def test_all_six_media_entries_use_the_shared_bootstrap(self):
         root = Path(__file__).resolve().parents[1]
         cases = [
-            ("gpt_image_bootstrap_test", root / "skills/gpt-image-generation/scripts/generate_openai_image.py", "_api_key", "IMAGE_PROXY_API_KEY"),
-            ("grok_bootstrap_test", root / "skills/grok-media-generation/scripts/grok_media.py", "read_api_key", "GROK_MEDIA_API_KEY"),
-            ("seedance_bootstrap_test", root / "skills/seedance-video-generation/scripts/seedance_video.py", "read_api_key", "SEEDANCE_VIDEO_API_KEY"),
-            ("h3_kling_video_bootstrap_test", root / "skills/h3-kling-video-generation/scripts/video_generation.py", "read_api_key", "H3_KLING_VIDEO_API_KEY"),
-            ("fish_bootstrap_test", root / "skills/fish-audio-speech/scripts/fish_audio.py", "_api_key", "FISH_AUDIO_API_KEY"),
-            ("suno_bootstrap_test", root / "skills/suno-music-generation/scripts/suno_music.py", "_api_key", "SUNO_API_KEY"),
+            ("gpt_image_bootstrap_test", root / "skills/gpt-image-generation/scripts/generate_openai_image.py", "_api_key"),
+            ("grok_bootstrap_test", root / "skills/grok-media-generation/scripts/grok_media.py", "read_api_key"),
+            ("seedance_bootstrap_test", root / "skills/seedance-video-generation/scripts/seedance_video.py", "read_api_key"),
+            ("h3_kling_video_bootstrap_test", root / "skills/h3-kling-video-generation/scripts/video_generation.py", "read_api_key"),
+            ("fish_bootstrap_test", root / "skills/fish-audio-speech/scripts/fish_audio.py", "_api_key"),
+            ("suno_bootstrap_test", root / "skills/suno-music-generation/scripts/suno_music.py", "_api_key"),
         ]
         with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(
             os.environ, {"AKASHA_CONFIG_DIR": tmp}, clear=True
         ):
-            for module_name, script, function_name, specialized in cases:
+            for module_name, script, function_name in cases:
                 with self.subTest(script=script.parent.parent.name):
                     spec = importlib.util.spec_from_file_location(module_name, script)
                     self.assertIsNotNone(spec)
@@ -417,7 +432,7 @@ class MediaIntegrationTests(unittest.TestCase):
                     with mock.patch.object(shared, "bootstrap", return_value=fixture) as start:
                         self.assertEqual(getattr(module, function_name)(), "media-fixture-key")
                     start.assert_called_once_with(
-                        specialized_names=(specialized,),
+                        base_url=None,
                         environ=None,
                         event_file=None,
                     )

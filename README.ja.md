@@ -23,11 +23,11 @@ Akasha Grimoire は、**Codex App** での利用に最適な、チーム共有�
 ## 1 分で利用開始
 
 1. Codex で GPT Image、Grok、Seedance、MiniMax H3、Kling、Gemini Omni、Fish Audio、Suno にメディア処理を直接依頼します。
-2. Agent は最初にローカルの `OPENAI_API_KEY` を `/v1/models` で検証し、利用できれば追加設定なしで再利用します。
-3. 利用できない場合は専用変数、`NEW_API_API_KEY`、ユーザー認証情報を順に検証し、それらも失敗した場合にだけ LovBrowser のデバイス認証 QR コード、クリック可能なリンク、短いコードを生成します。
+2. Agent はメディア Skill 自身の設定済みまたは既定 URL の `/v1/models` でローカルの `OPENAI_API_KEY` を検証し、利用できれば Key を再利用します。`OPENAI_BASE_URL` は参照しません。
+3. 利用できない場合は共通の `LOVBROWSER_API_KEY` とユーザー認証情報を検証します。メディア固有の Key は参照しません。それらも失敗した場合にだけ LovBrowser のデバイス認証 QR コード、クリック可能なリンク、短いコードを生成します。
 4. スマートフォンでスキャンし、登録またはログインして同じコードを確認します。その後、ローカルクライアントがポーリング、保存、検証を行い、元のメディア処理を一度だけ再開します。実際の Key は会話、クリップボード、コマンド引数を通りません。
 
-`python3 shared/akasha_credentials.py status|start|finish|cancel|rollback` を実行して設定を管理することもできます。認証情報は既定で `~/.config/akasha/credentials.env` に保存されます。実行時はローカル `OPENAI_API_KEY` > 専用変数 > `NEW_API_API_KEY` > ユーザー認証情報 > 設定ガイドの順に検証してフォールバックします。
+`python3 shared/akasha_credentials.py status|start|finish|cancel|rollback` を実行して設定を管理することもできます。認証情報は既定で `~/.config/akasha/credentials.env` に保存されます。実行時はローカル `OPENAI_API_KEY` > `LOVBROWSER_API_KEY` > ユーザー認証情報 > 設定ガイドの順に検証し、すべてのメディア Skill が同じ Key を共有します。
 
 ## 利用する理由
 
@@ -319,9 +319,9 @@ $ui-ux-imitation-development を使って現在の interface をこの参照画�
 | 能力 | 設定元 | 契約 |
 | --- | --- | --- |
 | 既定 new-api | `https://newapi.1234bot.com/v1` | Base URL の設定は不要。recharge ticket の署名は公式入口 `llmapi.lovbrowser.com` と `llmapi-direct.lovbrowser.com` にも対応。private deployment の場合だけ `NEW_API_BASE_URL` または `--base-url` で上書き |
-| GPT Image | `IMAGE_PROXY_API_KEY`、`NEW_API_API_KEY`、`OPENAI_API_KEY` | Key を command argument、prompt、log、repository に保存しない |
-| Grok / Seedance / H3 / Kling / Gemini Omni | 専用 Key、`NEW_API_API_KEY`、`OPENAI_API_KEY` | 実際の呼び出しは課金対象。task を拡大する前に 1 件 smoke を実行 |
-| Suno / Fish Audio | `NEW_API_API_KEY` または `OPENAI_API_KEY` | 実際の呼び出しは credit を消費。基本 test では外部 service を呼び出さない |
+| GPT Image | `LOVBROWSER_API_KEY` またはローカル `OPENAI_API_KEY` | Key を command argument、prompt、log、repository に保存しない |
+| Grok / Seedance / H3 / Kling / Gemini Omni | `LOVBROWSER_API_KEY` またはローカル `OPENAI_API_KEY` | すべてのメディア Skill が同じ Key を共有。実行前に 1 件 smoke を行う |
+| Suno / Fish Audio | `LOVBROWSER_API_KEY` または `OPENAI_API_KEY` | 実際の呼び出しは credit を消費。基本 test では外部 service を呼び出さない |
 | 公式の自主／残高不足 recharge | `python3 shared/akasha_recharge.py` で payment session を作成し、LovBrowser page で金額を選択 | 自主 recharge に残高不足は不要。公式 new-api のみ。Agent はクリック可能な `publicPageUrl` だけを返し、QR code は表示せず、Key/ticket を漏らさない |
 | Codex App 二層 task | 監督 task と、難易度別 thinking の分離 Sol worker task/worktree | 監督が契約を送信。worker が自律的に計画・実装。監督が full diff を独立受け入れ。CLI TUI worker だけは三層を維持 |
 | CLI worker | 対応するローカル CLI、macOS Terminal、tmux | 初回利用時または version 変更後に `--version` と `--help` を再確認 |

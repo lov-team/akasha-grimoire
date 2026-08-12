@@ -123,7 +123,7 @@ def _read_env_file(path: Path) -> dict[str, str]:
         if "=" not in line:
             raise CredentialError("Akasha credential file is malformed")
         name, value = line.split("=", 1)
-        if name not in {"NEW_API_API_KEY", "NEW_API_BASE_URL"} or name in values:
+        if name not in {"LOVBROWSER_API_KEY", "NEW_API_BASE_URL"} or name in values:
             raise CredentialError("Akasha credential file contains unsupported or duplicate fields")
         if not value or "\n" in value or "\r" in value:
             raise CredentialError("Akasha credential file contains an invalid value")
@@ -131,28 +131,23 @@ def _read_env_file(path: Path) -> dict[str, str]:
     return values
 
 
-def discover_credential(
-    specialized_names: tuple[str, ...] = (),
-    *,
-    environ: Mapping[str, str] | None = None,
-) -> Credential | None:
+def discover_credential(*, environ: Mapping[str, str] | None = None) -> Credential | None:
     env = os.environ if environ is None else environ
-    for name in (*specialized_names, "NEW_API_API_KEY"):
-        value = env.get(name, "")
-        if isinstance(value, str) and value.strip():
-            return Credential(value.strip(), env.get("NEW_API_BASE_URL", "").strip() or OFFICIAL_NEWAPI_BASE_URL, f"env:{name}")
-    stored = _read_env_file(credentials_path(env))
-    if stored.get("NEW_API_API_KEY"):
-        return Credential(stored["NEW_API_API_KEY"], stored.get("NEW_API_BASE_URL", OFFICIAL_NEWAPI_BASE_URL), "akasha-user-file")
     compatible = env.get("OPENAI_API_KEY", "")
     if isinstance(compatible, str) and compatible.strip():
-        return Credential(compatible.strip(), env.get("OPENAI_BASE_URL", "").strip() or OFFICIAL_NEWAPI_BASE_URL, "env:OPENAI_API_KEY")
+        return Credential(compatible.strip(), env.get("NEW_API_BASE_URL", "").strip() or OFFICIAL_NEWAPI_BASE_URL, "env:OPENAI_API_KEY")
+    shared = env.get("LOVBROWSER_API_KEY", "")
+    if isinstance(shared, str) and shared.strip():
+        return Credential(shared.strip(), env.get("NEW_API_BASE_URL", "").strip() or OFFICIAL_NEWAPI_BASE_URL, "env:LOVBROWSER_API_KEY")
+    stored = _read_env_file(credentials_path(env))
+    if stored.get("LOVBROWSER_API_KEY"):
+        return Credential(stored["LOVBROWSER_API_KEY"], stored.get("NEW_API_BASE_URL", OFFICIAL_NEWAPI_BASE_URL), "akasha-user-file")
     return None
 
 
 def credential_candidates(
-    specialized_names: tuple[str, ...] = (),
     *,
+    base_url: str | None = None,
     environ: Mapping[str, str] | None = None,
 ) -> tuple[Credential, ...]:
     """Return configured candidates in runtime fallback order.
@@ -167,31 +162,23 @@ def credential_candidates(
     if isinstance(compatible, str) and compatible.strip():
         candidates.append(Credential(
             compatible.strip(),
-            env.get("OPENAI_BASE_URL", "").strip() or OFFICIAL_NEWAPI_BASE_URL,
+            base_url or OFFICIAL_NEWAPI_BASE_URL,
             "env:OPENAI_API_KEY",
         ))
 
-    for name in (*specialized_names, "NEW_API_API_KEY"):
-        value = env.get(name, "")
-        if isinstance(value, str) and value.strip():
-            base_name = (
-                name[:-len("_API_KEY")] + "_BASE_URL"
-                if name.endswith("_API_KEY")
-                else "NEW_API_BASE_URL"
-            )
-            candidates.append(Credential(
-                value.strip(),
-                env.get(base_name, "").strip()
-                or env.get("NEW_API_BASE_URL", "").strip()
-                or OFFICIAL_NEWAPI_BASE_URL,
-                f"env:{name}",
-            ))
+    shared = env.get("LOVBROWSER_API_KEY", "")
+    if isinstance(shared, str) and shared.strip():
+        candidates.append(Credential(
+            shared.strip(),
+            base_url or env.get("NEW_API_BASE_URL", "").strip() or OFFICIAL_NEWAPI_BASE_URL,
+            "env:LOVBROWSER_API_KEY",
+        ))
 
     stored = _read_env_file(credentials_path(env))
-    if stored.get("NEW_API_API_KEY"):
+    if stored.get("LOVBROWSER_API_KEY"):
         candidates.append(Credential(
-            stored["NEW_API_API_KEY"],
-            stored.get("NEW_API_BASE_URL", OFFICIAL_NEWAPI_BASE_URL),
+            stored["LOVBROWSER_API_KEY"],
+            base_url or stored.get("NEW_API_BASE_URL", OFFICIAL_NEWAPI_BASE_URL),
             "akasha-user-file",
         ))
 
@@ -206,15 +193,15 @@ def credential_candidates(
 
 
 def resolve_usable_credential(
-    specialized_names: tuple[str, ...] = (),
     *,
+    base_url: str | None = None,
     environ: Mapping[str, str] | None = None,
     timeout: float = 10,
     urlopen: Callable[..., Any] | None = None,
     allow_test_http: bool = False,
 ) -> Credential | None:
     """Probe configured credentials and return the first working candidate."""
-    for candidate in credential_candidates(specialized_names, environ=environ):
+    for candidate in credential_candidates(base_url=base_url, environ=environ):
         identity = (candidate.api_key, candidate.base_url)
         cached = _VALIDATED_CREDENTIALS.get(identity)
         if cached is not None:
@@ -244,8 +231,6 @@ def resolve_base_url(
 ) -> str:
     if explicit:
         return explicit
-    if _ACTIVE_CREDENTIAL is not None:
-        return _ACTIVE_CREDENTIAL.base_url
     env = os.environ if environ is None else environ
     for name in (*specialized_names, "NEW_API_BASE_URL"):
         value = env.get(name, "")
@@ -254,8 +239,7 @@ def resolve_base_url(
     stored = _read_env_file(credentials_path(env))
     if stored.get("NEW_API_BASE_URL"):
         return stored["NEW_API_BASE_URL"]
-    compatible = env.get("OPENAI_BASE_URL", "")
-    return compatible.strip() if isinstance(compatible, str) and compatible.strip() else default
+    return default
 
 
 @contextlib.contextmanager
@@ -305,7 +289,7 @@ def save_credential(
     with _locked(target.parent):
         if target.exists():
             _atomic_bytes(target.with_suffix(".env.bak"), target.read_bytes())
-        body = f"NEW_API_API_KEY={api_key}\nNEW_API_BASE_URL={base_url}\n".encode()
+        body = f"LOVBROWSER_API_KEY={api_key}\nNEW_API_BASE_URL={base_url}\n".encode()
         _atomic_bytes(target, body)
     return target
 
@@ -580,9 +564,11 @@ def finish_device_flow(
         return DeviceResult(Credential(api_key, base_url, "akasha-device"), flow)
 
 
-def bootstrap(*, specialized_names: tuple[str, ...] = (), environ: Mapping[str, str] | None = None, event_file: TextIO | None = None) -> Credential:
+def bootstrap(*, base_url: str | None = None, environ: Mapping[str, str] | None = None, event_file: TextIO | None = None) -> Credential:
     global _ACTIVE_CREDENTIAL
-    existing = resolve_usable_credential(specialized_names, environ=environ)
+    existing = resolve_usable_credential(
+        base_url=base_url, environ=environ
+    )
     if existing:
         _ACTIVE_CREDENTIAL = existing
         return existing
@@ -602,46 +588,31 @@ def bootstrap(*, specialized_names: tuple[str, ...] = (), environ: Mapping[str, 
 
 
 def select_credential(
-    specialized_names: tuple[str, ...] = (),
     *,
     explicit_base_url: str | None = None,
     timeout: float = 10,
     environ: Mapping[str, str] | None = None,
     event_file: TextIO | None = None,
 ) -> Credential:
-    """Select a credential, treating an explicit CLI base URL as the probe target."""
+    """Select a key while keeping the caller-selected API base URL."""
     if explicit_base_url:
         env = dict(os.environ if environ is None else environ)
         parsed = urllib.parse.urlsplit(explicit_base_url)
-        selected_name = next(
-            (
-                name
-                for name in (*specialized_names, "NEW_API_API_KEY", "OPENAI_API_KEY")
-                if isinstance(env.get(name), str) and env[name].strip()
+        existing = resolve_usable_credential(
+            base_url=explicit_base_url,
+            environ=env,
+            timeout=timeout,
+            allow_test_http=(
+                env.get("AKASHA_ALLOW_TEST_HTTP") == "1"
+                or parsed.hostname in {"127.0.0.1", "localhost", "::1"}
             ),
-            None,
         )
-        if selected_name is not None:
-            key = env[selected_name].strip()
-            probe = Credential(key, explicit_base_url, f"env:{selected_name}")
-            identity = (probe.api_key, probe.base_url)
-            if identity not in _VALIDATED_CREDENTIALS:
-                validate_credential(
-                    probe.api_key,
-                    probe.base_url,
-                    timeout=timeout,
-                    allow_compatible_base=True,
-                    allow_test_http=(
-                        env.get("AKASHA_ALLOW_TEST_HTTP") == "1"
-                        or parsed.hostname in {"127.0.0.1", "localhost", "::1"}
-                    ),
-                )
-                _VALIDATED_CREDENTIALS[identity] = probe
+        if existing is not None:
             global _ACTIVE_CREDENTIAL
-            _ACTIVE_CREDENTIAL = probe
-            return probe
+            _ACTIVE_CREDENTIAL = existing
+            return existing
     return bootstrap(
-        specialized_names=specialized_names,
+        base_url=explicit_base_url,
         environ=environ,
         event_file=event_file,
     )

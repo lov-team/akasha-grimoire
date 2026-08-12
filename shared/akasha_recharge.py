@@ -956,7 +956,7 @@ def recharge_parent_parser() -> Any:
 
 def _direct_api_key(environ: Mapping[str, str] | None = None) -> str:
     values = os.environ if environ is None else environ
-    for name in ("IMAGE_PROXY_API_KEY", "NEW_API_API_KEY", "OPENAI_API_KEY"):
+    for name in ("OPENAI_API_KEY", "LOVBROWSER_API_KEY"):
         value = values.get(name, "")
         if isinstance(value, str) and value.strip():
             return value.strip()
@@ -990,7 +990,7 @@ def direct_recharge_main(argv: list[str] | None = None) -> int:
         api_key = _direct_api_key()
         if not api_key:
             raise AkashaRechargeError(
-                "missing API key: set IMAGE_PROXY_API_KEY, NEW_API_API_KEY, or OPENAI_API_KEY"
+                "missing API key: set LOVBROWSER_API_KEY or configure OPENAI_API_KEY locally"
             )
         view = perform_recharge(
             api_key=api_key,

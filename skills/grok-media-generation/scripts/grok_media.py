@@ -148,7 +148,6 @@ def read_api_key(explicit_base_url: str | None = None, timeout: float = 10) -> s
     credentials = _load_akasha_recharge().load_akasha_credentials_module(Path(__file__))
     try:
         found = credentials.select_credential(
-            specialized_names=("GROK_MEDIA_API_KEY",),
             explicit_base_url=explicit_base_url,
             timeout=timeout,
         )
@@ -371,9 +370,8 @@ def wait_for_video(
 
 
 def run(args: argparse.Namespace) -> None:
-    explicit_base_url = resolve_base_url(args.base_url) if args.base_url else None
-    api_key = read_api_key(explicit_base_url, args.timeout)
     base_url = resolve_base_url(args.base_url)
+    api_key = read_api_key(base_url, args.timeout)
     recharge = _load_akasha_recharge()
     recharge.validate_cli_recharge_usd(getattr(args, "recharge_usd", None))
     controller = recharge.RechargeController(

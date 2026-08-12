@@ -774,7 +774,7 @@ class DirectRechargeCliTests(unittest.TestCase):
             public_page_url="https://lovbrowser.example/tooling/recharge/pub_direct",
             status_url="https://lovbrowser.example/api/v1/tooling/api-recharge-sessions/pub_direct",
         )
-        with mock.patch.dict(os.environ, {"NEW_API_API_KEY": "test-key"}, clear=True):
+        with mock.patch.dict(os.environ, {"LOVBROWSER_API_KEY": "test-key"}, clear=True):
             with mock.patch.object(mod, "perform_recharge", return_value=view) as perform:
                 with mock.patch.object(mod.sys, "stderr", io.StringIO()):
                     self.assertEqual(

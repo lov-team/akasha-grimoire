@@ -23,11 +23,11 @@ Akasha Grimoire 是团队共享的 Agent Skill 合集，最佳使用环境是 **
 ## 一分钟开通
 
 1. 在 Codex 中直接要求 GPT Image、Grok、Seedance、MiniMax H3、Kling、Gemini Omni、Fish Audio 或 Suno 执行媒体任务。
-2. Agent 会先用 `/v1/models` 验证本机已有的 `OPENAI_API_KEY`；可用就直接复用，不再重复配置。
-3. 本地 OpenAI 凭证不可用时，Agent 再验证专用变量、`NEW_API_API_KEY` 与用户凭证；这些配置也不可用时才生成 LovBrowser 设备授权二维码，并同时显示可点击链接与短码。
+2. Agent 会先用媒体 Skill 自己配置或默认的 URL，通过 `/v1/models` 验证本机已有的 `OPENAI_API_KEY`；可用就直接复用 Key，不读取 `OPENAI_BASE_URL`。
+3. 本地 OpenAI Key 不可用时，Agent 再验证统一的 `LOVBROWSER_API_KEY` 与用户凭证；媒体专用 Key 不参与。共享配置也不可用时才生成 LovBrowser 设备授权二维码，并同时显示可点击链接与短码。
 4. 用手机扫码，注册或登录后确认同一短码；本机随后自动轮询、保存、验证，并让最初的媒体任务继续一次。真实 Key 不经过对话、剪贴板或命令参数。
 
-也可运行 `python3 shared/akasha_credentials.py status|start|finish|cancel|rollback` 管理配置。凭证默认保存到 `~/.config/akasha/credentials.env`。运行时按“本地 `OPENAI_API_KEY` > 专用变量 > `NEW_API_API_KEY` > 用户凭证 > 配置引导”逐项验证并降级。
+也可运行 `python3 shared/akasha_credentials.py status|start|finish|cancel|rollback` 管理配置。凭证默认保存到 `~/.config/akasha/credentials.env`。运行时按“本地 `OPENAI_API_KEY` > `LOVBROWSER_API_KEY` > 用户凭证 > 配置引导”逐项验证并降级，所有媒体 Skill 共用同一 Key。
 
 ## 为什么使用
 
@@ -319,9 +319,9 @@ done
 | 能力 | 配置来源 | 约定 |
 | --- | --- | --- |
 | 默认 new-api | `https://newapi.1234bot.com/v1` | 无需配置 Base URL；充值签票也支持 `llmapi.lovbrowser.com` 与 `llmapi-direct.lovbrowser.com` 官方入口；私有部署才用 `NEW_API_BASE_URL` 或 `--base-url` 覆盖 |
-| GPT Image | `IMAGE_PROXY_API_KEY`、`NEW_API_API_KEY` 或 `OPENAI_API_KEY` | 不把 key 写进命令参数、prompt、日志或仓库 |
-| Grok / Seedance / H3 / Kling / Gemini Omni | 专用 key、`NEW_API_API_KEY` 或 `OPENAI_API_KEY` | 真实调用会计费，先做单个 smoke，再扩大任务规模 |
-| Suno / Fish Audio | `NEW_API_API_KEY` 或 `OPENAI_API_KEY` | 真实调用会消耗额度；基础测试不调用外部服务 |
+| GPT Image | `LOVBROWSER_API_KEY` 或本地 `OPENAI_API_KEY` | 不把 key 写进命令参数、prompt、日志或仓库 |
+| Grok / Seedance / H3 / Kling / Gemini Omni | `LOVBROWSER_API_KEY` 或本地 `OPENAI_API_KEY` | 所有媒体 Skill 共用一把 Key；真实调用会计费，先做单个 smoke |
+| Suno / Fish Audio | `LOVBROWSER_API_KEY` 或 `OPENAI_API_KEY` | 真实调用会消耗额度；基础测试不调用外部服务 |
 | 官方主动/余额不足充值 | 运行 `python3 shared/akasha_recharge.py` 创建支付会话；金额在 LovBrowser 页面选择 | 主动充值不需要余额不足；仅官方 new-api；Agent 只给出可点击的 `publicPageUrl`，不显示二维码；不泄露 Key/票据 |
 | Codex App 两层任务 | 监工 task、Sol 按难度选择 thinking 的隔离 worker task/worktree | 监工下发合同；worker 自主计划和实现；监工独立验收完整 diff。仅 CLI TUI worker 保留三层分工 |
 | CLI worker | 本机已安装的对应 CLI、macOS Terminal、tmux | 首次使用或版本变化时重新核对 `--version` 与 `--help` |

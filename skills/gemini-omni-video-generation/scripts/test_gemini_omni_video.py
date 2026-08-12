@@ -7,6 +7,7 @@ import email.message
 import importlib.util
 import io
 import json
+import os
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -37,6 +38,40 @@ def args(**overrides: object) -> argparse.Namespace:
 
 
 class GeminiOmniVideoTest(unittest.TestCase):
+    def test_shared_key_and_skill_url_ignore_openai_url_and_media_key(self) -> None:
+        credential = type("Credential", (), {"api_key": "shared-key"})()
+        credentials = type(
+            "Credentials",
+            (),
+            {
+                "CredentialError": RuntimeError,
+                "select_credential": staticmethod(lambda **_kwargs: credential),
+            },
+        )()
+        recharge = type(
+            "Recharge",
+            (),
+            {"load_akasha_credentials_module": staticmethod(lambda _path: credentials)},
+        )()
+        with patch.dict(
+            os.environ,
+            {
+                "OPENAI_API_KEY": "local-openai",
+                "LOVBROWSER_API_KEY": "lovbrowser",
+                "GEMINI_OMNI_VIDEO_API_KEY": "media-key",
+                "OPENAI_BASE_URL": "https://openai.example/v1",
+            },
+            clear=True,
+        ), patch.object(MODULE, "_load_akasha_recharge", return_value=recharge):
+            self.assertEqual(MODULE.read_api_key(), "shared-key")
+            self.assertEqual(MODULE.resolve_base_url(None), MODULE.DEFAULT_BASE_URL)
+        with patch.dict(
+            os.environ,
+            {"LOVBROWSER_API_KEY": "lovbrowser", "GEMINI_OMNI_VIDEO_API_KEY": "media-key"},
+            clear=True,
+        ), patch.object(MODULE, "_load_akasha_recharge", return_value=recharge):
+            self.assertEqual(MODULE.read_api_key(), "shared-key")
+
     def test_normalize_base_url(self) -> None:
         self.assertEqual(MODULE.normalize_base_url("https://example.com"), "https://example.com/v1")
         self.assertEqual(MODULE.normalize_base_url("https://example.com/v1/"), "https://example.com/v1")

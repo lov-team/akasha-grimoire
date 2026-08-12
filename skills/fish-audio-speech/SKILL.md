@@ -91,7 +91,7 @@ python3 scripts/fish_audio.py tts \
 
 ## 跑通 TTS smoke
 
-设置 `NEW_API_API_KEY`（也兼容 `OPENAI_API_KEY`）；默认 Base URL 无需配置：
+设置 `LOVBROWSER_API_KEY`（也兼容 `OPENAI_API_KEY`）；默认 Base URL 无需配置：
 
 ```bash
 python3 scripts/fish_audio.py tts \

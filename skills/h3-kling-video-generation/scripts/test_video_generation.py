@@ -83,7 +83,7 @@ class VideoGenerationTest(unittest.TestCase):
 
     def invoke(self, *args: str) -> subprocess.CompletedProcess[str]:
         env = os.environ.copy()
-        env["H3_KLING_VIDEO_API_KEY"] = "test-key"
+        env["LOVBROWSER_API_KEY"] = "test-key"
         env["AKASHA_ALLOW_TEST_HTTP"] = "1"
         return subprocess.run(
             ["python3", str(SCRIPT), "--base-url", self.base_url, "--timeout", "5", *args],

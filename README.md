@@ -23,11 +23,11 @@ Akasha Grimoire is a team-shared collection of Agent Skills, best used in **Code
 ## Get started in one minute
 
 1. In Codex, directly ask GPT Image, Grok, Seedance, MiniMax H3, Kling, Gemini Omni, Fish Audio, or Suno to perform a media task.
-2. The Agent first validates the local `OPENAI_API_KEY` through `/v1/models`; if it works, it is reused without additional setup.
-3. If that credential fails, the Agent validates dedicated variables, `NEW_API_API_KEY`, and the user credential in turn. Only if those also fail does it generate a LovBrowser device-authorization QR code plus a clickable link and short code.
+2. The Agent first validates the local `OPENAI_API_KEY` through `/v1/models` at the media Skill's own configured or default URL; the key is reused when valid, while `OPENAI_BASE_URL` is ignored.
+3. If that credential fails, the Agent validates the shared `LOVBROWSER_API_KEY` and user credential. Media-specific keys are ignored. Only if those also fail does it generate a LovBrowser device-authorization QR code plus a clickable link and short code.
 4. Scan it on your phone, register or sign in, and confirm the matching code. The local client polls, saves, validates, and resumes the original media task once. The real key never passes through the conversation, clipboard, or command arguments.
 
-You can also run `python3 shared/akasha_credentials.py status|start|finish|cancel|rollback` to manage the configuration. Credentials are stored in `~/.config/akasha/credentials.env` by default. Runtime fallback validates candidates in this order: local `OPENAI_API_KEY` > dedicated variable > `NEW_API_API_KEY` > user credential > setup guidance.
+You can also run `python3 shared/akasha_credentials.py status|start|finish|cancel|rollback` to manage the configuration. Credentials are stored in `~/.config/akasha/credentials.env` by default. Runtime fallback validates candidates in this order: local `OPENAI_API_KEY` > `LOVBROWSER_API_KEY` > user credential > setup guidance. All media Skills share one key.
 
 ## Why use it
 
@@ -319,9 +319,9 @@ Use $ui-ux-imitation-development to align the current interface with this refere
 | Capability | Configuration source | Contract |
 | --- | --- | --- |
 | Default new-api | `https://newapi.1234bot.com/v1` | No Base URL configuration required; recharge ticket signing also supports the official `llmapi.lovbrowser.com` and `llmapi-direct.lovbrowser.com` entry points; use `NEW_API_BASE_URL` or `--base-url` only for private deployments |
-| GPT Image | `IMAGE_PROXY_API_KEY`, `NEW_API_API_KEY`, or `OPENAI_API_KEY` | Never place keys in command arguments, prompts, logs, or the repository |
-| Grok / Seedance / H3 / Kling / Gemini Omni | Dedicated key, `NEW_API_API_KEY`, or `OPENAI_API_KEY` | Real calls are billed; run one smoke before expanding the task |
-| Suno / Fish Audio | `NEW_API_API_KEY` or `OPENAI_API_KEY` | Real calls consume credits; basic tests do not call external services |
+| GPT Image | `LOVBROWSER_API_KEY` or local `OPENAI_API_KEY` | Never place keys in command arguments, prompts, logs, or the repository |
+| Grok / Seedance / H3 / Kling / Gemini Omni | `LOVBROWSER_API_KEY` or local `OPENAI_API_KEY` | All media Skills share one key; real calls are billed, so run one smoke first |
+| Suno / Fish Audio | `LOVBROWSER_API_KEY` or `OPENAI_API_KEY` | Real calls consume credits; basic tests do not call external services |
 | Official proactive / low-balance recharge | Run `python3 shared/akasha_recharge.py` to create a payment session; choose the amount on the LovBrowser page | Proactive recharge does not require a low balance; official new-api only; the Agent returns only the clickable `publicPageUrl`, shows no QR code, and never leaks keys or tickets |
 | Two-layer Codex App tasks | Supervising task plus an isolated Sol worker task/worktree with difficulty-based thinking | Supervisor sends the contract; worker plans and implements autonomously; supervisor independently accepts the full diff. Only CLI TUI workers retain three layers |
 | CLI worker | Corresponding locally installed CLI, macOS Terminal, and tmux | Recheck `--version` and `--help` on first use or after a version change |

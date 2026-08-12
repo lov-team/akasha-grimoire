@@ -158,7 +158,7 @@ class FishAudioTests(unittest.TestCase):
 
     def test_tts_with_reference_audio_saves_binary(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir, mock.patch.dict(
-            os.environ, {"NEW_API_API_KEY": "local-test-key"}, clear=False
+            os.environ, {"LOVBROWSER_API_KEY": "local-test-key"}, clear=False
         ):
             reference = Path(temp_dir, "reference.wav")
             reference.write_bytes(b"reference-wave")
@@ -245,7 +245,7 @@ class FishAudioTests(unittest.TestCase):
 
     def test_tts_with_public_reference_id_sends_voice_field(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir, mock.patch.dict(
-            os.environ, {"NEW_API_API_KEY": "local-test-key"}, clear=False
+            os.environ, {"LOVBROWSER_API_KEY": "local-test-key"}, clear=False
         ):
             output = Path(temp_dir, "smoke.wav")
             rc = fish_audio.main(
@@ -270,7 +270,7 @@ class FishAudioTests(unittest.TestCase):
 
     def test_tts_style_wraps_input_for_s2_1_natural_language_control(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir, mock.patch.dict(
-            os.environ, {"NEW_API_API_KEY": "local-test-key"}, clear=False
+            os.environ, {"LOVBROWSER_API_KEY": "local-test-key"}, clear=False
         ):
             output = Path(temp_dir, "styled.wav")
             rc = fish_audio.main(
@@ -300,7 +300,7 @@ class FishAudioTests(unittest.TestCase):
 
     def test_tts_style_rejects_nested_brackets(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir, mock.patch.dict(
-            os.environ, {"NEW_API_API_KEY": "local-test-key"}, clear=False
+            os.environ, {"LOVBROWSER_API_KEY": "local-test-key"}, clear=False
         ), self.assertRaises(SystemExit) as caught:
             fish_audio.main(
                 [
@@ -321,7 +321,7 @@ class FishAudioTests(unittest.TestCase):
 
     def test_character_binding_resolves_to_reference_id_for_tts(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir, mock.patch.dict(
-            os.environ, {"NEW_API_API_KEY": "local-test-key"}, clear=False
+            os.environ, {"LOVBROWSER_API_KEY": "local-test-key"}, clear=False
         ):
             registry = Path(temp_dir, "voices.json")
             rc = fish_audio.main(
@@ -360,7 +360,7 @@ class FishAudioTests(unittest.TestCase):
 
     def test_explicit_tts_model_overrides_character_binding_model(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir, mock.patch.dict(
-            os.environ, {"NEW_API_API_KEY": "local-test-key"}, clear=False
+            os.environ, {"LOVBROWSER_API_KEY": "local-test-key"}, clear=False
         ):
             registry = Path(temp_dir, "voices.json")
             fish_audio.main(
@@ -409,7 +409,7 @@ class FishAudioTests(unittest.TestCase):
 
     def test_clone_status_and_delete_use_new_api_voice_model_routes(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir, mock.patch.dict(
-            os.environ, {"NEW_API_API_KEY": "local-test-key"}, clear=False
+            os.environ, {"LOVBROWSER_API_KEY": "local-test-key"}, clear=False
         ):
             sample = Path(temp_dir, "sample.wav")
             sample.write_bytes(b"authorized-voice")
@@ -472,7 +472,7 @@ class FishAudioTests(unittest.TestCase):
 
     def test_stt_uploads_multipart_and_saves_text_and_json(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir, mock.patch.dict(
-            os.environ, {"NEW_API_API_KEY": "local-test-key"}, clear=False
+            os.environ, {"LOVBROWSER_API_KEY": "local-test-key"}, clear=False
         ):
             audio = Path(temp_dir, "recording.mp3")
             audio.write_bytes(b"fake-mp3")
@@ -604,7 +604,7 @@ class FishAudioTests(unittest.TestCase):
         self.assertEqual(b.recharge_usd, "9")
 
     def test_private_base_keeps_original_error_with_bad_recharge_env(self) -> None:
-        with mock.patch.dict(os.environ, {"AKASHA_RECHARGE_USD": "bad-env", "NEW_API_API_KEY": "k"}, clear=False):
+        with mock.patch.dict(os.environ, {"AKASHA_RECHARGE_USD": "bad-env", "LOVBROWSER_API_KEY": "k"}, clear=False):
             # voices path does not use new-api; success path unaffected by bad env
             with mock.patch.object(
                 fish_audio,
@@ -645,7 +645,7 @@ class FishAudioTests(unittest.TestCase):
         try:
             with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(
                 os.environ,
-                {"NEW_API_API_KEY": "k", "AKASHA_RECHARGE_USD": "not-a-number"},
+                {"LOVBROWSER_API_KEY": "k", "AKASHA_RECHARGE_USD": "not-a-number"},
                 clear=False,
             ):
                 with self.assertRaises(SystemExit) as caught:
