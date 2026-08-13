@@ -34,6 +34,7 @@ Brief 完整时连续制作。只有视觉方向或最终分镜存在高成本�
 - 禁用实时日期与非确定性随机数；需要粒子或抖动时使用固定种子。
 - 有音乐时 Composition 提供 `bgm:boolean`；有旁白时提供 `voiceover:boolean`。
 - 动作拟音从 `assets/video-shotcraft/audio/sfx/SFX_MANIFEST.json` 选择，使用 `scripts/fetch_shotcraft_sfx.py` 下载到当前生产项目并校验 SHA-256，再按场景起始帧加 offset 钉帧。Skill 中只保存来源和校验值，音频进入具体视频项目后使用。
+- 有旁白时以 VOICE 听感为 `100`，SFX 默认只占 `10—15`；单条 Remotion `volume` 从 `0.1—0.15` 起步，主音效默认不超过 `0.15`，辅助音效更低。素材偏轻时优先换样本或预归一化，不直接抬高特效声；用户明确要求强化钉点时才例外并重新试听。
 - 带音乐项目从同一 Composition 渲染“BGM＋SFX”和“仅 SFX”两版，画面参数保持一致。
 - 使用强节奏音乐时，先按 `references/video-shotcraft/music-beat-sync.md` 建立节拍网格再排时间线。
 

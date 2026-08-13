@@ -26,6 +26,14 @@ description: 通过 new-api 调用 Fish Audio 完成 TTS、STT、私人声线克
 
 ## 搜索公开声线
 
+优先查看已经人工试听通过的共享中文声线库：
+
+```bash
+python3 scripts/fish_audio.py library
+```
+
+命令会展示直观名称、适用场景、听感标签和本地试听文件。用户可直接选择库内短名，也可以按下述方式搜索新的公开声线；新声音必须先生成候选样音并经用户确认，才能加入共享库。
+
 按用途搜索：
 
 ```bash
@@ -74,6 +82,11 @@ python3 scripts/fish_audio.py clone-delete <reference-id> --confirm-delete
 
 ```bash
 python3 scripts/fish_audio.py bind \
+  --character "旁白" \
+  --library-voice clear-intellectual-female \
+  --registry ./voices.json
+
+python3 scripts/fish_audio.py bind \
   --character "守夜人" \
   --voice <reference-id> \
   --title "低沉克制候选 2" \
@@ -88,6 +101,15 @@ python3 scripts/fish_audio.py tts \
 ```
 
 也可设置 `FISH_AUDIO_VOICE_REGISTRY` 作为默认 registry。绑定前必须完成候选试听；同一角色正式长文使用同一绑定，除非用户明确要求换声线。
+
+无需建立角色绑定时，也可直接用库内短名配音：
+
+```bash
+python3 scripts/fish_audio.py tts \
+  --library-voice warm-friendly-female \
+  --text-file ./script.txt \
+  --output ./staging/narration.mp3
+```
 
 ## 跑通 TTS smoke
 

@@ -268,6 +268,92 @@ class FishAudioTests(unittest.TestCase):
         self.assertEqual(_FishHandler.tts_payload["voice"], "public-reference-id")
         self.assertNotIn("extra_body", _FishHandler.tts_payload)
 
+    def test_approved_voice_library_is_complete_and_listable(self) -> None:
+        library = fish_audio._load_voice_library()
+        voices = library["voices"]
+        self.assertEqual(len(voices), 8)
+        self.assertEqual({voice["gender"] for voice in voices}, {"female", "male"})
+        self.assertEqual(
+            [voice["gender"] for voice in voices].count("female"),
+            4,
+        )
+        self.assertEqual(len({voice["slug"] for voice in voices}), 8)
+        forbidden = {"api_key", "base64", "signed_url"}
+        self.assertTrue(forbidden.isdisjoint(library))
+        for voice in voices:
+            self.assertTrue(forbidden.isdisjoint(voice))
+            self.assertEqual(voice["review_status"], "approved")
+            sample = fish_audio._voice_sample_path(voice)
+            self.assertTrue(sample.is_file())
+            self.assertGreater(sample.stat().st_size, 0)
+
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            rc = fish_audio.main(["library"])
+        self.assertEqual(rc, 0)
+        self.assertIn("slug=warm-friendly-female", stdout.getvalue())
+        self.assertIn("name=温暖亲和女声", stdout.getvalue())
+
+    def test_tts_resolves_approved_library_voice(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir, mock.patch.dict(
+            os.environ, {"LOVBROWSER_API_KEY": "local-test-key"}, clear=False
+        ):
+            rc = fish_audio.main(
+                [
+                    "--base-url",
+                    self.base_url,
+                    "tts",
+                    "--text",
+                    "规律一直都在那里。",
+                    "--library-voice",
+                    "warm-friendly-female",
+                    "--format",
+                    "wav",
+                    "--output",
+                    str(Path(temp_dir, "library.wav")),
+                ]
+            )
+        self.assertEqual(rc, 0)
+        assert _FishHandler.tts_payload is not None
+        self.assertEqual(
+            _FishHandler.tts_payload["voice"],
+            "faccba1a8ac54016bcfc02761285e67f",
+        )
+        self.assertEqual(_FishHandler.tts_payload["model"], "fish-s2.1-pro")
+
+    def test_bind_resolves_library_voice_and_rejects_unknown_slug(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            registry = Path(temp_dir, "voices.json")
+            rc = fish_audio.main(
+                [
+                    "bind",
+                    "--character",
+                    "旁白",
+                    "--library-voice",
+                    "clear-powerful-male",
+                    "--registry",
+                    str(registry),
+                ]
+            )
+            self.assertEqual(rc, 0)
+            binding = json.loads(registry.read_text(encoding="utf-8"))["characters"]["旁白"]
+            self.assertEqual(binding["reference_id"], "d10d7dc3fce3461289ece2b90f3dec41")
+            self.assertEqual(binding["title"], "清朗有力男声")
+
+            with self.assertRaises(SystemExit) as caught:
+                fish_audio.main(
+                    [
+                        "bind",
+                        "--character",
+                        "旁白",
+                        "--library-voice",
+                        "missing",
+                        "--registry",
+                        str(registry),
+                    ]
+                )
+            self.assertIn("unknown voice library slug", str(caught.exception))
+
     def test_tts_style_wraps_input_for_s2_1_natural_language_control(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir, mock.patch.dict(
             os.environ, {"LOVBROWSER_API_KEY": "local-test-key"}, clear=False

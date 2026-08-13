@@ -32,6 +32,7 @@ MAX_VOICE_SAMPLES = 10
 OUTPUT_FORMATS = {"mp3", "wav", "opus"}
 PUBLIC_MODELS_URL = "https://api.fish.audio/model"
 DEFAULT_BASE_URL = "https://newapi.1234bot.com/v1"
+VOICE_LIBRARY_PATH = Path(__file__).resolve().parents[1] / "assets" / "voice-library" / "voices.v1.json"
 
 
 class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
@@ -370,6 +371,40 @@ def _search_voices(args: argparse.Namespace) -> None:
         )
 
 
+def _load_voice_library() -> dict[str, Any]:
+    try:
+        library = json.loads(VOICE_LIBRARY_PATH.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise SystemExit(f"invalid voice library: {VOICE_LIBRARY_PATH}") from exc
+    if not isinstance(library, dict) or not isinstance(library.get("voices"), list):
+        raise SystemExit(f"invalid voice library structure: {VOICE_LIBRARY_PATH}")
+    return library
+
+
+def _library_voice(slug: str) -> dict[str, Any]:
+    for voice in _load_voice_library()["voices"]:
+        if isinstance(voice, dict) and voice.get("slug") == slug:
+            if voice.get("review_status") != "approved":
+                break
+            return voice
+    raise SystemExit(f"unknown voice library slug: {slug}")
+
+
+def _voice_sample_path(voice: dict[str, Any]) -> Path:
+    return VOICE_LIBRARY_PATH.parent / str(voice["sample"])
+
+
+def _print_voice_library() -> None:
+    voices = _load_voice_library()["voices"]
+    print(f"OK mode=library voices={len(voices)}")
+    for voice in voices:
+        print(
+            f"slug={voice['slug']}\tname={voice['display_name']}\t"
+            f"scenes={','.join(voice['scenes'])}\ttags={','.join(voice['tags'])}\t"
+            f"sample={_voice_sample_path(voice)}"
+        )
+
+
 def _tts(
     args: argparse.Namespace,
     api_key: str,
@@ -382,6 +417,12 @@ def _tts(
     if args.format not in OUTPUT_FORMATS:
         raise SystemExit(f"unsupported TTS format: {args.format}")
     voice = args.voice
+    library_voice = vars(args).get("library_voice")
+    if library_voice:
+        selected = _library_voice(library_voice)
+        voice = selected["reference_id"]
+        if args.model is None:
+            model = selected["model"]
     if args.character:
         registry = _load_voice_registry(_voice_registry_path(args.registry))
         binding = registry.get("characters", {}).get(args.character)
@@ -527,11 +568,12 @@ def _load_voice_registry(path: Path) -> dict[str, Any]:
 def _bind_character(args: argparse.Namespace) -> None:
     registry_path = _voice_registry_path(args.registry)
     registry = _load_voice_registry(registry_path)
+    selected = _library_voice(args.library_voice) if args.library_voice else None
     registry["characters"][args.character] = {
         "provider": "fish-audio",
-        "reference_id": args.voice,
-        "model": args.model,
-        "title": args.title or "",
+        "reference_id": selected["reference_id"] if selected else args.voice,
+        "model": selected["model"] if selected else args.model,
+        "title": selected["display_name"] if selected else (args.title or ""),
     }
     encoded = (json.dumps(registry, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
     _atomic_write(registry_path, encoded, True)
@@ -752,6 +794,7 @@ def _parser() -> argparse.ArgumentParser:
     saved_voice = tts.add_mutually_exclusive_group()
     saved_voice.add_argument("--voice", help="Fish Audio reference_id")
     saved_voice.add_argument("--character", help="character/person name bound in the voice registry")
+    saved_voice.add_argument("--library-voice", help="approved voice library slug")
     tts.add_argument("--registry", help="character voice registry JSON path")
     tts.add_argument("--reference-audio", help="local authorized reference audio")
     tts.add_argument("--reference-text", help="exact transcript for the reference audio")
@@ -786,9 +829,13 @@ def _parser() -> argparse.ArgumentParser:
     voices.add_argument("--sort", choices=("uses", "likes"), default="uses")
     voices.add_argument("--json-output")
 
+    subparsers.add_parser("library", help="list approved voices and local samples")
+
     bind = subparsers.add_parser("bind", parents=[recharge_parent], help="bind a character/person name to a Fish voice")
     bind.add_argument("--character", required=True)
-    bind.add_argument("--voice", required=True, help="Fish Audio reference_id")
+    bind_voice = bind.add_mutually_exclusive_group(required=True)
+    bind_voice.add_argument("--voice", help="Fish Audio reference_id")
+    bind_voice.add_argument("--library-voice", help="approved voice library slug")
     bind.add_argument("--title")
     bind.add_argument("--model", choices=sorted(TTS_MODELS), default=DEFAULT_TTS_MODEL)
     bind.add_argument("--registry", help="character voice registry JSON path")
@@ -830,8 +877,11 @@ def main(argv: list[str] | None = None) -> int:
             raise SystemExit("voice search min-uses must not be negative")
         _search_voices(args)
         return 0
+    if args.command == "library":
+        _print_voice_library()
+        return 0
     if args.command == "bind":
-        if not args.character.strip() or not args.voice.strip():
+        if not args.character.strip() or (args.voice is not None and not args.voice.strip()):
             raise SystemExit("character and voice must not be empty")
         _bind_character(args)
         return 0

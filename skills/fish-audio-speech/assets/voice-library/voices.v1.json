@@ -1,0 +1,168 @@
+{
+  "version": 1,
+  "status": "approved",
+  "model": "fish-s2.1-pro",
+  "sample_text": "2026年8月12日，阿卡莎在深圳完成第16次实验。风停了一秒，我们继续寻找答案。",
+  "voices": [
+    {
+      "slug": "warm-friendly-female",
+      "display_name": "温暖亲和女声",
+      "upstream_title": "温柔动听女声",
+      "gender": "female",
+      "scenes": [
+        "生活",
+        "治愈",
+        "情感"
+      ],
+      "tags": [
+        "温柔",
+        "舒缓",
+        "亲和"
+      ],
+      "reference_id": "faccba1a8ac54016bcfc02761285e67f",
+      "sample": "samples/温暖亲和女声.mp3",
+      "review_status": "approved",
+      "model": "fish-s2.1-pro"
+    },
+    {
+      "slug": "clear-intellectual-female",
+      "display_name": "知性清晰女声",
+      "upstream_title": "知性女声",
+      "gender": "female",
+      "scenes": [
+        "知识讲解",
+        "课程",
+        "观点表达"
+      ],
+      "tags": [
+        "知性",
+        "清晰",
+        "专业"
+      ],
+      "reference_id": "da2da0b1f3764a9c9eff55bd87370fac",
+      "sample": "samples/知性清晰女声.mp3",
+      "review_status": "approved",
+      "model": "fish-s2.1-pro"
+    },
+    {
+      "slug": "calm-narrative-female",
+      "display_name": "沉静叙事女声",
+      "upstream_title": "故宫纪录片女声",
+      "gender": "female",
+      "scenes": [
+        "人物故事",
+        "人文",
+        "纪录片"
+      ],
+      "tags": [
+        "沉静",
+        "克制",
+        "叙事"
+      ],
+      "reference_id": "3c1546d3d3084e32bbe6f7ecd7c78102",
+      "sample": "samples/沉静叙事女声.mp3",
+      "review_status": "approved",
+      "model": "fish-s2.1-pro"
+    },
+    {
+      "slug": "light-natural-female",
+      "display_name": "轻快自然女声",
+      "upstream_title": "几何女声",
+      "gender": "female",
+      "scenes": [
+        "社交媒体",
+        "轻知识",
+        "年轻化内容"
+      ],
+      "tags": [
+        "清脆",
+        "轻快",
+        "自然"
+      ],
+      "reference_id": "cf71d823861b4e0eadff1672d646da36",
+      "sample": "samples/轻快自然女声.mp3",
+      "review_status": "approved",
+      "model": "fish-s2.1-pro"
+    },
+    {
+      "slug": "warm-trustworthy-male",
+      "display_name": "温润可信男声",
+      "upstream_title": "温柔男声·讲故事",
+      "gender": "male",
+      "scenes": [
+        "知识",
+        "商业",
+        "解释型内容"
+      ],
+      "tags": [
+        "温润",
+        "可信",
+        "平和"
+      ],
+      "reference_id": "d99547e2dad64ce0aa085319a3c9cc56",
+      "sample": "samples/温润可信男声.mp3",
+      "review_status": "approved",
+      "model": "fish-s2.1-pro"
+    },
+    {
+      "slug": "steady-narrative-male",
+      "display_name": "沉稳叙事男声",
+      "upstream_title": "纪录片男声",
+      "gender": "male",
+      "scenes": [
+        "人物",
+        "历史",
+        "纪录片"
+      ],
+      "tags": [
+        "沉稳",
+        "专业",
+        "叙事"
+      ],
+      "reference_id": "7d4cc998f68c413ba5605d892d7acc87",
+      "sample": "samples/沉稳叙事男声.mp3",
+      "review_status": "approved",
+      "model": "fish-s2.1-pro"
+    },
+    {
+      "slug": "clear-powerful-male",
+      "display_name": "清朗有力男声",
+      "upstream_title": "白哥哥 科技",
+      "gender": "male",
+      "scenes": [
+        "科技",
+        "产品",
+        "观点短视频"
+      ],
+      "tags": [
+        "清朗",
+        "利落",
+        "有力"
+      ],
+      "reference_id": "d10d7dc3fce3461289ece2b90f3dec41",
+      "sample": "samples/清朗有力男声.mp3",
+      "review_status": "approved",
+      "model": "fish-s2.1-pro"
+    },
+    {
+      "slug": "cinematic-deep-male",
+      "display_name": "厚重电影男声",
+      "upstream_title": "历史纪录片-2006",
+      "gender": "male",
+      "scenes": [
+        "历史",
+        "史诗",
+        "强叙事内容"
+      ],
+      "tags": [
+        "厚重",
+        "低沉",
+        "电影感"
+      ],
+      "reference_id": "6d3afe0a37cc40409cb8f80b6b6d2104",
+      "sample": "samples/厚重电影男声.mp3",
+      "review_status": "approved",
+      "model": "fish-s2.1-pro"
+    }
+  ]
+}
