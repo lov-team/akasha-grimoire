@@ -1,5 +1,16 @@
 # 模型契约
 
+## MiniMax H3 Max
+
+- 模型：`h3-max`（兼容端点会按参考素材自动选择 text/image/reference；也可显式使用下列 SKU：`minimax/h3-max/text-to-video`、`minimax/h3-max/image-to-video`、`minimax/h3-max/reference-to-video`）。
+- `prompt`：1–50000 字符；兼容端点默认 `prompt_expansion_mode=balanced`。
+- `duration`：整数 5–15，默认 5。
+- `resolution`：`480P` 或 `768P`，默认 `768P`。
+- `aspect_ratio`：文生/参考生视频支持 `adaptive`、`21:9`、`16:9`、`4:3`、`1:1`、`3:4`、`9:16`，默认 `adaptive`；图生视频由首帧图片决定画幅，不发送该字段。
+- 图生视频：`--image` 一张为首帧，两张依次为首帧和尾帧；显式 image SKU 最多两张。
+- 参考生视频：可组合图片、`reference_video_urls` 和 `reference_audio_urls`，合计最多 12 个文件；显式 reference SKU 可在只有一个参考文件时保持参考模式。
+- H3 Max 的图片必须通过顶层 `images` 传入，以便 new-api 在兼容端点分类；显式 image SKU 的 `image_url`/`end_image_url` 仍写入 metadata。
+
 ## MiniMax H3 Text-to-Video
 
 - 模型：`minimax-h3/text-to-video`

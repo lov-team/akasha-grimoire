@@ -18,11 +18,11 @@
 
 Akasha Grimoire is a team-shared collection of Agent Skills, best used in **Codex App**. It packages task boundaries, tool facts, execution scripts, low-noise waiting, and independent acceptance into installable capabilities so Agents can guess less, avoid repeated polling, and deliver with evidence in real projects. Individual Skills also work with other compatible Agents and CLIs.
 
-> **Want to try image, video, speech, and music generation right away?** Register at [LovBrowser](https://lovbrowser.com) and add credits. Akasha Grimoire connects to `https://newapi.1234bot.com/v1` by default. One new-api key unlocks GPT Image, Grok, Seedance, MiniMax H3, Kling, Gemini Omni, Fish Audio, and Suno without configuring a separate Base URL for each service.
+> **Want to try image, video, speech, and music generation right away?** Register at [LovBrowser](https://lovbrowser.com) and add credits. Akasha Grimoire connects to `https://newapi.1234bot.com/v1` by default. One new-api key unlocks GPT Image, Grok, Seedance, MiniMax H3 Max/H3, Kling, Gemini Omni, Fish Audio, and Suno without configuring a separate Base URL for each service.
 
 ## Get started in one minute
 
-1. In Codex, directly ask GPT Image, Grok, Seedance, MiniMax H3, Kling, Gemini Omni, Fish Audio, or Suno to perform a media task.
+1. In Codex, directly ask GPT Image, Grok, Seedance, MiniMax H3 Max/H3, Kling, Gemini Omni, Fish Audio, or Suno to perform a media task.
 2. The Agent first validates the local `OPENAI_API_KEY` through `/v1/models` at the media Skill's own configured or default URL; the key is reused when valid, while `OPENAI_BASE_URL` is ignored.
 3. If that credential fails, the Agent validates the shared `LOVBROWSER_API_KEY` and user credential. Media-specific keys are ignored. Only if those also fail does it generate a LovBrowser device-authorization QR code plus a clickable link and short code.
 4. Scan it on your phone, register or sign in, and confirm the matching code. The local client polls, saves, validates, and resumes the original media task once. The real key never passes through the conversation, clipboard, or command arguments.
@@ -103,7 +103,7 @@ The repository currently contains **28 Skills**. Install just one or combine the
 | [`article-to-short-video`](skills/article-to-short-video/) | Turn a Chinese long-form article or opinion piece into a title-led vertical Remotion video | Narration-page approval, layout and motion review, mixed-audio sample approval, voice-derived timing, semantic captions, and final acceptance |
 | [`seedance-video-generation`](skills/seedance-video-generation/) | Seedance text-to-video, image-to-video, first/last-frame, and multi-reference generation | Second-by-second directing prompts, model-level constraints, asynchronous polling, safe downloads, and output probing |
 | [`seedance-video-continuation`](skills/seedance-video-continuation/) | Continue from the final frame of an existing MP4 | Last-valid-frame extraction, first-frame continuation, continuity prompting, segment concatenation, and re-verification |
-| [`h3-kling-video-generation`](skills/h3-kling-video-generation/) | MiniMax H3 and Kling shots and game promos | T2V/I2V, director-style prompts, 2D animation/MG/UI composition, model validation, and MP4 downloads |
+| [`h3-kling-video-generation`](skills/h3-kling-video-generation/) | MiniMax H3 Max/H3 and Kling shots and game promos | T2V/I2V/reference-to-video, director-style prompts, 2D animation/MG/UI composition, model validation, and MP4 downloads |
 | [`gemini-omni-video-generation`](skills/gemini-omni-video-generation/) | Gemini Omni video generation and editing | Continue from public media or past tasks, job polling, MP4 validation, and unexpected-audio diagnosis |
 | [`multi-platform-video-publishing`](skills/multi-platform-video-publishing/) | Publish accepted videos to four platforms | Parallel account checks and uploads, platform-specific copy, SHA duplicate prevention, ledgers, remote-state verification, and recovery |
 

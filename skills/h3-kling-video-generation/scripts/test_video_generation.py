@@ -129,6 +129,71 @@ class VideoGenerationTest(unittest.TestCase):
             "aspect_ratio": "21:9", "duration": 15, "resolution": "768P"
         })
 
+    def test_h3_max_is_the_default_model(self) -> None:
+        result = self.invoke(
+            "generate", "--prompt", "a cat on a beach",
+            "--poll-interval", "0.01", "--output", self.output("h3-max-default.mp4"),
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = self.submit_payload()
+        self.assertEqual(payload["model"], "h3-max")
+        self.assertEqual(payload["duration"], 5)
+        self.assertEqual(payload["metadata"], {
+            "aspect_ratio": "adaptive", "duration": 5, "resolution": "768P"
+        })
+
+    def test_h3_max_generic_image_request_keeps_images_for_new_api_routing(self) -> None:
+        image = "https://media.example/first.png"
+        result = self.invoke(
+            "generate", "--model", "h3-max", "--prompt", "subtle motion",
+            "--image", image, "--poll-interval", "0.01", "--output", self.output("h3-max-i2v.mp4"),
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = self.submit_payload()
+        self.assertEqual(payload["model"], "h3-max")
+        self.assertEqual(payload["images"], [image])
+        self.assertNotIn("aspect_ratio", payload["metadata"])
+
+    def test_h3_max_i2v_uses_native_frame_fields_without_aspect_ratio(self) -> None:
+        first = "https://media.example/first.png"
+        last = "https://media.example/last.png"
+        result = self.invoke(
+            "generate", "--model", "h3-max-i2v", "--prompt", "the subject looks up",
+            "--image", first, "--image", last, "--resolution", "480P",
+            "--poll-interval", "0.01", "--output", self.output("h3-max-explicit-i2v.mp4"),
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = self.submit_payload()
+        self.assertEqual(payload["model"], "minimax/h3-max/image-to-video")
+        self.assertEqual(payload["metadata"]["image_url"], first)
+        self.assertEqual(payload["metadata"]["end_image_url"], last)
+        self.assertNotIn("aspect_ratio", payload["metadata"])
+
+    def test_h3_max_reference_video_and_audio_select_reference_sku(self) -> None:
+        video = "https://media.example/reference.mp4"
+        audio = "https://media.example/reference.mp3"
+        result = self.invoke(
+            "generate", "--model", "h3-max", "--prompt", "preserve the reference mood",
+            "--reference-video", video, "--reference-audio", audio,
+            "--poll-interval", "0.01", "--output", self.output("h3-max-reference.mp4"),
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = self.submit_payload()
+        self.assertEqual(payload["model"], "minimax/h3-max/reference-to-video")
+        self.assertEqual(payload["reference_video_urls"], [video])
+        self.assertEqual(payload["reference_audio_urls"], [audio])
+        self.assertEqual(payload["metadata"]["reference_video_urls"], [video])
+        self.assertEqual(payload["metadata"]["reference_audio_urls"], [audio])
+
+    def test_fal_ai_h3_max_sku_aliases_are_accepted(self) -> None:
+        result = self.invoke(
+            "generate", "--model", "fal-ai/minimax/h3-max/text-to-video",
+            "--prompt", "a quiet sunrise", "--duration", "5", "--resolution", "480P",
+            "--poll-interval", "0.01", "--output", self.output("h3-max-fal-alias.mp4"),
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.submit_payload()["model"], "minimax/h3-max/text-to-video")
+
     def test_minimax_h3_image_to_video_first_and_last_frame_payload(self) -> None:
         first = "https://media.example/first.png"
         last = "https://media.example/last.png"

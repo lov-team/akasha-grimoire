@@ -18,11 +18,11 @@
 
 Akasha Grimoire 是团队共享的 Agent Skill 合集，最佳使用环境是 **Codex App**。它把任务边界、工具事实、执行脚本、低噪声等待和独立验收组织成可安装的能力包，让 Agent 在真实项目中少猜、少重复轮询，并用证据完成交付。其他兼容 Agent 与 CLI 仍可使用其中的独立 Skill。
 
-> **想直接体验图片、视频、语音和音乐生成？** 访问 [LovBrowser](https://lovbrowser.com) 注册账号并开通额度。阿卡夏秘典默认连接 `https://newapi.1234bot.com/v1`，拿到一把 new-api Key 后即可调用 GPT Image、Grok、Seedance、MiniMax H3、Kling、Gemini Omni、Fish Audio 与 Suno，无需逐项配置 Base URL。
+> **想直接体验图片、视频、语音和音乐生成？** 访问 [LovBrowser](https://lovbrowser.com) 注册账号并开通额度。阿卡夏秘典默认连接 `https://newapi.1234bot.com/v1`，拿到一把 new-api Key 后即可调用 GPT Image、Grok、Seedance、MiniMax H3 Max/H3、Kling、Gemini Omni、Fish Audio 与 Suno，无需逐项配置 Base URL。
 
 ## 一分钟开通
 
-1. 在 Codex 中直接要求 GPT Image、Grok、Seedance、MiniMax H3、Kling、Gemini Omni、Fish Audio 或 Suno 执行媒体任务。
+1. 在 Codex 中直接要求 GPT Image、Grok、Seedance、MiniMax H3 Max/H3、Kling、Gemini Omni、Fish Audio 或 Suno 执行媒体任务。
 2. Agent 会先用媒体 Skill 自己配置或默认的 URL，通过 `/v1/models` 验证本机已有的 `OPENAI_API_KEY`；可用就直接复用 Key，不读取 `OPENAI_BASE_URL`。
 3. 本地 OpenAI Key 不可用时，Agent 再验证统一的 `LOVBROWSER_API_KEY` 与用户凭证；媒体专用 Key 不参与。共享配置也不可用时才生成 LovBrowser 设备授权二维码，并同时显示可点击链接与短码。
 4. 用手机扫码，注册或登录后确认同一短码；本机随后自动轮询、保存、验证，并让最初的媒体任务继续一次。真实 Key 不经过对话、剪贴板或命令参数。
@@ -103,7 +103,7 @@ Graph Engineering 把交付建模为一张可追踪的工作图，而不是一�
 | [`article-to-short-video`](skills/article-to-short-video/) | 把中文长文、人物故事或观点稿制作成标题主导的 Remotion 竖屏短视频 | 旁白分页确认、逐页排版动效、声音合成样片、实际语音时间线、多轨混音、完整句字幕与成片确认 |
 | [`seedance-video-generation`](skills/seedance-video-generation/) | Seedance 文生、图生、首尾帧和多参考视频 | 秒级导演提示、模型级约束、异步轮询、安全下载和成片探测 |
 | [`seedance-video-continuation`](skills/seedance-video-continuation/) | 从已有 MP4 尾帧继续生成 | 最后有效帧提取、首帧续拍、连续性提示、分段拼接与复验 |
-| [`h3-kling-video-generation`](skills/h3-kling-video-generation/) | MiniMax H3、Kling 镜头和游戏 PV | T2V/I2V、导演式 Prompt、二维动画/MG/UI 合成、模型校验和 MP4 下载 |
+| [`h3-kling-video-generation`](skills/h3-kling-video-generation/) | MiniMax H3 Max/H3、Kling 镜头和游戏 PV | T2V/I2V/参考生视频、导演式 Prompt、二维动画/MG/UI 合成、模型校验和 MP4 下载 |
 | [`gemini-omni-video-generation`](skills/gemini-omni-video-generation/) | Gemini Omni 视频生成与视频编辑 | 公开素材/历史任务续接、任务轮询、MP4 校验和意外音轨诊断 |
 | [`multi-platform-video-publishing`](skills/multi-platform-video-publishing/) | 将已验收成片发布到四个平台 | 并行账号校验与上传、平台化文案、SHA 防重、台账、远端状态核验与恢复 |
 

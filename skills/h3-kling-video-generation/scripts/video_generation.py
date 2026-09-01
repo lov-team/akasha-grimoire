@@ -22,6 +22,10 @@ FAILURE_STATES = {"failure", "failed", "expired", "cancelled", "canceled"}
 
 MINIMAX_H3_MODEL = "minimax-h3/text-to-video"
 MINIMAX_H3_I2V_MODEL = "minimax-h3/image-to-video"
+H3_MAX_MODEL = "h3-max"
+H3_MAX_T2V_MODEL = "minimax/h3-max/text-to-video"
+H3_MAX_I2V_MODEL = "minimax/h3-max/image-to-video"
+H3_MAX_REFERENCE_MODEL = "minimax/h3-max/reference-to-video"
 KLING_3_MODEL = "kling-3.0/video"
 KLING_25_T2V_MODEL = "kling/v2-5-turbo-text-to-video-pro"
 
@@ -30,6 +34,17 @@ MODEL_ALIASES = {
     "h3": MINIMAX_H3_MODEL,
     "minimax-h3-i2v": MINIMAX_H3_I2V_MODEL,
     "h3-i2v": MINIMAX_H3_I2V_MODEL,
+    "h3-max": H3_MAX_MODEL,
+    "minimax-h3-max": H3_MAX_MODEL,
+    "h3-max-t2v": H3_MAX_T2V_MODEL,
+    "minimax-h3-max-t2v": H3_MAX_T2V_MODEL,
+    "fal-ai/minimax/h3-max/text-to-video": H3_MAX_T2V_MODEL,
+    "h3-max-i2v": H3_MAX_I2V_MODEL,
+    "minimax-h3-max-i2v": H3_MAX_I2V_MODEL,
+    "fal-ai/minimax/h3-max/image-to-video": H3_MAX_I2V_MODEL,
+    "h3-max-reference": H3_MAX_REFERENCE_MODEL,
+    "minimax-h3-max-reference": H3_MAX_REFERENCE_MODEL,
+    "fal-ai/minimax/h3-max/reference-to-video": H3_MAX_REFERENCE_MODEL,
     "kling-3": KLING_3_MODEL,
     "kling-3.0": KLING_3_MODEL,
     "kling-2.5-t2v": KLING_25_T2V_MODEL,
@@ -63,6 +78,72 @@ MODEL_PROFILES = {
         "requires_images": True,
         "max_images": 2,
         "uses_aspect_ratio": False,
+    },
+    H3_MAX_MODEL: {
+        "durations": range(5, 16),
+        "default_duration": 5,
+        "aspect_ratios": ("adaptive", "21:9", "16:9", "4:3", "1:1", "3:4", "9:16"),
+        "default_aspect_ratio": "adaptive",
+        "resolutions": ("480P", "768P"),
+        "default_resolution": "768P",
+        "supports_images": True,
+        "duration_as_string": False,
+        "supports_sound": False,
+        "supports_mode": False,
+        "requires_images": False,
+        "max_images": 12,
+        "uses_aspect_ratio": True,
+        "max_references": 12,
+    },
+    H3_MAX_T2V_MODEL: {
+        "durations": range(5, 16),
+        "default_duration": 5,
+        "aspect_ratios": ("adaptive", "21:9", "16:9", "4:3", "1:1", "3:4", "9:16"),
+        "default_aspect_ratio": "adaptive",
+        "resolutions": ("480P", "768P"),
+        "default_resolution": "768P",
+        "supports_images": False,
+        "duration_as_string": False,
+        "supports_sound": False,
+        "supports_mode": False,
+        "requires_images": False,
+        "max_images": 0,
+        "uses_aspect_ratio": True,
+        "max_references": 0,
+    },
+    H3_MAX_I2V_MODEL: {
+        "durations": range(5, 16),
+        "default_duration": 5,
+        "aspect_ratios": ("adaptive", "21:9", "16:9", "4:3", "1:1", "3:4", "9:16"),
+        "default_aspect_ratio": "adaptive",
+        "resolutions": ("480P", "768P"),
+        "default_resolution": "768P",
+        "supports_images": True,
+        "duration_as_string": False,
+        "supports_sound": False,
+        "supports_mode": False,
+        "requires_images": True,
+        "max_images": 2,
+        # The image determines the output ratio for this SKU.
+        "uses_aspect_ratio": False,
+        "max_references": 2,
+    },
+    H3_MAX_REFERENCE_MODEL: {
+        "durations": range(5, 16),
+        "default_duration": 5,
+        "aspect_ratios": ("adaptive", "21:9", "16:9", "4:3", "1:1", "3:4", "9:16"),
+        "default_aspect_ratio": "adaptive",
+        "resolutions": ("480P", "768P"),
+        "default_resolution": "768P",
+        "supports_images": True,
+        "duration_as_string": False,
+        "supports_sound": False,
+        "supports_mode": False,
+        "requires_images": False,
+        "requires_references": True,
+        "max_images": 12,
+        "uses_aspect_ratio": True,
+        "max_references": 12,
     },
     KLING_25_T2V_MODEL: {
         "durations": (5, 10),
@@ -371,11 +452,36 @@ def write_output(path: Path, data: bytes, overwrite: bool) -> None:
 def resolve_model(args: argparse.Namespace) -> tuple[str, dict]:
     raw_model = args.model.strip()
     model = MODEL_ALIASES.get(raw_model.lower(), raw_model)
+    metadata_refs: dict[str, list] = {}
+    if args.metadata_json:
+        try:
+            loaded_metadata = json.loads(args.metadata_json)
+        except json.JSONDecodeError:
+            loaded_metadata = {}
+        if isinstance(loaded_metadata, dict):
+            metadata_refs = loaded_metadata
+    metadata_reference_video = metadata_refs.get("reference_video_urls", [])
+    metadata_reference_audio = metadata_refs.get("reference_audio_urls", [])
+    reference_video = list(args.reference_video) + [
+        value for value in (metadata_reference_video if isinstance(metadata_reference_video, list) else [])
+        if isinstance(value, str)
+    ]
+    reference_audio = list(args.reference_audio) + [
+        value for value in (metadata_reference_audio if isinstance(metadata_reference_audio, list) else [])
+        if isinstance(value, str)
+    ]
+    # The generic H3 Max SKU lets new-api infer text/image/reference mode from
+    # the supplied references. Explicit reference media needs the reference
+    # SKU because there may be no image in the request to trigger inference.
+    if model == H3_MAX_MODEL and (reference_video or reference_audio):
+        model = H3_MAX_REFERENCE_MODEL
     profile = MODEL_PROFILES.get(model)
     if profile is None:
         supported = ", ".join(MODEL_PROFILES)
         raise VideoGenerationError(f"unsupported video model: {raw_model}; choose one of: {supported}")
 
+    if args.aspect_ratio is None:
+        args.aspect_ratio = profile.get("default_aspect_ratio", "16:9")
     if args.duration is None:
         args.duration = profile["default_duration"]
     if args.duration not in profile["durations"]:
@@ -394,6 +500,18 @@ def resolve_model(args: argparse.Namespace) -> tuple[str, dict]:
         raise VideoGenerationError(
             f"{model} accepts at most {profile['max_images']} --image values (first and last frame)"
         )
+    reference_count = len(args.image) + len(reference_video) + len(reference_audio)
+    if profile.get("requires_references") and reference_count == 0:
+        raise VideoGenerationError(f"{model} requires at least one reference image, video, or audio")
+    if reference_count > profile.get("max_references", profile["max_images"]):
+        raise VideoGenerationError(
+            f"{model} accepts at most {profile.get('max_references', profile['max_images'])} reference files"
+        )
+    if (reference_video or reference_audio) and model not in {
+        H3_MAX_MODEL,
+        H3_MAX_REFERENCE_MODEL,
+    }:
+        raise VideoGenerationError(f"{model} does not accept reference video/audio files")
     if args.resolution and args.resolution not in profile["resolutions"]:
         allowed = ", ".join(profile["resolutions"]) or "not configurable"
         raise VideoGenerationError(f"{model} resolution must be one of: {allowed}")
@@ -401,7 +519,15 @@ def resolve_model(args: argparse.Namespace) -> tuple[str, dict]:
         raise VideoGenerationError(f"{model} does not accept --mode")
     if args.sound is not None and not profile["supports_sound"]:
         raise VideoGenerationError(f"{model} does not accept --sound/--no-sound")
-    prompt_limit = 7000 if model in {MINIMAX_H3_MODEL, MINIMAX_H3_I2V_MODEL} else 2500 if model == KLING_25_T2V_MODEL else None
+    prompt_limit = (
+        50000
+        if model in {H3_MAX_MODEL, H3_MAX_T2V_MODEL, H3_MAX_I2V_MODEL, H3_MAX_REFERENCE_MODEL}
+        else 7000
+        if model in {MINIMAX_H3_MODEL, MINIMAX_H3_I2V_MODEL}
+        else 2500
+        if model == KLING_25_T2V_MODEL
+        else None
+    )
     if not args.prompt.strip():
         raise VideoGenerationError("prompt must not be empty")
     if prompt_limit and len(args.prompt) > prompt_limit:
@@ -427,7 +553,10 @@ def metadata_from(args: argparse.Namespace, model: str, profile: dict) -> dict[s
 
     duration: int | str = str(args.duration) if profile["duration_as_string"] else args.duration
     metadata["duration"] = duration
-    if profile["uses_aspect_ratio"]:
+    image_inferred_h3_max = model == H3_MAX_MODEL and len(args.image) == 1 and not (
+        args.reference_video or args.reference_audio
+    )
+    if profile["uses_aspect_ratio"] and not image_inferred_h3_max:
         metadata["aspect_ratio"] = args.aspect_ratio
     resolution = args.resolution or profile["default_resolution"]
     if resolution:
@@ -440,6 +569,15 @@ def metadata_from(args: argparse.Namespace, model: str, profile: dict) -> dict[s
         metadata["image_url"] = args.image[0]
         if len(args.image) == 2:
             metadata["end_image_url"] = args.image[1]
+    if model == H3_MAX_I2V_MODEL:
+        metadata["image_url"] = args.image[0]
+        if len(args.image) == 2:
+            metadata["end_image_url"] = args.image[1]
+    if model == H3_MAX_REFERENCE_MODEL:
+        if args.reference_video:
+            metadata["reference_video_urls"] = list(args.reference_video)
+        if args.reference_audio:
+            metadata["reference_audio_urls"] = list(args.reference_audio)
     if model == KLING_3_MODEL:
         metadata["mode"] = args.mode or "pro"
         metadata["sound"] = args.sound if args.sound is not None else False
@@ -468,10 +606,15 @@ def run_generate(args: argparse.Namespace) -> None:
         "duration": args.duration,
         "metadata": metadata,
     }
-    if model == MINIMAX_H3_I2V_MODEL:
-        # Keep references in the standard task envelope so the endpoint can
-        # classify image-to-video before mapping KIE-native metadata.
+    if model in {H3_MAX_MODEL, H3_MAX_I2V_MODEL, H3_MAX_REFERENCE_MODEL, MINIMAX_H3_I2V_MODEL}:
+        # Keep image references in the standard task envelope so new-api can
+        # classify generic H3 Max image/reference requests before mapping
+        # model-native metadata.
         payload["images"] = args.image
+    if args.reference_video:
+        payload["reference_video_urls"] = list(args.reference_video)
+    if args.reference_audio:
+        payload["reference_audio_urls"] = list(args.reference_audio)
     response = parse_json(
         request(
             base_url,
@@ -519,14 +662,19 @@ def build_parser() -> argparse.ArgumentParser:
     generate = subparsers.add_parser("generate", parents=[recharge_parent])
     generate.add_argument(
         "--model",
-        default=MINIMAX_H3_MODEL,
-        help="model ID or alias: minimax-h3, h3-i2v, kling-3, kling-2.5-t2v",
+        default=H3_MAX_MODEL,
+        help=(
+            "model ID or alias (default: h3-max; legacy H3: h3/minimax-h3; "
+            "H3 Max: h3-max-i2v, h3-max-reference; Kling: kling-3, kling-2.5-t2v)"
+        ),
     )
     generate.add_argument("--prompt", required=True)
-    generate.add_argument("--duration", type=int, metavar="SECONDS", help="model default: H3=6, Kling=5")
-    generate.add_argument("--aspect-ratio", default="16:9", help="text-to-video models; H3 image-to-video inherits its frame ratio")
-    generate.add_argument("--resolution", help="MiniMax H3: 768P or 2K")
+    generate.add_argument("--duration", type=int, metavar="SECONDS", help="model default: H3 Max=5, H3=6, Kling=5")
+    generate.add_argument("--aspect-ratio", default=None, help="text/reference video aspect ratio (H3 Max defaults to adaptive)")
+    generate.add_argument("--resolution", help="MiniMax H3: 768P or 2K; H3 Max: 480P or 768P")
     generate.add_argument("--image", action="append", default=[], type=validate_public_https_url)
+    generate.add_argument("--reference-video", action="append", default=[], type=validate_public_https_url)
+    generate.add_argument("--reference-audio", action="append", default=[], type=validate_public_https_url)
     generate.add_argument("--mode", choices=("std", "pro", "4K"))
     generate.add_argument("--sound", action=argparse.BooleanOptionalAction, default=None)
     generate.add_argument("--negative-prompt")

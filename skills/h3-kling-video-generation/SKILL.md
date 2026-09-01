@@ -1,6 +1,6 @@
 ---
 name: h3-kling-video-generation
-description: 通过 OpenAI-compatible 异步视频端点调用 MiniMax H3 文生视频或图生视频、Kling 3.0 与 Kling 2.5 Turbo；按导演结构编写成片合同、素材职责、连续性、秒级动作、摄影机、结束构图与声音提示词，并支持二维日系赛璐璐、抽象 MG、游戏 UI 合成的宣传 PV 视觉系统与转场编排。用户要求编写或优化 H3/Kling Prompt、制作游戏宣传 PV、调用这些模型、轮询下载或验收 MP4 时使用。
+description: 通过 OpenAI-compatible 异步视频端点调用 MiniMax H3 Max/H3 文生视频、图生视频或参考生视频、Kling 3.0 与 Kling 2.5 Turbo；按导演结构编写成片合同、素材职责、连续性、秒级动作、摄影机、结束构图与声音提示词，并支持二维日系赛璐璐、抽象 MG、游戏 UI 合成的宣传 PV 视觉系统与转场编排。用户要求编写或优化 H3/Kling Prompt、制作游戏宣传 PV、调用这些模型、轮询下载或验收 MP4 时使用。
 ---
 
 # H3 与 Kling 视频生成
@@ -9,7 +9,10 @@ description: 通过 OpenAI-compatible 异步视频端点调用 MiniMax H3 文生
 
 ## 选择模型
 
-- `minimax-h3`（默认）→ `minimax-h3/text-to-video`：4–15 秒，`768P` 或 `2K`，纯文生视频。
+- `h3-max`（默认）→ `h3-max`：5–15 秒，`480P` 或 `768P`；无参考文件时为文生视频，一张 `--image` 自动转图生视频，多张图片或 `--reference-video`/`--reference-audio` 自动转参考生视频。
+- `h3-max-i2v` → `minimax/h3-max/image-to-video`：5–15 秒，`480P` 或 `768P`；一张 `--image` 为首帧，两张依次为首帧、尾帧。
+- `h3-max-reference` → `minimax/h3-max/reference-to-video`：5–15 秒，`480P` 或 `768P`；可组合最多 12 个图片、视频或音频参考文件。
+- `h3`/`minimax-h3` → `minimax-h3/text-to-video`：4–15 秒，`768P` 或 `2K`，纯文生视频（保留旧 H3 以满足明确模型偏好）。
 - `h3-i2v` → `minimax-h3/image-to-video`：4–15 秒，`768P` 或 `2K`；一张 `--image` 为首帧，两张依次为首帧、尾帧。
 - `kling-3` → `kling-3.0/video`：3–15 秒，支持单镜头参考图、声音和 `std`/`pro`/`4K`。
 - `kling-2.5-t2v` → `kling/v2-5-turbo-text-to-video-pro`：5 或 10 秒，纯文生视频。
@@ -32,7 +35,7 @@ H3 Prompt 使用 Seedance 的导演级表达标准，但必须服从 H3 的素�
 6. **合成与转场**：区分模型内角色／场景运动和后期 MG／UI 图形；为每个镜头指定入场母题、主视觉事件与交给下一镜的出场图形；
 7. **高损失限制**：只保留会破坏镜头合同的错误，避免泛化否定词淹没动作。
 
-时长必须给出具体整数秒建议，并选择能完整容纳动作与落幅的最短时长：`4 秒`用于 smoke、静态插入或单一微动作；`5–6 秒`用于默认简单单镜头；`7–9 秒`用于两个连续动作节拍或一个动作加缓慢运镜；`10–12 秒`用于完整单镜头表演或连续人物调度；`13–15 秒`只用于确有必要的长动作和连续编排，信息过多时优先拆镜。最终只需 0.8–1.2 秒的插入镜头也按 H3 最低 4 秒生成，再裁取稳定区间。完整预算方法见导演规范。
+时长必须给出具体整数秒建议，并选择能完整容纳动作与落幅的最短时长：H3 Max 从 `5 秒`起，旧 H3 从 `4 秒`起；`5–6 秒`用于默认简单单镜头；`7–9 秒`用于两个连续动作节拍或一个动作加缓慢运镜；`10–12 秒`用于完整单镜头表演或连续人物调度；`13–15 秒`只用于确有必要的长动作和连续编排，信息过多时优先拆镜。最终只需 0.8–1.2 秒的插入镜头也按所选模型的最低时长生成，再裁取稳定区间。完整预算方法见导演规范。
 
 4–6 秒单镜头可以写成紧凑的三段微时间轴；不要把多个独立事件塞进一个短镜头。图生视频不重复发明首帧已经锁定的静态美术，只描述素材职责、允许发生的变化、摄影机反应和结束状态。
 
@@ -44,12 +47,12 @@ H3 Prompt 使用 Seedance 的导演级表达标准，但必须服从 H3 的素�
 
 ```bash
 python3 skills/h3-kling-video-generation/scripts/video_generation.py generate \
-  --model minimax-h3 \
+  --model h3-max \
   --prompt "A cobalt sphere rotates slowly in a clean studio, locked camera, no text" \
-  --duration 4 \
+  --duration 5 \
   --aspect-ratio 16:9 \
   --resolution 768P \
-  --output /tmp/minimax-h3-smoke.mp4
+  --output /tmp/h3-max-smoke.mp4
 ```
 
 Kling 3.0 参考图单镜头：
@@ -65,25 +68,25 @@ python3 skills/h3-kling-video-generation/scripts/video_generation.py generate \
   --output /tmp/kling-3.mp4
 ```
 
-MiniMax H3 首帧图生视频：
+MiniMax H3 Max 首帧图生视频：
 
 ```bash
 python3 skills/h3-kling-video-generation/scripts/video_generation.py generate \
-  --model h3-i2v \
+  --model h3-max-i2v \
   --prompt "$(cat /tmp/h3-director-prompt.txt)" \
   --image https://media.example/first-frame.png \
-  --duration 4 \
+  --duration 5 \
   --resolution 768P \
-  --output /tmp/minimax-h3-i2v.mp4
+  --output /tmp/h3-max-i2v.mp4
 ```
 
-H3 图生视频沿用参考帧宽高比，不发送 `aspect_ratio`。输入必须是上游可匿名读取、任务周期内稳定的公共 HTTPS 图片；如需首尾帧控制，再追加一次 `--image`。脚本同时把参考帧放入标准 `images` 请求信封，并将两张图分别映射为 KIE 原生 `image_url` 和 `end_image_url`；前者用于请求分类和素材处理，后者用于上游模型字段，不能用纯提示词冒充参考帧。
+H3 Max 文生/参考生视频默认使用 `adaptive` 画幅，可显式传 `--aspect-ratio` 覆盖；图生视频的画幅由首帧图片决定，不发送该字段。输入必须是上游可匿名读取、任务周期内稳定的公共 HTTPS 图片；如需首尾帧控制，再追加一次 `--image`。参考生视频可用 `--reference-video` 与 `--reference-audio`，脚本会自动切换到 reference SKU，并把图片保留在标准 `images` 请求信封。
 
 复杂 Kling 3.0 多镜头或元素引用使用 `--metadata-json` 传原生 `multi_shots`、`multi_prompt` 与 `kling_elements`。脚本仍以显式 CLI 的时长、画幅、模式、声音和图片覆盖同名字段。
 
 ## H3 图生视频生产闭环
 
-用户已明确批准真实生成，且同一任务的镜头计划、参考图和输出目录齐全时，直接从当前未完成步骤继续；不要重复确认模型、时长、费用或是否生成。先用 `4 秒 + 768P` 代表镜头做低成本方向 smoke；方向通过后，根据镜头合同的动作预算给每个镜头推荐 `4–15` 秒中的最短整数秒数，再按交付要求选择 `768P` 或 `2K`。不得把 10 秒或 15 秒当作统一生产默认值，也不得为了用满时长添加无叙事作用的动作。随后自动继续批量提交、轮询、下载与验收。仅在缺少会实质改变结果的关键输入，或输出覆盖存在冲突时暂停。
+用户已明确批准真实生成，且同一任务的镜头计划、参考图和输出目录齐全时，直接从当前未完成步骤继续；不要重复确认模型、时长、费用或是否生成。先用 `5 秒 + 768P` 代表镜头做 H3 Max 低成本方向 smoke；方向通过后，根据镜头合同的动作预算给每个 H3 Max 镜头推荐 `5–15` 秒中的最短整数秒数，旧 H3 则使用 `4–15` 秒，再按交付要求选择对应分辨率。不得把 10 秒或 15 秒当作统一生产默认值，也不得为了用满时长添加无叙事作用的动作。随后自动继续批量提交、轮询、下载与验收。仅在缺少会实质改变结果的关键输入，或输出覆盖存在冲突时暂停。
 
 提交前先用 `/v1/models` 确认实际 SKU。公共 HTTPS 参考图上传后必须重新匿名下载，逐项核对 SHA-256、字节数、MIME 与像素尺寸；任一不符立即更换端点，不把临时图床当作固定依赖。下载生成结果后必须运行 `ffprobe`、完整解码并抽取首中尾帧；正式配音或配乐项目丢弃模型自带音轨。
 

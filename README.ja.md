@@ -18,11 +18,11 @@
 
 Akasha Grimoire は、**Codex App** での利用に最適な、チーム共有の Agent Skill コレクションです。タスク境界、ツールの事実、実行スクリプト、低ノイズな待機、独立した受け入れ確認をインストール可能な能力としてまとめ、実プロジェクトで Agent の推測や反復ポーリングを減らし、証拠に基づく納品を実現します。個別の Skill は、ほかの互換 Agent や CLI でも利用できます。
 
-> **画像・動画・音声・音楽の生成をすぐに試したい場合：** [LovBrowser](https://lovbrowser.com) でアカウントを登録し、クレジットを追加してください。Akasha Grimoire は既定で `https://newapi.1234bot.com/v1` に接続します。1 つの new-api Key で GPT Image、Grok、Seedance、MiniMax H3、Kling、Gemini Omni、Fish Audio、Suno を利用でき、サービスごとの Base URL 設定は不要です。
+> **画像・動画・音声・音楽の生成をすぐに試したい場合：** [LovBrowser](https://lovbrowser.com) でアカウントを登録し、クレジットを追加してください。Akasha Grimoire は既定で `https://newapi.1234bot.com/v1` に接続します。1 つの new-api Key で GPT Image、Grok、Seedance、MiniMax H3 Max/H3、Kling、Gemini Omni、Fish Audio、Suno を利用でき、サービスごとの Base URL 設定は不要です。
 
 ## 1 分で利用開始
 
-1. Codex で GPT Image、Grok、Seedance、MiniMax H3、Kling、Gemini Omni、Fish Audio、Suno にメディア処理を直接依頼します。
+1. Codex で GPT Image、Grok、Seedance、MiniMax H3 Max/H3、Kling、Gemini Omni、Fish Audio、Suno にメディア処理を直接依頼します。
 2. Agent はメディア Skill 自身の設定済みまたは既定 URL の `/v1/models` でローカルの `OPENAI_API_KEY` を検証し、利用できれば Key を再利用します。`OPENAI_BASE_URL` は参照しません。
 3. 利用できない場合は共通の `LOVBROWSER_API_KEY` とユーザー認証情報を検証します。メディア固有の Key は参照しません。それらも失敗した場合にだけ LovBrowser のデバイス認証 QR コード、クリック可能なリンク、短いコードを生成します。
 4. スマートフォンでスキャンし、登録またはログインして同じコードを確認します。その後、ローカルクライアントがポーリング、保存、検証を行い、元のメディア処理を一度だけ再開します。実際の Key は会話、クリップボード、コマンド引数を通りません。
@@ -103,7 +103,7 @@ Graph Engineering は、納品を一時的な prompt の列ではなく、追跡
 | [`article-to-short-video`](skills/article-to-short-video/) | 中国語の長文記事や論説をタイトル主導の Remotion 縦型動画へ変換 | ナレーション分割確認、ページ別レイアウトと動き、音声合成サンプル、実音声タイムライン、マルチトラック、完全な文の字幕、完成版確認 |
 | [`seedance-video-generation`](skills/seedance-video-generation/) | Seedance の text-to-video、image-to-video、first/last-frame、multi-reference 生成 | 秒単位の演出 prompt、model-level 制約、非同期 polling、安全な download、出力 probe |
 | [`seedance-video-continuation`](skills/seedance-video-continuation/) | 既存 MP4 の最終 frame から続きを生成 | 最後の有効 frame 抽出、first-frame continuation、連続性 prompt、segment 結合、再検証 |
-| [`h3-kling-video-generation`](skills/h3-kling-video-generation/) | MiniMax H3、Kling の shot とゲーム PV | T2V/I2V、director-style prompt、2D animation/MG/UI 合成、model 検証、MP4 download |
+| [`h3-kling-video-generation`](skills/h3-kling-video-generation/) | MiniMax H3 Max/H3、Kling の shot とゲーム PV | T2V/I2V/reference-to-video、director-style prompt、2D animation/MG/UI 合成、model 検証、MP4 download |
 | [`gemini-omni-video-generation`](skills/gemini-omni-video-generation/) | Gemini Omni の動画生成と編集 | 公開素材や過去 task からの継続、job polling、MP4 検証、予期しない音声の診断 |
 | [`multi-platform-video-publishing`](skills/multi-platform-video-publishing/) | 受け入れ済み動画を四つのプラットフォームへ配信 | 並列 account check/upload、プラットフォーム別コピー、SHA 重複防止、台帳、remote status 検証、復旧 |
 
