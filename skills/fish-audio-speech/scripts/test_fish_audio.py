@@ -12,6 +12,7 @@ import sys
 import tempfile
 import threading
 import unittest
+import wave
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from unittest import mock
@@ -589,6 +590,180 @@ class FishAudioTests(unittest.TestCase):
             self.assertIn(b' name="language"', _FishHandler.stt_body)
             self.assertIn(b"fake-mp3", _FishHandler.stt_body)
             self.assertNotIn("你好，世界。", stdout.getvalue())
+
+    def test_grok_multipart_requests_verbose_json_word_timestamps(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            audio = Path(temp_dir, "clip.wav")
+            audio.write_bytes(b"wav")
+            args = type("Args", (), {
+                "audio": str(audio), "model": "grok-stt", "language": "zh",
+                "ignore_timestamps": False,
+            })()
+            body, content_type = fish_audio._multipart_stt_body(args)
+            self.assertIn("multipart/form-data; boundary=", content_type)
+            self.assertIn(b'name="response_format"', body)
+            self.assertIn(b"verbose_json", body)
+            self.assertIn(b'name="timestamp_granularities[]"', body)
+            self.assertIn(b"word", body)
+
+    def test_fish_multipart_requests_segment_timestamps(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            audio = Path(temp_dir, "clip.wav")
+            audio.write_bytes(b"wav")
+            args = type("Args", (), {
+                "audio": str(audio), "model": "fish-transcribe-1", "language": None,
+                "ignore_timestamps": False,
+            })()
+            body, _ = fish_audio._multipart_stt_body(args)
+            self.assertIn(b"verbose_json", body)
+            self.assertIn(b"segment", body)
+
+    def test_chunk_planner_uses_boundary_and_one_second_overlap(self) -> None:
+        with mock.patch.object(fish_audio, "_audio_duration", return_value=70.0), mock.patch.object(
+            fish_audio, "_find_low_energy_boundary", side_effect=[29.5, 59.0]
+        ):
+            chunks = fish_audio._plan_audio_chunks(Path("ignored.wav"))
+        self.assertEqual(chunks, [(0.0, 29.5), (28.5, 59.0), (58.0, 70.0)])
+        self.assertTrue(all(end - start <= 35 for start, end in chunks))
+
+    def test_silence_detection_skips_zero_signal_but_keeps_quiet_signal(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            silent = Path(temp_dir, "silent.wav")
+            quiet = Path(temp_dir, "quiet.wav")
+            for target, amplitude in ((silent, 0), (quiet, 180)):
+                with wave.open(str(target), "wb") as handle:
+                    handle.setnchannels(1)
+                    handle.setsampwidth(2)
+                    handle.setframerate(16000)
+                    handle.writeframes((int(amplitude).to_bytes(2, "little", signed=True)) * 16000)
+            self.assertTrue(fish_audio._is_silent(silent))
+            self.assertFalse(fish_audio._is_silent(quiet))
+
+    def test_silent_chunk_does_not_call_remote_asr(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source = Path(temp_dir, "source.wav")
+            source.write_bytes(b"source")
+            output = Path(temp_dir, "out.txt")
+            metadata = Path(temp_dir, "out.json")
+            args = type("Args", (), {
+                "audio": str(source), "model": "fish-transcribe-1", "language": None,
+                "ignore_timestamps": False, "output": str(output), "json_output": str(metadata),
+                "overwrite": True, "timeout_seconds": 1, "lyrics_file": None,
+            })()
+
+            def encode(*_args: object, **_kwargs: object) -> Path:
+                fd, name = tempfile.mkstemp(suffix=".wav")
+                os.close(fd)
+                path = Path(name)
+                path.write_bytes(b"encoded")
+                return path
+
+            response = b'{"text":"speech","segments":[{"text":"speech","start":0,"end":1}]}'
+            with mock.patch.object(fish_audio, "_audio_duration", return_value=40.0), mock.patch.object(
+                fish_audio, "_plan_audio_chunks", return_value=[(0.0, 30.0), (29.0, 40.0)]
+            ), mock.patch.object(fish_audio, "_encode_stt_audio", side_effect=encode), mock.patch.object(
+                fish_audio, "_is_silent", side_effect=[True, False]
+            ), mock.patch.object(
+                fish_audio, "_open_api_request", return_value=(response, "application/json")
+            ) as request, contextlib.redirect_stdout(io.StringIO()):
+                fish_audio._stt(args, "key", "https://example.com/v1")
+            self.assertEqual(request.call_count, 1)
+            self.assertEqual(json.loads(metadata.read_text())["skipped_chunks"][0]["reason"], "low_energy")
+
+    def test_mp3_compatibility_encoding_is_mono_lame(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source = Path(temp_dir, "float-stereo.wav")
+            source.write_bytes(b"source")
+            with mock.patch.object(fish_audio.subprocess, "run") as run:
+                encoded = fish_audio._encode_stt_audio(source, "grok-stt", 0.0, 10.0, "mp3")
+            try:
+                command = run.call_args.args[0]
+                self.assertEqual(encoded.suffix, ".mp3")
+                self.assertIn("libmp3lame", command)
+                self.assertIn("-ac", command)
+                self.assertEqual(command[command.index("-ac") + 1], "1")
+            finally:
+                encoded.unlink(missing_ok=True)
+
+    def test_empty_response_is_not_success(self) -> None:
+        self.assertFalse(fish_audio._response_has_content({"text": ""}))
+        self.assertFalse(fish_audio._response_has_content({"words": [], "segments": []}))
+        self.assertTrue(fish_audio._response_has_content({"segments": [{"text": "hi"}]}))
+        self.assertEqual(fish_audio._response_text({"segments": [{"text": "hi"}]}), "hi")
+
+    def test_http_200_empty_retries_with_compatible_encoding(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source = Path(temp_dir, "source.wav")
+            source.write_bytes(b"source")
+            output = Path(temp_dir, "out.txt")
+            args = type("Args", (), {
+                "audio": str(source), "model": "grok-stt", "language": None,
+                "ignore_timestamps": False, "output": str(output), "json_output": None,
+                "overwrite": True, "timeout_seconds": 1, "lyrics_file": None,
+            })()
+            encoded_paths: list[Path] = []
+
+            def encode(*_args: object, **_kwargs: object) -> Path:
+                fd, name = tempfile.mkstemp(suffix=".mp3")
+                os.close(fd)
+                path = Path(name)
+                path.write_bytes(b"encoded")
+                encoded_paths.append(path)
+                return path
+
+            responses = [b'{"text":""}', b'{"text":"recovered"}']
+            with mock.patch.object(fish_audio, "_audio_duration", return_value=1.0), mock.patch.object(
+                fish_audio, "_plan_audio_chunks", return_value=[(0.0, 1.0)]
+            ), mock.patch.object(fish_audio, "_is_silent", return_value=False), mock.patch.object(
+                fish_audio, "_encode_stt_audio", side_effect=encode
+            ), mock.patch.object(
+                fish_audio, "_open_api_request", side_effect=lambda *_a, **_k: (responses.pop(0), "application/json")
+            ) as request, contextlib.redirect_stdout(io.StringIO()):
+                fish_audio._stt(args, "key", "https://example.com/v1")
+            self.assertEqual(output.read_text(encoding="utf-8"), "recovered")
+            self.assertEqual(request.call_count, 2)
+            for path in encoded_paths:
+                self.assertFalse(path.exists())
+
+    def test_overlap_words_are_deduplicated_after_offset(self) -> None:
+        words, _ = fish_audio._normalise_items(
+            {"words": [{"word": "hello", "start": 0.0, "end": 0.5}]}, 29.0
+        )
+        words2, _ = fish_audio._normalise_items(
+            {"words": [{"word": "hello", "start": 0.1, "end": 0.6}]}, 29.0
+        )
+        merged = fish_audio._dedupe_words(words + words2)
+        self.assertEqual(len(merged), 1)
+        self.assertEqual(merged[0]["start"], 29.0)
+
+    def test_overlap_chunk_text_is_merged_without_repeated_suffix(self) -> None:
+        self.assertEqual(fish_audio._merge_texts(["hello world", "world again"]), "hello world again")
+        self.assertEqual(fish_audio._merge_texts(["你好世界", "世界今天"]), "你好世界今天")
+
+    def test_official_lyrics_override_asr_text_but_keep_asr_reference(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source = Path(temp_dir, "source.mp3")
+            source.write_bytes(b"source")
+            lyrics = Path(temp_dir, "official.lrc")
+            lyrics.write_text("[00:01.00]官方歌词", encoding="utf-8")
+            output = Path(temp_dir, "out.txt")
+            metadata = Path(temp_dir, "out.json")
+            args = type("Args", (), {
+                "audio": str(source), "model": "fish-transcribe-1", "language": None,
+                "ignore_timestamps": False, "output": str(output), "json_output": str(metadata),
+                "overwrite": True, "timeout_seconds": 1, "lyrics_file": str(lyrics),
+            })()
+            response = '{"text":"错误识别","segments":[{"text":"错误识别","start":0,"end":1}]}'.encode()
+            with mock.patch.object(fish_audio, "_audio_duration", return_value=1.0), mock.patch.object(
+                fish_audio, "_plan_audio_chunks", return_value=[(0.0, 1.0)]
+            ), mock.patch.object(fish_audio, "_is_silent", return_value=False), mock.patch.object(
+                fish_audio, "_open_api_request", return_value=(response, "application/json")
+            ), contextlib.redirect_stdout(io.StringIO()):
+                fish_audio._stt(args, "key", "https://example.com/v1")
+            self.assertEqual(output.read_text(encoding="utf-8"), "[00:01.00]官方歌词")
+            saved = json.loads(metadata.read_text(encoding="utf-8"))
+            self.assertEqual(saved["text"], "[00:01.00]官方歌词")
+            self.assertEqual(saved["asr_text"], "错误识别")
 
     def test_tts_json_response_is_not_reported_as_ok(self) -> None:
         request = mock.Mock()

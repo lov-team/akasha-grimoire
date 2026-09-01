@@ -155,7 +155,15 @@ python3 scripts/fish_audio.py stt ./recording.mp3 \
   --json-output ./staging/transcript.json
 ```
 
-默认模型为 `fish-transcribe-1`。完成前不打印转写正文，避免大段内容进入主 Agent 上下文。
+默认模型为 `fish-transcribe-1`，也可指定 `grok-stt`。请求入口为
+`POST /v1/audio/transcriptions`，multipart 字段包含 `file`、`model`、可选
+`language` 与 `ignore_timestamps`；Grok 需要时间戳时额外发送
+`response_format=verbose_json` 和 `timestamp_granularities[]=word`，Fish 请求
+`timestamp_granularities[]=segment`。超过 35 秒的音频会在低能量边界附近切成约 30 秒、
+最多 35 秒的片段（约 1 秒重叠），静音片段直接跳过，合并时恢复真实时间轴并去重重叠词。
+Grok 优先使用单声道 MP3，HTTP 200 空响应会以兼容 PCM WAV 重试一次，仍为空则报出可诊断
+错误。`--lyrics-file` 可指定官方歌词/LRC；此时最终文本以原文为准，ASR 仅用于时间和匹配参考。
+完成前不打印转写正文，避免大段内容进入主 Agent 上下文。
 
 ## 验收
 

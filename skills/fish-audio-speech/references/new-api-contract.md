@@ -7,7 +7,7 @@
 | 能力 | 方法与路径 | 当前模型 |
 | --- | --- | --- |
 | TTS | `POST /v1/audio/speech` | `fish-s2.1-pro`、`fish-s2.1-pro-free`、`fish-s2-pro`、`fish-s1` |
-| STT/ASR | `POST /v1/audio/transcriptions` | `fish-transcribe-1` |
+| STT/ASR | `POST /v1/audio/transcriptions` | `fish-transcribe-1`、`grok-stt` |
 | 私人声线创建 | `POST /v1/audio/voice-models` | `fish-voice-clone-1` |
 | 私人声线列表 | `GET /v1/audio/voice-models` | 当前用户所有声线 |
 | 私人声线状态 | `GET /v1/audio/voice-models/{reference_id}` | 创建时的同一 Fish 渠道与 Key |
@@ -69,11 +69,28 @@ new-api 保存用户、`reference_id`、渠道和多 Key 索引的归属关系�
 `multipart/form-data` 字段：
 
 - `file`：本地音频；
-- `model=fish-transcribe-1`；
+- `model=fish-transcribe-1` 或 `model=grok-stt`；
 - `language`：可选；
 - `ignore_timestamps`：可选布尔值。
 
-new-api 转换后请求 Fish Audio `/v1/asr`，上游文件字段名为 `audio`。客户端成功响应遵循 OpenAI 转写 JSON，至少应有字符串 `text`。
+当 `model=grok-stt` 且需要时间戳时，客户端还必须提交：
+
+- `response_format=verbose_json`；
+- `timestamp_granularities[]=word`。
+
+Fish 转写可请求 `response_format=verbose_json` 与
+`timestamp_granularities[]=segment`，但返回字段由上游渠道决定，不能假设一定有
+word-level 结果。客户端应保留原始 JSON、`words`/`segments`、`duration`、provider 与
+model 元数据。
+
+长音频在客户端预处理为约 30 秒片段（单片不超过 35 秒），优先在目标点附近的低能量
+位置切分，并允许约 1 秒重叠。重叠片段合并时恢复原始时间轴并去除重复词。Grok 优先
+使用单声道 MP3；HTTP 200 但 `text`、`words`、`segments` 均为空时视为失败，并最多以
+兼容的单声道 PCM WAV 重试一次。
+
+Fish 路径由 new-api 转换后请求 Fish Audio `/v1/asr`，其上游文件字段名为 `audio`；
+Grok 由 new-api 的 Grok STT adaptor 处理。客户端始终只调用 OpenAI-compatible 的
+`/v1/audio/transcriptions`，文件字段固定为 `file`。
 
 ## 余额不足充值
 
@@ -83,5 +100,5 @@ new-api 转换后请求 Fish Audio `/v1/asr`，上游文件字段名为 `audio`�
 
 - `fish-voice-design-1` 虽存在于当前渠道模型表，但不属于本 Skill 合同。
 - 不在日志中输出 token、参考音频 base64 或完整敏感转写。
-- TTS 返回 JSON、空音频或 STT 缺少字符串 `text` 时不得输出成功。
+- TTS 返回 JSON、空音频，或 STT 的 `text`、`words`、`segments` 同时为空时不得输出成功。
 - 不硬编码生产 base URL、渠道 id、Fish API key 或 new-api token。

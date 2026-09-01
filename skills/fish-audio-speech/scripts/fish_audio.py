@@ -4,16 +4,20 @@
 from __future__ import annotations
 
 import argparse
+import array
 import base64
 import json
 import mimetypes
 import os
+import re
+import subprocess
 import sys
 import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
+import wave
 from pathlib import Path
 from typing import Any
 
@@ -25,7 +29,13 @@ TTS_MODELS = {
     "fish-s1",
 }
 DEFAULT_TTS_MODEL = "fish-s2.1-pro"
+STT_MODELS = {"fish-transcribe-1", "grok-stt"}
 STT_MODEL = "fish-transcribe-1"
+STT_TARGET_CHUNK_SECONDS = 30.0
+STT_MAX_CHUNK_SECONDS = 35.0
+STT_OVERLAP_SECONDS = 1.0
+STT_SILENCE_RMS = 0.003
+STT_SILENCE_PEAK = 0.01
 VOICE_CLONE_MODEL = "fish-voice-clone-1"
 VOICE_MODEL_STATES = {"created", "training", "trained", "failed"}
 MAX_VOICE_SAMPLES = 10
@@ -509,8 +519,8 @@ def _tts(
     print(f"OK mode=tts model={model} output={output} bytes={len(body)}")
 
 
-def _multipart_stt_body(args: argparse.Namespace) -> tuple[bytes, str]:
-    audio_path = Path(args.audio).expanduser().resolve()
+def _multipart_stt_body(args: argparse.Namespace, audio_path_value: str | Path | None = None) -> tuple[bytes, str]:
+    audio_path = Path(audio_path_value or args.audio).expanduser().resolve()
     if not audio_path.is_file():
         raise SystemExit(f"audio file does not exist: {audio_path}")
     audio = audio_path.read_bytes()
@@ -529,6 +539,13 @@ def _multipart_stt_body(args: argparse.Namespace) -> tuple[bytes, str]:
     if args.language:
         add_field("language", args.language)
     add_field("ignore_timestamps", "true" if args.ignore_timestamps else "false")
+    if args.model == "grok-stt" and not args.ignore_timestamps:
+        add_field("response_format", "verbose_json")
+        add_field("timestamp_granularities[]", "word")
+    elif args.model == "fish-transcribe-1" and not args.ignore_timestamps:
+        # Fish accepts OpenAI's verbose shape through new-api and returns segments.
+        add_field("response_format", "verbose_json")
+        add_field("timestamp_granularities[]", "segment")
     suffix = audio_path.suffix.lower()
     safe_suffix = suffix if suffix and suffix[1:].isalnum() and len(suffix) <= 10 else ""
     safe_filename = f"audio{safe_suffix}"
@@ -544,6 +561,236 @@ def _multipart_stt_body(args: argparse.Namespace) -> tuple[bytes, str]:
     chunks.append(b"\r\n")
     chunks.append(f"--{boundary}--\r\n".encode())
     return b"".join(chunks), f"multipart/form-data; boundary={boundary}"
+
+
+def _run_quiet(command: list[str]) -> bytes:
+    try:
+        return subprocess.check_output(command, stderr=subprocess.DEVNULL)
+    except (OSError, subprocess.CalledProcessError):
+        return b""
+
+
+def _audio_duration(path: Path) -> float:
+    """Read duration without trusting user supplied metadata."""
+    probe = _run_quiet([
+        "ffprobe", "-v", "error", "-show_entries", "format=duration",
+        "-of", "default=noprint_wrappers=1:nokey=1", str(path),
+    ])
+    try:
+        value = float(probe.decode().strip())
+        if value >= 0:
+            return value
+    except (UnicodeDecodeError, ValueError):
+        pass
+    try:
+        with wave.open(str(path), "rb") as handle:
+            return handle.getnframes() / float(handle.getframerate() or 1)
+    except (OSError, wave.Error, ZeroDivisionError):
+        return 0.0
+
+
+def _pcm_mono(path: Path, sample_rate: int = 16000) -> tuple[bytes, int]:
+    """Decode any supported input to mono signed 16-bit PCM for analysis."""
+    raw = _run_quiet([
+        "ffmpeg", "-v", "error", "-i", str(path), "-ac", "1", "-ar", str(sample_rate),
+        "-f", "s16le", "-",
+    ])
+    if raw:
+        return raw, sample_rate
+    try:
+        with wave.open(str(path), "rb") as handle:
+            frames = handle.readframes(handle.getnframes())
+            channels, width, rate = handle.getnchannels(), handle.getsampwidth(), handle.getframerate()
+            if width == 2 and channels == 1:
+                return frames, rate
+    except (OSError, wave.Error):
+        pass
+    return b"", sample_rate
+
+
+def _energy_windows(path: Path, window_seconds: float = 0.1) -> list[tuple[float, float, float]]:
+    raw, rate = _pcm_mono(path)
+    if not raw or rate <= 0:
+        return []
+    samples = array.array("h")
+    samples.frombytes(raw)
+    size = max(1, int(rate * window_seconds))
+    windows: list[tuple[float, float, float]] = []
+    for index in range(0, len(samples), size):
+        part = samples[index:index + size]
+        if not part:
+            continue
+        peak = max(abs(value) for value in part) / 32768.0
+        rms = (sum(value * value for value in part) / len(part)) ** 0.5 / 32768.0
+        windows.append((index / rate, rms, peak))
+    return windows
+
+
+def _is_silent(path: Path) -> bool:
+    windows = _energy_windows(path)
+    if not windows:
+        return False
+    # Conservative: both metrics must be very low, so quiet singing is retained.
+    return max(item[1] for item in windows) < STT_SILENCE_RMS and max(item[2] for item in windows) < STT_SILENCE_PEAK
+
+
+def _find_low_energy_boundary(path: Path, target: float, radius: float = 3.0) -> float:
+    duration = _audio_duration(path)
+    target = max(0.0, min(target, duration))
+    windows = _energy_windows(path)
+    candidates = [item for item in windows if abs(item[0] - target) <= radius]
+    if not candidates:
+        return target
+    # Prefer silence, otherwise the lowest RMS/peak weighted boundary.
+    quiet = [item for item in candidates if item[1] < STT_SILENCE_RMS * 4 and item[2] < STT_SILENCE_PEAK * 4]
+    selected = min(quiet or candidates, key=lambda item: (item[1] + item[2] * 0.25, abs(item[0] - target)))
+    return max(0.0, min(selected[0], duration))
+
+
+def _plan_audio_chunks(path: Path) -> list[tuple[float, float]]:
+    duration = _audio_duration(path)
+    if duration <= STT_MAX_CHUNK_SECONDS:
+        return [(0.0, duration)] if duration > 0 else []
+    result: list[tuple[float, float]] = []
+    start = 0.0
+    while start < duration - 1e-3:
+        target = min(start + STT_TARGET_CHUNK_SECONDS, duration)
+        end = duration if duration - start <= STT_MAX_CHUNK_SECONDS else _find_low_energy_boundary(path, target)
+        # Never let a boundary search create a chunk outside the provider limit.
+        if end - start > STT_MAX_CHUNK_SECONDS:
+            end = start + STT_MAX_CHUNK_SECONDS
+        if end <= start + 0.25:
+            end = min(duration, start + STT_TARGET_CHUNK_SECONDS)
+        result.append((start, end))
+        if end >= duration:
+            break
+        start = max(0.0, end - STT_OVERLAP_SECONDS)
+    return result
+
+
+def _encode_stt_audio(path: Path, model: str, start: float | None = None, end: float | None = None, fmt: str = "mp3") -> Path:
+    """Create a provider-compatible temporary file; caller removes it."""
+    suffix = ".mp3" if fmt == "mp3" else ".wav"
+    temp = tempfile.NamedTemporaryFile(prefix="fish-stt-", suffix=suffix, delete=False)
+    temp.close()
+    command = ["ffmpeg", "-y", "-v", "error"]
+    if start is not None:
+        command += ["-ss", f"{start:.3f}"]
+    command += ["-i", str(path)]
+    if end is not None and start is not None:
+        command += ["-t", f"{max(0.0, end - start):.3f}"]
+    if fmt == "mp3":
+        command += ["-ac", "1", "-ar", "44100", "-codec:a", "libmp3lame", "-b:a", "128k", temp.name]
+    else:
+        command += ["-ac", "1", "-ar", "16000", "-sample_fmt", "s16", temp.name]
+    try:
+        subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except (OSError, subprocess.CalledProcessError) as exc:
+        Path(temp.name).unlink(missing_ok=True)
+        raise SystemExit(f"audio compatibility conversion failed ({fmt})") from exc
+    return Path(temp.name)
+
+
+def _response_has_content(response: dict[str, Any]) -> bool:
+    text = response.get("text")
+    if isinstance(text, str) and text.strip():
+        return True
+    for key in ("words", "segments"):
+        value = response.get(key)
+        if isinstance(value, list) and value:
+            return True
+    return False
+
+
+def _response_text(response: dict[str, Any]) -> str:
+    text = response.get("text")
+    if isinstance(text, str) and text.strip():
+        return text.strip()
+    segments = response.get("segments")
+    if isinstance(segments, list):
+        values = [item.get("text") for item in segments if isinstance(item, dict)]
+        merged = " ".join(value.strip() for value in values if isinstance(value, str) and value.strip())
+        if merged:
+            return merged
+    words = response.get("words")
+    if isinstance(words, list):
+        values = [item.get("word", item.get("text")) for item in words if isinstance(item, dict)]
+        return " ".join(value.strip() for value in values if isinstance(value, str) and value.strip())
+    return ""
+
+
+def _unlink_temporary(path: Path, source: Path) -> None:
+    try:
+        if path.resolve() == source.resolve():
+            return
+    except OSError:
+        if path == source:
+            return
+    path.unlink(missing_ok=True)
+
+
+def _normalise_items(response: dict[str, Any], offset: float) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    words: list[dict[str, Any]] = []
+    segments: list[dict[str, Any]] = []
+    for key, target in (("words", words), ("segments", segments)):
+        values = response.get(key)
+        if not isinstance(values, list):
+            continue
+        for item in values:
+            if not isinstance(item, dict):
+                continue
+            copy = dict(item)
+            for field in ("start", "end"):
+                if isinstance(copy.get(field), (int, float)):
+                    copy[field] = float(copy[field]) + offset
+            target.append(copy)
+    return words, segments
+
+
+def _dedupe_words(words: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    output: list[dict[str, Any]] = []
+    for item in sorted(words, key=lambda value: float(value.get("start", 0))):
+        token = str(item.get("word", item.get("text", ""))).strip().casefold()
+        start = float(item.get("start", 0) or 0)
+        end = float(item.get("end", start) or start)
+        if token and any(
+            token == str(previous.get("word", previous.get("text", ""))).strip().casefold()
+            and start <= float(previous.get("end", previous.get("start", 0)) or 0) + 0.8
+            and end >= float(previous.get("start", 0) or 0) - 0.8
+            for previous in output[-12:]
+        ):
+            continue
+        output.append(item)
+    return output
+
+
+def _merge_texts(texts: list[str]) -> str:
+    """Join chunk text while removing a repeated suffix/prefix from overlap."""
+    merged = ""
+    for value in texts:
+        text = value.strip()
+        if not text:
+            continue
+        if not merged:
+            merged = text
+            continue
+        left = re.sub(r"\s+", "", merged)
+        right = re.sub(r"\s+", "", text)
+        overlap = 0
+        limit = min(len(left), len(right))
+        for size in range(limit, 1, -1):
+            if left[-size:].casefold() == right[:size].casefold():
+                overlap = size
+                break
+        if overlap:
+            text = right[overlap:]
+            if text:
+                separator = " " if merged[-1:].isascii() and merged[-1:].isalnum() and text[:1].isascii() and text[:1].isalnum() else ""
+                merged += separator + text
+        else:
+            separator = "" if (merged[-1:].isspace() or text[:1] in "，。！？、.!?,") else " "
+            merged += separator + text
+    return merged.strip()
 
 
 def _voice_registry_path(value: str | None) -> Path:
@@ -731,47 +978,124 @@ def _stt(
     base_url: str,
     controller: Any | None = None,
 ) -> None:
-    if args.model != STT_MODEL:
-        raise SystemExit(f"unsupported Fish Audio STT model: {args.model}")
-    body, content_type = _multipart_stt_body(args)
-    request = urllib.request.Request(
-        _api_url(base_url, "/audio/transcriptions"),
-        data=body,
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Accept": "application/json",
-            "Content-Type": content_type,
-            "User-Agent": "fish-audio-speech/1.0",
-        },
-        method="POST",
-    )
-    raw, _ = _open_api_request(
-        request,
-        args.timeout_seconds,
-        base_url=base_url,
-        api_key=api_key,
-        controller=controller,
-    )
-    try:
-        response = json.loads(raw.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise SystemExit(f"Fish Audio STT response is not JSON; body_bytes={len(raw)}") from exc
-    if not isinstance(response, dict):
-        raise SystemExit(f"Fish Audio STT response is not an object: {type(response).__name__}")
-    transcript = response.get("text")
-    if not isinstance(transcript, str):
-        raise SystemExit(f"Fish Audio STT response is missing string text; keys={sorted(response.keys())}")
+    if args.model not in STT_MODELS:
+        raise SystemExit(f"unsupported STT model: {args.model}")
+    source = Path(args.audio).expanduser().resolve()
+    if not source.is_file():
+        raise SystemExit(f"audio file does not exist: {source}")
+    duration = _audio_duration(source)
+    # Keep compatibility with callers that provide an opaque stream to a mocked
+    # gateway; real media is still duration-probed and chunked when possible.
+    if duration <= 0:
+        duration = 0.0
 
+    chunks = _plan_audio_chunks(source) or [(0.0, 0.0)]
+    raw_responses: list[dict[str, Any]] = []
+    words: list[dict[str, Any]] = []
+    segments: list[dict[str, Any]] = []
+    errors: list[str] = []
+    skipped: list[dict[str, Any]] = []
+
+    for index, (start, end) in enumerate(chunks):
+        # Grok is substantially more reliable with mono MP3 than float/stereo WAV.
+        fmt = "mp3" if args.model == "grok-stt" else "wav"
+        temporary: Path | None = None
+        request_path = source
+        try:
+            if (len(chunks) > 1 or args.model == "grok-stt") and end > start:
+                temporary = _encode_stt_audio(source, args.model, start, end, fmt)
+                request_path = temporary
+            if _is_silent(request_path):
+                skipped.append({"index": index, "start": start, "end": end, "reason": "low_energy"})
+                continue
+
+            def request_once(upload_path: Path) -> dict[str, Any]:
+                body, content_type = _multipart_stt_body(args, upload_path)
+                request = urllib.request.Request(
+                    _api_url(base_url, "/audio/transcriptions"),
+                    data=body,
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Accept": "application/json",
+                        "Content-Type": content_type,
+                        "User-Agent": "fish-audio-speech/1.3",
+                    },
+                    method="POST",
+                )
+                raw, _ = _open_api_request(request, args.timeout_seconds, base_url=base_url, api_key=api_key, controller=controller)
+                try:
+                    value = json.loads(raw.decode("utf-8"))
+                except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                    raise SystemExit(f"STT response is not JSON; body_bytes={len(raw)}") from exc
+                if not isinstance(value, dict):
+                    raise SystemExit(f"STT response is not an object: {type(value).__name__}")
+                if not _response_has_content(value):
+                    raise ValueError("HTTP 200 response contained no text, words, or segments")
+                return value
+
+            try:
+                response = request_once(request_path)
+            except ValueError:
+                # One compatibility retry with stable mono PCM WAV.
+                retry = _encode_stt_audio(source, args.model, start, end, "wav")
+                try:
+                    response = request_once(retry)
+                finally:
+                    _unlink_temporary(retry, source)
+            raw_responses.append({"index": index, "start": start, "end": end, "response": response})
+            chunk_words, chunk_segments = _normalise_items(response, start)
+            words.extend(chunk_words)
+            segments.extend(chunk_segments)
+        except (SystemExit, ValueError) as exc:
+            message = str(exc)
+            if isinstance(exc, ValueError):
+                message = "HTTP 200 empty response after compatibility retry"
+            errors.append(f"chunk {index} [{start:.2f},{end:.2f}]: {message}")
+        finally:
+            if temporary:
+                _unlink_temporary(temporary, source)
+
+    if errors and not raw_responses and not skipped:
+        raise SystemExit("STT failed: " + " | ".join(errors))
+
+    words = _dedupe_words(words)
+    texts = [_response_text(item.get("response", {})) for item in raw_responses]
+    asr_text = _merge_texts(texts)
+    transcript = asr_text
+    lyrics_path = getattr(args, "lyrics_file", None)
+    if lyrics_path:
+        lyric_file = Path(lyrics_path).expanduser().resolve()
+        if not lyric_file.is_file():
+            raise SystemExit(f"lyrics file does not exist: {lyric_file}")
+        transcript = lyric_file.read_text(encoding="utf-8").strip()
+        if not transcript:
+            raise SystemExit("lyrics file is empty")
+
+    aggregate: dict[str, Any] = {
+        "text": transcript,
+        "asr_text": asr_text,
+        "duration": duration,
+        "provider": "grok" if args.model == "grok-stt" else "fish-audio",
+        "model": args.model,
+        "words": words,
+        "segments": segments,
+        "raw_responses": raw_responses,
+        "skipped_chunks": skipped,
+        "failures": errors,
+    }
+    if raw_responses:
+        first_response = raw_responses[0].get("response", {})
+        if isinstance(first_response, dict):
+            for key in ("language", "task", "duration"):
+                if key in first_response and key not in aggregate:
+                    aggregate[key] = first_response[key]
     output = Path(args.output).expanduser().resolve()
     _atomic_write(output, transcript.encode("utf-8"), args.overwrite)
     if args.json_output:
         json_output = Path(args.json_output).expanduser().resolve()
-        encoded = (json.dumps(response, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+        encoded = (json.dumps(aggregate, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
         _atomic_write(json_output, encoded, args.overwrite)
-    print(
-        f"OK mode=stt model={args.model} output={output} "
-        f"characters={len(transcript)} json_saved={bool(args.json_output)}"
-    )
+    print(f"OK mode=stt model={args.model} output={output} characters={len(transcript)} chunks={len(chunks)} skipped={len(skipped)} json_saved={bool(args.json_output)}")
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -812,9 +1136,10 @@ def _parser() -> argparse.ArgumentParser:
 
     stt = subparsers.add_parser("stt", parents=[recharge_parent], help="transcribe speech")
     stt.add_argument("audio")
-    stt.add_argument("--model", default=STT_MODEL)
+    stt.add_argument("--model", choices=sorted(STT_MODELS), default=STT_MODEL)
     stt.add_argument("--language")
     stt.add_argument("--ignore-timestamps", action="store_true")
+    stt.add_argument("--lyrics-file", help="official lyrics/LRC used as final text; ASR only supplies timing/reference")
     stt.add_argument("--output", required=True)
     stt.add_argument("--json-output")
 
