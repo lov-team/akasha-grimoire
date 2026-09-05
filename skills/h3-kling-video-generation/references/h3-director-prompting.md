@@ -64,7 +64,25 @@ H3 Max 支持 5–15 秒，旧 H3 支持 4–15 秒。每份 Prompt 都必须输
 
 把“电影感、紧张、高级”改写为可观察行为，例如“眼平近景、摄影机锁定、视线在 1.20 秒后缓慢抬起、最后 0.80 秒形成克制微笑并保持”。
 
-## 5. 绑定 H3 参考帧职责
+## 5. 选择模式并绑定参考素材职责
+
+先判断参考素材承担的是“身份参考”还是“真实起始／结束画面”，再选择 H3 模式：
+
+- **T2VA**：没有参考素材，只做概念 smoke；不得承诺角色连续性。
+- **I2VA**：传入一张真实首帧，首帧就是 `0.00` 秒的画面；Prompt 只描述从首帧开始的变化。
+- **FL2VA / L2VA**：传入真实首帧和尾帧，Prompt 只描述两帧之间的连续运动；两帧差异过大时拆镜。
+- **Ref2VA**：传入角色三视图、环境图、动作参考视频或声音参考；必须使用 `subject_definitions`、`summary`、`retention_analysis`、`detailed_description`、`overall_soundscape`、`non_diegetic_music` 六字段。
+
+Ref2VA 参考素材必须显式定义：
+
+```text
+<Subject 1> is the approved character identity.
+<Picture 1> is the three-view character reference; preserve face, hair, wardrobe and proportions.
+<Picture 2> is the environment reference; preserve geography and lighting only.
+<Video 1> is a motion reference only; do not copy its characters or props.
+```
+
+不要把“same character”“continuation shot”或“keep identity stable”当作参考素材。没有真实上传的图片、视频或音频，不得在 Prompt 中声称已经锁定它们。
 
 图生视频 Prompt 必须明确：
 
@@ -133,6 +151,10 @@ H3 Max 支持 5–15 秒，旧 H3 支持 4–15 秒。每份 Prompt 都必须输
 
 ## 9. 生成前审查
 
+- 已根据真实输入选择 T2VA、I2VA、FL2VA/L2VA 或 Ref2VA，没有用文字里的“continuation”替代参考素材；
+- T2VA 只用于概念 smoke；正式角色镜头有真实角色参考图、首帧或尾帧输入；
+- Ref2VA 使用六字段结构，并逐项声明 `<Subject>`、`<Picture>`、`<Video>`、`<Audio>` 的职责；
+- I2VA/FL2VA/L2VA 的首帧、尾帧是真实传入的图片，Prompt 没有虚构不存在的帧锁定；
 - 已明确输出一个 `4–15` 之间的整数秒建议、选择理由和预计剪辑采用区间；
 - 时长来自起幅、动作与落幅预算，而不是固定默认 10 秒或刻意用满 15 秒；
 - `duration` 与时间轴精确一致，无空档、重叠或越界；

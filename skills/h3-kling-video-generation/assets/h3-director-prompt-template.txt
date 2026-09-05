@@ -1,3 +1,9 @@
+【H3 模式与素材合同】
+模式：<T2VA_OR_I2VA_OR_FL2VA_OR_L2VA_OR_REF2VA>。
+实际传入的参考素材：<LIST_ACTUAL_INPUTS_ONLY>。
+参考素材职责：<SUBJECT_IDENTITY／START_FRAME／END_FRAME／MOTION／ENVIRONMENT／AUDIO_ROLE>。
+没有实际传入的首帧、尾帧或参考素材不得写成已锁定。
+
 【成片合同】
 推荐时长：<DURATION_SECONDS>秒（4–15 之间的整数）；时长选择理由：<SHOT_BEAT_AND_TIME_BUDGET>。
 预计剪辑采用区间：<EXPECTED_EDIT_IN_POINT>–<EXPECTED_EDIT_OUT_POINT>秒。
@@ -6,10 +12,25 @@
 起始状态：<INITIAL_VISIBLE_STATE>。
 最终落点：<FINAL_VISIBLE_STATE>。
 
-【H3 参考帧职责】
-首帧：严格锁定<IDENTITY_WARDROBE_EXISTING_FRAMING_POSE_PROP_SCENE_LIGHTING>。
-尾帧：<FINAL_FRAME_ROLE_IF_ACTUALLY_PROVIDED_OR_DELETE>。
-素材边界：只允许<INTENDED_CHANGE>发生；不重新构图，不发明首帧外的新主体。
+【Ref2VA 参考素材定义；仅 Ref2VA 使用】
+subject_definitions:
+<Subject 1>：<角色身份与必须保持的特征>。
+<Picture 1>：<角色三视图／角色身份参考；保留项与不保留项>。
+<Picture 2>：<环境或构图参考；保留项与不保留项>。
+<Video 1>：<仅动作节奏或摄影机参考；不得复制其中角色与道具>。
+summary:
+<一句话说明本镜头唯一可见变化>。
+retention_analysis:
+<逐项说明每个参考素材保留什么、允许什么变化、禁止什么变化>。
+
+【T2VA / I2VA / FL2VA / L2VA 描述；按模式使用】
+integrated_multimodal_description:
+<完整视觉描述；I2VA/FL2VA/L2VA 只描述从实际首帧到实际尾帧的连续变化>。
+
+【H3 参考帧职责；I2VA / FL2VA / L2VA 使用】
+首帧：<仅填写实际传入的首帧职责>。
+尾帧：<仅填写实际传入的尾帧职责；没有尾帧就写无>。
+素材边界：只允许<INTENDED_CHANGE>发生；不重新构图，不发明参考素材外的新主体。
 
 【连续性硬约束】
 保持<SUBJECT_IDENTITY>、<WARDROBE>、<HAND_AND_PROP_RELATION>、<PROP_TEXT_COUNT_AND_STATE>、<SCENE_GEOGRAPHY>、<KEY_LIGHT_DIRECTION>、<SCREEN_DIRECTION>和首帧既有景别一致。
@@ -25,6 +46,8 @@
 入场母题：<INCOMING_MOTIF>。模型内主事件：<MODEL_GENERATED_EVENT>。后期合成项：<POST_COMPOSITING_ITEMS>。出场交棒图形：<OUTGOING_MOTIF>。
 
 【整体声音】
+overall_soundscape: <AMBIENCE_AND_SYNCED_ACTION_SOUND>。
+non_diegetic_music: <MUSIC_OR_NONE>。
 环境声：<AMBIENCE>。动作音：<SYNCED_PHYSICAL_SOUND_OR_NONE>。对白：<SPEAKER_EXACT_TEXT_TIMING_OR_NONE>。配乐：<INSTRUMENTS_TEMPO_ENTRY_END_OR_NONE>。后期策略：<KEEP_OR_STRIP_MODEL_AUDIO>。
 
 【输出限制】
