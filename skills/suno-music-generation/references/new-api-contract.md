@@ -11,7 +11,7 @@
 
 认证使用 `Authorization: Bearer <new-api token>`。
 
-提交响应是对象，成功时 `code` 为 `success`，`data` 是 new-api 公开 task id。查询响应成功时 `data` 是任务对象，核心字段为：
+提交响应是对象。旧版 Suno 原生路由成功时为 `{"code":"success","data":"<public_task_id>"}`；当前任务控制器在任务持久化后统一返回 `{"id":"<public_task_id>","task_id":"<public_task_id>","status":"queued",...}`。客户端应从两种成功 envelope 取公开 task id。查询响应成功时 `code` 为 `success` 且 `data` 是任务对象，核心字段为：
 
 - `status`：`SUBMITTED`、`QUEUED`、`IN_PROGRESS`、`SUCCESS` 或 `FAILURE`；
 - `fail_reason`：失败原因；

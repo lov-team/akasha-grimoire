@@ -224,6 +224,36 @@ def _require_success_response(data: dict[str, Any], context: str) -> Any:
     return data.get("data")
 
 
+def _submit_task_id(data: dict[str, Any]) -> str:
+    """Extract a public task id from legacy or current submit envelopes.
+
+    Older native Suno routes returned ``{"code":"success","data":"..."}``.
+    The current task controller presents every durable task through the generic
+    queued envelope (``task_id``/``id`` plus ``status``), so a successful submit
+    must accept both shapes.
+    """
+    if data.get("code") == "success":
+        value = data.get("data")
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+
+    status = data.get("status")
+    if isinstance(status, str) and status.upper() in {
+        "QUEUED",
+        "SUBMITTED",
+        "NOT_START",
+    }:
+        for key in ("task_id", "id"):
+            value = data.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+
+    raise SystemExit(
+        "Suno submit failed: response has no task id "
+        f"(code={data.get('code')!r} status={status!r})"
+    )
+
+
 def _safe_message(value: Any) -> str:
     message = str(value).replace("\r", " ").replace("\n", " ")[:300]
     message = re.sub(r"(?i)bearer\s+\S+", "Bearer <redacted>", message)
@@ -262,10 +292,7 @@ def _submit(
         base_url=base_url,
         controller=controller,
     )
-    task_id = _require_success_response(response, "Suno submit")
-    if not isinstance(task_id, str) or not task_id.strip():
-        raise SystemExit("Suno submit response is missing a non-empty task id")
-    task_id = task_id.strip()
+    task_id = _submit_task_id(response)
     if len(task_id) > 200 or any(ord(char) < 33 or ord(char) == 127 for char in task_id):
         raise SystemExit("Suno submit response contains an invalid task id")
     return task_id

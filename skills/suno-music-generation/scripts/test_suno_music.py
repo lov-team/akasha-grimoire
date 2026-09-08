@@ -208,6 +208,42 @@ class SunoMusicTests(unittest.TestCase):
         payload = request.call_args.args[3]
         self.assertNotIn("mv", payload)
 
+    def test_submit_accepts_current_generic_queued_response(self) -> None:
+        args = mock.Mock(
+            instrumental=False,
+            description="cinematic indie pop",
+            lyrics_file=None,
+            model="V4_5",
+        )
+        with mock.patch.object(
+            suno_music,
+            "_request_json",
+            return_value={
+                "id": "task_current",
+                "task_id": "task_current",
+                "status": "queued",
+                "model": "suno_music",
+            },
+        ):
+            self.assertEqual(
+                suno_music._submit(args, "key", "https://example.com"),
+                "task_current",
+            )
+
+    def test_submit_rejects_response_without_task_id(self) -> None:
+        args = mock.Mock(
+            instrumental=False,
+            description="cinematic indie pop",
+            lyrics_file=None,
+            model="V4_5",
+        )
+        with mock.patch.object(
+            suno_music,
+            "_request_json",
+            return_value={"status": "queued"},
+        ), self.assertRaisesRegex(SystemExit, "response has no task id"):
+            suno_music._submit(args, "key", "https://example.com")
+
     def test_non_http_result_url_is_rejected_without_reading_it(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             source = Path(temp_dir, "secret.txt")
