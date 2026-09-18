@@ -1,0 +1,4 @@
+interface:
+  display_name: "MiniMax H3 对口型"
+  short_description: "图片+音频合成对口型说话视频"
+  default_prompt: "使用 $minimax-h3-lip-sync 调用 MiniMax H3 Max 对口型模型，把人物图片和音频合成嘴型对齐的视频。"
