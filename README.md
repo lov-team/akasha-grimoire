@@ -118,6 +118,7 @@ When no finishing engine is specified, `video-production` first asks whether to 
 | [`grok-media-generation`](skills/grok-media-generation/) | Grok image/video generation and editing | Stable/preview endpoints, image editing, video-job polling, result parsing, and real-file acceptance |
 | [`fish-audio-speech`](skills/fish-audio-speech/) | TTS, STT, voice search/cloning, and character voices | Public/private voices, emotion control, per-character binding, timestamped transcription, and audio persistence |
 | [`suno-music-generation`](skills/suno-music-generation/) | Songs, lyrics, or instrumental music | Asynchronous jobs, silent local polling, multi-candidate audio/cover downloads, and per-item acceptance |
+| [`codex-live-voice`](skills/codex-live-voice/) | Real-time duplex voice through the new-api Codex gpt-live channel | WebRTC upstream audio + WebSocket event/audio channel, speakable-context TTS to WAV, link probing, and usage-based billing awareness |
 
 ### App subtasks and CLI development workers
 

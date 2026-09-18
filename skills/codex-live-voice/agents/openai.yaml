@@ -1,0 +1,4 @@
+# Codex Live Voice — agents/openai.yaml
+skills:
+  - name: codex-live-voice
+    path: ./SKILL.md
