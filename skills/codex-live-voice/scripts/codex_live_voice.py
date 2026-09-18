@@ -22,7 +22,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-DEFAULT_BASE_URL = "https://llmapi-direct.lovbrowser.com/v1"
+DEFAULT_BASE_URL = "https://newapi.1234bot.com/v1"
 LIVE_MODEL = "gpt-live-1-boulder-alpha"
 PCMU_PAYLOAD_TYPE = 0
 SAMPLE_RATE = 8000

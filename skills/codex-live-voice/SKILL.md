@@ -31,7 +31,7 @@ description: 通过 new-api 的 ChatGPT Codex gpt-live 渠道完成实时双工�
 ```bash
 uv run --with aiortc --with websockets \
   python3 scripts/codex_live_voice.py \
-  --base-url https://llmapi-direct.lovbrowser.com/v1 \
+  --base-url https://newapi.1234bot.com/v1 \
   speak \
   --text "要念的文本内容" \
   --voice cove \
@@ -45,7 +45,7 @@ uv run --with aiortc --with websockets \
 ```bash
 uv run --with aiortc --with websockets \
   python3 scripts/codex_live_voice.py \
-  --base-url https://llmapi-direct.lovbrowser.com/v1 \
+  --base-url https://newapi.1234bot.com/v1 \
   -v probe
 ```
 
@@ -55,7 +55,7 @@ uv run --with aiortc --with websockets \
 
 | 参数 | 说明 |
 | --- | --- |
-| `--base-url` | new-api 网关 URL，默认 `https://llmapi-direct.lovbrowser.com/v1`（43 产线直连入口） |
+| `--base-url` | new-api 网关 URL，默认 `https://newapi.1234bot.com/v1` |
 | `--voice` | 输出音色，默认 `cove`。可用值取决于上游 |
 | `--instructions` | session 级指令，默认 "Speak the user's text exactly as written." |
 | `--timeout` | speak 模式等待 turn.done 的最长秒数，默认 60 |
