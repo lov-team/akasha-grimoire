@@ -1,0 +1,7 @@
+For the target video, at 0.00 seconds into the target video, <Picture 1> (from [Shot 1]) is fully referenced.
+
+integrated_multimodal_description: [Shot 1] {{STYLE_WORDS}}, {{RESTATED_FIRST_FRAME_SHOT_SIZE_SUBJECT_AND_LIGHT}}. {{ACTION_ONSET}}. {{CAMERA_SENTENCE}}. {{ACTION_DEVELOPMENT}}. {{OPTIONAL_DIALOGUE}} {{RESULT_AND_FINAL_STATE}}. {{OPTIONAL_LATER_SHOTS}}
+
+overall_soundscape: {{ONE_TO_FOUR_SENTENCES_OF_AMBIENCE_AND_ACTION_SOUNDS}}
+
+non_diegetic_music: {{ONE_TO_THREE_SENTENCES_OF_INSTRUMENTS_TEMPO_RHYTHM_DYNAMICS_OR_N/A}}

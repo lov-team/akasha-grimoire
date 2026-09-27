@@ -2,13 +2,15 @@
 
 ## MiniMax H3 Max
 
-- 模型：`h3-max`（兼容端点会按参考素材自动选择 text/image/reference；也可显式使用下列 SKU：`minimax/h3-max/text-to-video`、`minimax/h3-max/image-to-video`、`minimax/h3-max/reference-to-video`）。
-- `prompt`：1–50000 字符；兼容端点默认 `prompt_expansion_mode=balanced`。
-- `duration`：整数 5–15，默认 5。
-- `resolution`：`480P` 或 `768P`，默认 `768P`。
-- `aspect_ratio`：文生/参考生视频支持 `adaptive`、`21:9`、`16:9`、`4:3`、`1:1`、`3:4`、`9:16`，默认 `adaptive`；图生视频由首帧图片决定画幅，不发送该字段。
-- 图生视频：`--image` 一张为首帧，两张依次为首帧和尾帧；显式 image SKU 最多两张。
-- 参考生视频：可组合图片、`reference_video_urls` 和 `reference_audio_urls`，合计最多 12 个文件；显式 reference SKU 可在只有一个参考文件时保持参考模式。
+- 模型：`h3-max`（兼容端点按参考素材选择 text/image/reference；也可显式使用下列 SKU：`minimax/h3-max/text-to-video`、`minimax/h3-max/image-to-video`、`minimax/h3-max/reference-to-video`）。脚本对通用 `h3-max` 的路由：无图保持文生视频；一张图为首帧图生视频；带参考视频或音频时改用 reference SKU；两张及以上图片无法区分首尾帧与参考图，拒绝提交。
+- `prompt`：1–50000 字符。模型只按官方 Context-IR 格式理解 Prompt，写法见 [`h3-context-ir-prompting.md`](h3-context-ir-prompting.md)。
+- `prompt_expansion_mode`：`disabled` 原样使用；`balanced`（上游默认）和 `quality` 由官方扩写器改写成 Context-IR，改写结果在任务结果的 `expanded_prompt`。脚本 `--prompt-expansion auto`（默认）对 Context-IR Prompt 发送 `disabled`，普通文字不发送该字段；显式值原样发送。
+- `seed`：可选整数；省略时上游随机，固定后便于 A/B 复现。
+- `duration`：整数 5–15，默认 5；24 fps。
+- `resolution`：`480P`、`768P` 或 `1080P`，默认 `768P`。`768P` 是原生生成分辨率，`1080P` 是在 768P 结果上的潜空间精修；`1080P` 来自 fal 官方契约，网关透传需实测确认。
+- `aspect_ratio`：文生视频支持 `21:9`、`16:9`、`4:3`、`1:1`、`3:4`、`9:16`，默认 `16:9`，不支持 `adaptive`；参考生视频另支持 `adaptive` 且默认 `adaptive`；图生视频由首帧图片决定画幅，不发送该字段。
+- 图生视频：使用 `h3-max-i2v`，`--image` 一张为首帧，两张依次为首帧和尾帧，最多两张。
+- 参考生视频：图片、`reference_video_urls` 和 `reference_audio_urls` 合计最多 12 个文件；视频每段 2–15 秒、合计不超过 15 秒，音频同样。fal 的 H3 总览页另写明图片最多 9 张、视频和音频各最多 3 段、音频必须搭配至少一张图片或一段视频；H3 Max 按同样限制准备素材，脚本对只有音频的参考请求给出警告。显式 reference SKU 可在只有一个参考文件时保持参考模式。
 - H3 Max 的图片必须通过顶层 `images` 传入，以便 new-api 在兼容端点分类；显式 image SKU 的 `image_url`/`end_image_url` 仍写入 metadata。
 
 ## MiniMax H3 Text-to-Video
