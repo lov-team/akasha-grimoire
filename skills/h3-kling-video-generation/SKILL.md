@@ -1,75 +1,82 @@
 ---
 name: h3-kling-video-generation
-description: 通过 OpenAI-compatible 异步视频端点调用 MiniMax H3 Max/H3 文生视频、图生视频或参考生视频、Kling 3.0 与 Kling 2.5 Turbo；按导演结构编写成片合同、素材职责、连续性、秒级动作、摄影机、结束构图与声音提示词，并支持二维日系赛璐璐、抽象 MG、游戏 UI 合成的宣传 PV 视觉系统与转场编排。用户要求编写或优化 H3/Kling Prompt、制作游戏宣传 PV、调用这些模型、轮询下载或验收 MP4 时使用。
+description: Write Context-IR prompts for or generate videos with MiniMax H3 Max/H3 or Kling, including T2V, I2V, first/last frames, references, and game PVs.
 ---
 
 # H3 与 Kling 视频生成
 
-使用 [`scripts/video_generation.py`](scripts/video_generation.py) 提交异步任务。真实生成会计费；未明确要求生成时，仅运行帮助、单元测试和本地 mock。
+使用 [`scripts/video_generation.py`](scripts/video_generation.py) 提交异步任务。真实生成会计费；未明确要求生成时，只运行 `--help`、`lint`、单元测试和本地 mock。
 
 ## 选择模型
 
-- `h3-max`（默认）→ `h3-max`：5–15 秒，`480P` 或 `768P`；无参考文件时为文生视频，一张 `--image` 自动转图生视频，多张图片或 `--reference-video`/`--reference-audio` 自动转参考生视频。
-- `h3-max-i2v` → `minimax/h3-max/image-to-video`：5–15 秒，`480P` 或 `768P`；一张 `--image` 为首帧，两张依次为首帧、尾帧。
-- `h3-max-reference` → `minimax/h3-max/reference-to-video`：5–15 秒，`480P` 或 `768P`；可组合最多 12 个图片、视频或音频参考文件。
-- `h3`/`minimax-h3` → `minimax-h3/text-to-video`：4–15 秒，`768P` 或 `2K`，纯文生视频（保留旧 H3 以满足明确模型偏好）。
-- `h3-i2v` → `minimax-h3/image-to-video`：4–15 秒，`768P` 或 `2K`；一张 `--image` 为首帧，两张依次为首帧、尾帧。
+- `h3-max`（默认）→ `h3-max`：5–15 秒，`480P`/`768P`/`1080P`。无图为文生视频（画幅默认 `16:9`，不支持 `adaptive`）；一张 `--image` 为首帧图生视频；带 `--reference-video`/`--reference-audio` 时转参考生视频。两张及以上图片有歧义，脚本直接报错，改用下面的显式 SKU。
+- `h3-max-i2v` → `minimax/h3-max/image-to-video`：一张 `--image` 为首帧，两张依次为首帧、尾帧；画幅由首帧决定。
+- `h3-max-reference` → `minimax/h3-max/reference-to-video`：图片、视频、音频参考合计最多 12 个；画幅默认 `adaptive`。
+- `h3-max-t2v` → `minimax/h3-max/text-to-video`：纯文生视频，画幅默认 `16:9`。
+- `h3`/`minimax-h3` → `minimax-h3/text-to-video`；`h3-i2v` → `minimax-h3/image-to-video`：旧 H3，4–15 秒，`768P`/`2K`，仅用于明确的模型偏好。
 - `kling-3` → `kling-3.0/video`：3–15 秒，支持单镜头参考图、声音和 `std`/`pro`/`4K`。
 - `kling-2.5-t2v` → `kling/v2-5-turbo-text-to-video-pro`：5 或 10 秒，纯文生视频。
 
-需要完整字段约束时读取 [`references/model-contracts.md`](references/model-contracts.md)。不要把其他供应商的字段混入请求。
+完整字段约束见 [`references/model-contracts.md`](references/model-contracts.md)。不要把其他供应商的字段混入请求。
 
-### H3 模式决策
+## H3 Prompt：制作单 ≠ 模型 Prompt
 
-先根据素材职责选择模式，再写 Prompt；不要用文字里的“continuation”冒充真实连续性。
+H3 只按官方 **Context-IR** 格式理解 Prompt：英文、固定字段、`[Shot N]` 编号镜头。先读 [`references/h3-context-ir-prompting.md`](references/h3-context-ir-prompting.md)。每个镜头准备两份文件：
 
-| 目标 | 模式 | 必备输入 | Prompt 结构 |
-| --- | --- | --- | --- |
-| 概念 smoke、没有角色参考 | T2VA | 无参考素材 | `integrated_multimodal_description`、`overall_soundscape`、`non_diegetic_music` |
-| 一张图作为真实起始画面 | I2VA | 一张首帧图片 | 三字段结构；只描述从首帧开始的允许变化 |
-| 首帧到指定尾帧的连续变化 | FL2VA / L2VA | 首帧与尾帧图片 | 三字段结构；只描述两帧之间的连续过程 |
-| 锁定角色、服装、场景或动作参考 | Ref2VA | 带职责的图片、视频或音频参考 | 六字段结构，显式声明 `<Subject N>`、`<Picture N>`、`<Video N>`、`<Audio N>` |
+1. **中文制作单**：复制 [`assets/h3-shot-plan-template.md`](assets/h3-shot-plan-template.md)，写镜头定位、请求参数、后期与验收，只留在本地；
+2. **英文模型 Prompt**：按模式复制 `assets/h3-prompt-t2va.txt`、`h3-prompt-i2va.txt`、`h3-prompt-fl2va.txt` 或 `h3-prompt-ref2va.txt`，填写后用 `--prompt-file` 提交。
 
-正式角色镜头默认优先使用 Ref2VA；有实际首帧时使用 I2VA；需要从上一镜状态到下一镜状态连续过渡时使用 FL2VA/L2VA。没有真实参考素材时只能标记为概念 smoke，不得把纯 T2VA 当作角色连续性的正式素材。
+核心规则：
 
-参考素材必须在 Prompt 中声明职责：角色三视图只锁身份与服装，首帧只锁 `0.00` 秒构图，尾帧只锁最终状态，动作参考视频只提供运动节奏。不要把角色参考图、首帧和动作参考混写成一个“风格参考”。
+- Prompt 只描述目标视频中看得见、听得见的内容；时长理由、剪辑区间、后期 MG／UI／字幕和“不要……”一类指令都不写。
+- I2VA／FL2VA 第一行是固定对齐行；Ref2VA 用六段结构和 `<Subject N>`／`<Picture N>`／`<Video N>`／`<Audio N>` 标签，编号与请求素材顺序一致。
+- 对白写 `(S1) says: <d>[English] ...</d>`；画面文字写在英文双引号里；正式字幕交给后期。
+- Context-IR Prompt 默认以 `prompt_expansion_mode=disabled` 提交，不让网关再次改写。
 
-## 编写 H3 导演级 Prompt
+| 用途 | 模式 | CLI |
+| --- | --- | --- |
+| 概念 smoke | T2VA | `--model h3-max --aspect-ratio 16:9` |
+| 已有首帧（正式镜头默认） | I2VA | `--model h3-max-i2v --image FIRST` |
+| 首尾帧 | FL2VA | `--model h3-max-i2v --image FIRST --image LAST` |
+| 组合参考素材 | Ref2VA | `--model h3-max-reference --image ... [--reference-video ...] [--reference-audio ...] --aspect-ratio 9:16` |
 
-H3 Prompt 使用 Seedance 的导演级表达标准，但必须服从 H3 的素材和请求契约。先读取 [`references/h3-director-prompting.md`](references/h3-director-prompting.md)；需要落盘时复制并填写 [`assets/h3-director-prompt-template.txt`](assets/h3-director-prompt-template.txt)。
+正式角色镜头先用 `$gpt-image-generation` 按交付画幅生成并验收首帧，再做 I2VA／FL2VA；需要组合多个参考、复用嗓音或动作参考时用 Ref2VA；T2VA 只做概念 smoke。时长选能容纳动作、台词和落幅的最短整数秒，预算方法见写作规范第 8 节。
 
-游戏宣传 PV、二维赛璐璐与 Editorial MG 合成任务还要读取 [`references/game-pv-motion-design.md`](references/game-pv-motion-design.md)，先填写 [`assets/game-pv-prompt-template.txt`](assets/game-pv-prompt-template.txt) 建立全片视觉母题和转场接力，再拆成单镜头生成 Prompt。不要把全片美术圣经、角色设定、三层 MG 行为和多次转场塞进一个模型镜头。
-
-最小完整结构：
-
-1. **模式与素材合同**：明确 T2VA、I2VA、FL2VA/L2VA 或 Ref2VA，以及真实传入的每个参考素材职责；
-2. **成片合同**：推荐时长、选择理由、预计剪辑采用区间、媒介质感、节奏、唯一核心事件与最终落点；
-3. **连续性硬约束**：只列需要冻结的身份、道具、空间、光线和屏幕方向，并明确唯一允许变化；
-4. **秒级动作与摄影机**：时间从 `0.00` 连续覆盖到 `duration`，每段一个主要动作；写清景别/机位、摄影机类型/幅度/速度/目标、焦点与结束构图；
-5. **声音策略**：环境声、动作音、对白和配乐逐层选择；后期配音项目明确无对白、无配乐，并在验收后移除模型音轨；
-6. **合成与转场**：区分模型内角色／场景运动和后期 MG／UI 图形；为每个镜头指定入场母题、主视觉事件与交给下一镜的出场图形；
-7. **高损失限制**：只保留会破坏镜头合同的错误，避免泛化否定词淹没动作。
-
-T2VA、I2VA、FL2VA/L2VA 使用三字段结构：`integrated_multimodal_description`、`overall_soundscape`、`non_diegetic_music`。Ref2VA 使用六字段结构：`subject_definitions`、`summary`、`retention_analysis`、`detailed_description`、`overall_soundscape`、`non_diegetic_music`。字段名称不要省略，也不要把 Ref2VA 写成只有三字段的普通 T2V Prompt。
-
-时长必须给出具体整数秒建议，并选择能完整容纳动作与落幅的最短时长：H3 Max 从 `5 秒`起，旧 H3 从 `4 秒`起；`5–6 秒`用于默认简单单镜头；`7–9 秒`用于两个连续动作节拍或一个动作加缓慢运镜；`10–12 秒`用于完整单镜头表演或连续人物调度；`13–15 秒`只用于确有必要的长动作和连续编排，信息过多时优先拆镜。最终只需 0.8–1.2 秒的插入镜头也按所选模型的最低时长生成，再裁取稳定区间。完整预算方法见导演规范。
-
-4–6 秒单镜头可以写成紧凑的三段微时间轴；不要把多个独立事件塞进一个短镜头。图生视频不重复发明首帧已经锁定的静态美术，只描述素材职责、允许发生的变化、摄影机反应和结束状态。
-
-同一 A/B 实验若只比较首帧景别，两份 H3 Prompt 必须逐字相同，并写“严格保持首帧既有景别与取景范围”；不要在文字里再次分别描述 A/B 景别，否则会引入第二个主要变量。
+游戏宣传 PV、二维赛璐璐与 Editorial MG 合成任务先读 [`references/game-pv-motion-design.md`](references/game-pv-motion-design.md)，用 [`assets/game-pv-prompt-template.txt`](assets/game-pv-prompt-template.txt) 建立全片视觉系统和拆镜。PV 总表不发送给模型，每个生成镜头再单独写 Context-IR Prompt。
 
 ## 生成
 
-先用一个最小代表镜头验证方向，再批量生成：
+先 lint（本地检查，不联网、不计费）：
+
+```bash
+python3 skills/h3-kling-video-generation/scripts/video_generation.py lint \
+  --prompt-file shots/s01.txt --model h3-max-i2v --images 1 --duration 5
+```
+
+`generate` 遇到 Context-IR Prompt 时会在提交前自动做同样的检查，有错误就不提交（确需绕过时传 `--skip-lint`）；遇到普通文字 Prompt 时提示它将被扩写器改写。
+
+H3 Max 首帧图生视频：
+
+```bash
+python3 skills/h3-kling-video-generation/scripts/video_generation.py generate \
+  --model h3-max-i2v \
+  --prompt-file shots/s01.txt \
+  --image https://media.example/s01-first-frame.png \
+  --duration 5 \
+  --resolution 768P \
+  --seed 42 \
+  --output renders/s01.mp4
+```
+
+概念 smoke 可以只写一句英文，交给官方扩写器改写，再从 sidecar 的 `expanded_prompt` 学习写法：
 
 ```bash
 python3 skills/h3-kling-video-generation/scripts/video_generation.py generate \
   --model h3-max \
-  --prompt "A cobalt sphere rotates slowly in a clean studio, locked camera, no text" \
-  --duration 5 \
+  --prompt "A lighthouse keeper climbs a spiral staircase at night, lantern in hand" \
+  --prompt-expansion quality \
   --aspect-ratio 16:9 \
-  --resolution 768P \
-  --output /tmp/h3-max-smoke.mp4
+  --output renders/concept.mp4
 ```
 
 Kling 3.0 参考图单镜头：
@@ -82,40 +89,31 @@ python3 skills/h3-kling-video-generation/scripts/video_generation.py generate \
   --duration 5 \
   --mode pro \
   --sound \
-  --output /tmp/kling-3.mp4
+  --output renders/kling-3.mp4
 ```
 
-MiniMax H3 Max 首帧图生视频：
+复杂 Kling 3.0 多镜头或元素引用用 `--metadata-json` 传原生 `multi_shots`、`multi_prompt` 与 `kling_elements`；显式 CLI 的时长、画幅、模式、声音和图片会覆盖同名字段。
 
-```bash
-python3 skills/h3-kling-video-generation/scripts/video_generation.py generate \
-  --model h3-max-i2v \
-  --prompt "$(cat /tmp/h3-director-prompt.txt)" \
-  --image https://media.example/first-frame.png \
-  --duration 5 \
-  --resolution 768P \
-  --output /tmp/h3-max-i2v.mp4
-```
+成功时输出三行：
 
-H3 Max 文生/参考生视频默认使用 `adaptive` 画幅，可显式传 `--aspect-ratio` 覆盖；图生视频的画幅由首帧图片决定，不发送该字段。输入必须是上游可匿名读取、任务周期内稳定的公共 HTTPS 图片；如需首尾帧控制，再追加一次 `--image`。参考生视频可用 `--reference-video` 与 `--reference-audio`，脚本会自动切换到 reference SKU，并把图片保留在标准 `images` 请求信封。
-
-复杂 Kling 3.0 多镜头或元素引用使用 `--metadata-json` 传原生 `multi_shots`、`multi_prompt` 与 `kling_elements`。脚本仍以显式 CLI 的时长、画幅、模式、声音和图片覆盖同名字段。
+- `OK task_id=... output=... bytes=...`
+- `MEDIA codec=... pixels=WxH fps=... duration=... audio_streams=...`（需要本机 `ffprobe`；时长与请求相差超过 1 秒时另有警告）
+- `SIDECAR <output>.json`：记录模型、请求参数（不含素材 URL）、Prompt、seed、`expanded_prompt`（网关返回时）和媒体信息，用于复现和 A/B 对比。
 
 ## H3 生产闭环
 
-用户已明确批准真实生成，且同一任务的对白时间轴、镜头计划、参考图和输出目录齐全时，直接从当前未完成步骤继续；不要重复确认模型、时长、费用或是否生成。正式角色镜头必须先完成角色三视图或真实首帧的验收，并在任务清单中记录模式：T2VA 只能做概念 smoke，I2VA/FL2VA/L2VA/Ref2VA 才能承担已锁定角色或连续性职责。先用 `5 秒 + 768P` 代表镜头做低成本方向 smoke；方向通过后，根据对白时间和镜头合同的动作预算给每个镜头推荐最短整数秒数。不得把 10 秒或 15 秒当作统一生产默认值，也不得为了用满时长添加无叙事作用的动作。随后自动继续批量提交、轮询、下载与验收。仅在缺少会实质改变结果的关键输入，或输出覆盖存在冲突时暂停。
+用户已明确批准真实生成，且镜头计划、参考图和输出目录齐全时，直接从当前未完成步骤继续；不要重复确认模型、时长、费用或是否生成。仅在缺少会实质改变结果的关键输入，或输出覆盖冲突时暂停。
 
-正式提交前做一次模式审计：请求中的模型 SKU、顶层参考素材字段、Prompt 字段结构和参考素材职责必须互相一致。I2VA/FL2VA/L2VA 的首帧、尾帧必须真实传入；Ref2VA 必须真实传入并声明 `<Subject>`、`<Picture>`、`<Video>` 或 `<Audio>`。只在文字中写“same character”“continuation shot”不算通过。
+1. 为每个镜头填写制作单，确定模式、时长和素材顺序；
+2. 生成并验收首帧（I2VA／FL2VA）或参考素材（Ref2VA）；
+3. 写 Context-IR Prompt 并通过 `lint`；
+4. 用一个代表镜头以 `5 秒 + 768P` 做方向 smoke，通过后再批量提交；
+5. 验收每个结果：`MEDIA` 行符合请求，完整解码，抽取首、中、尾帧，确认身份、动作和起止状态；
+6. 不合格时一次只改一个变量（Prompt 的一处描述、首帧或一个请求参数），固定 `--seed` 重跑，并在制作单记录结论。
 
-生成视频只负责可剪辑的画面素材；正式交付的字幕、卦辞／爻辞、标题、UI 文字和精确卡点交给后期。旁白字幕与古典文本必须分层：旁白放底部安全区，卦辞／爻辞放上方信息区，分别使用独立样式并绑定同一份对白时间轴。不要让模型生成可读字幕或古文。
+提交前先用 `/v1/models` 确认实际 SKU。公共 HTTPS 参考素材上传后必须重新匿名下载，核对 SHA-256、字节数、MIME 和像素尺寸，任一不符立即更换托管端点。首帧按交付画幅生成，不指望模型把 3:4 扩展成 9:16。字幕、标题、UI 文字和精确卡点交给后期；正式配音或配乐项目丢弃模型音轨；全片最后一镜在时长预算里留出结束保持，收尾交给 `$video-editing`。
 
-成片结尾必须有结果确认和收束尾巴：最后一个叙事状态至少保持约 `2–3 秒`，声音和画面再淡出。不要让最后一句对白结束即切黑，也不要用错误拼接尾帧制作收束；尾巴应来自实际最终镜头的稳定状态。
-
-提交前先用 `/v1/models` 确认实际 SKU。公共 HTTPS 参考图上传后必须重新匿名下载，逐项核对 SHA-256、字节数、MIME 与像素尺寸；任一不符立即更换端点，不把临时图床当作固定依赖。下载生成结果后必须运行 `ffprobe`、完整解码并抽取首中尾帧；正式配音或配乐项目丢弃模型自带音轨。
-
-若首尾参考帧的主体位置、景别或场景差异明显，把结果按 A/B 两镜或两个独立片段处理，不强求单镜头连续性。竖屏成片需要保留人物关系时，允许完整保留参考图比例并居中置入 1080×1920，以模糊背景填充上下空间，避免直接裁掉主体。
-
-遇到 H3 路由或上游失败时，读取 [`references/model-contracts.md`](references/model-contracts.md) 的“已验证故障与恢复”，按已验证字段修复后继续，不重复付费试错。
+遇到 H3 路由或上游失败时，读 [`references/model-contracts.md`](references/model-contracts.md) 的“已验证故障与恢复”，按已验证字段修复后继续，不重复付费试错。
 
 ## 协议与配置
 
@@ -125,7 +123,7 @@ H3 Max 文生/参考生视频默认使用 `adaptive` 画幅，可显式传 `--as
 - Base URL 优先级：`--base-url`、`H3_KLING_VIDEO_BASE_URL`、共享 Akasha 凭证、默认 `https://llmapi.lovbrowser.com/v1`；不读取 `OPENAI_BASE_URL`。
 - Key 优先级：本地 `OPENAI_API_KEY`、统一的 `LOVBROWSER_API_KEY`、共享 Akasha 凭证；忽略媒体专用 Key，不得写入命令、日志或仓库。
 
-仅在需要覆盖既有输出时传 `--overwrite`。脚本验证 MP4 `ftyp` 签名并原子写入；随后使用 `ffprobe` 检查视频流、实际时长、分辨率和音轨，再抽帧或播放做视觉验收。
+输出文件已存在时脚本在提交前就报错；只有需要覆盖时才传 `--overwrite`。脚本校验 MP4 `ftyp` 签名并原子写入。
 
 ## 余额不足
 

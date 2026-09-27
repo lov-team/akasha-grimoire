@@ -1,0 +1,19 @@
+subject_definitions:
+<Subject 1> is {{SUBJECT_1_SHORT_DESCRIPTION}} in <Picture 1>.
+{{OTHER_DEFINITIONS_ONE_PER_LINE}}
+
+summary:
+[{{TASK_TAGS_JOINED_WITH_PLUS}}] The target video shows {{ONE_OR_TWO_SENTENCES_USING_ONLY_DEFINED_LABELS}}.
+
+retention_analysis:
+<Subject 1> (appears in [Shot 1]): {{VISUAL_MARKER}} - {{WHAT_IS_KEPT_AND_WHAT_CHANGES}}.
+{{ONE_LINE_PER_REMAINING_LABEL}}
+
+detailed_description:
+{{ONE_OR_TWO_STYLE_SENTENCES}} [Shot 1] {{SHOT_1_DESCRIPTION}} {{OPTIONAL_LATER_SHOTS}}
+
+overall_soundscape:
+{{ONE_TO_FOUR_SENTENCES_OF_AMBIENCE_AND_ACTION_SOUNDS}}
+
+non_diegetic_music:
+{{ONE_TO_THREE_SENTENCES_OF_INSTRUMENTS_TEMPO_RHYTHM_DYNAMICS_OR_N/A}}
