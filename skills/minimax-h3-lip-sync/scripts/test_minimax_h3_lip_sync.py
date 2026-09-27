@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -184,6 +187,161 @@ class LipSyncGenerationTest(unittest.TestCase):
         )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("unsupported video model", result.stderr)
+
+
+class LipSyncWorkflowTest(unittest.TestCase):
+    """Runs in-process, so no local HTTP server is needed."""
+
+    IMAGE = "https://media.example/portrait.png"
+    AUDIO = "https://media.example/speech.mp3"
+
+    def setUp(self) -> None:
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.output = Path(self.temp_dir.name).resolve() / "talk.mp4"
+        self.sidecar = self.output.with_name("talk.mp4.json")
+
+    def tearDown(self) -> None:
+        self.temp_dir.cleanup()
+
+    def args(self, *extra: str):
+        return VIDEO.build_parser().parse_args(
+            ["generate", "--image", self.IMAGE, "--audio", self.AUDIO, "--output", str(self.output), *extra]
+        )
+
+    def generate(self, task: dict, *extra: str) -> tuple[list[str], list[tuple[str, dict | None]]]:
+        calls: list[tuple[str, dict | None]] = []
+        responses = {
+            "/video/generations": (b'{"id": "task-1"}', "application/json"),
+            "/video/generations/task-1": (json.dumps(task).encode(), "application/json"),
+            "/videos/task-1/content": (MP4, "video/mp4"),
+        }
+
+        def fake_request(base_url, api_key, path, timeout, payload=None, *, controller=None):
+            calls.append((path, payload))
+            return responses[path]
+
+        stdout = io.StringIO()
+        with (
+            patch.object(VIDEO, "resolve_base_url", return_value="https://gateway.example/v1"),
+            patch.object(VIDEO, "read_api_key", return_value="test-key"),
+            patch.object(VIDEO, "request", side_effect=fake_request),
+            patch.object(VIDEO, "probe_media", return_value=None),
+            contextlib.redirect_stdout(stdout),
+        ):
+            VIDEO.run_generate(self.args(*extra))
+        return stdout.getvalue().splitlines(), calls
+
+    def test_invalid_requests_fail_before_credentials(self) -> None:
+        cases = {
+            "at most 1 --image": ("--image", "https://media.example/second.png"),
+            "unsupported video model": ("--model", "kling-3"),
+            "--metadata-json is invalid JSON": ("--metadata-json", "{"),
+        }
+        blocked = AssertionError("no credential lookup or request expected")
+        with (
+            patch.object(VIDEO, "resolve_base_url", side_effect=blocked),
+            patch.object(VIDEO, "read_api_key", side_effect=blocked),
+            patch.object(VIDEO, "request", side_effect=blocked),
+        ):
+            for fragment, extra in cases.items():
+                with self.subTest(fragment), self.assertRaises(VIDEO.VideoGenerationError) as caught:
+                    VIDEO.run_generate(self.args(*extra))
+                self.assertIn(fragment, str(caught.exception))
+
+            self.output.write_bytes(b"keep")
+            with self.assertRaises(VIDEO.VideoGenerationError) as caught:
+                VIDEO.run_generate(self.args())
+            self.assertIn("pass --overwrite", str(caught.exception))
+            self.assertEqual(self.output.read_bytes(), b"keep")
+
+    def test_generate_reports_media_and_writes_sidecar(self) -> None:
+        task = {"data": {"task_id": "task-1", "status": "SUCCESS", "data": {"seed": 99, "duration": 6.2}}}
+        lines, calls = self.generate(task, "--resolution", "2K")
+        self.assertEqual(
+            [path for path, _ in calls],
+            ["/video/generations", "/video/generations/task-1", "/videos/task-1/content"],
+        )
+        self.assertNotIn("seed", calls[0][1]["metadata"])
+        self.assertEqual(self.output.read_bytes(), MP4)
+        self.assertEqual(
+            lines,
+            [
+                f"OK task_id=task-1 output={self.output} bytes={len(MP4)}",
+                "MEDIA unavailable (ffprobe not found or failed)",
+                f"SIDECAR {self.sidecar}",
+            ],
+        )
+        text = self.sidecar.read_text(encoding="utf-8")
+        record = json.loads(text)
+        self.assertEqual(record["task_id"], "task-1")
+        self.assertEqual(record["model"], "minimax/h3-max/lip-sync/image-to-video")
+        self.assertEqual(record["seed"], 99)
+        self.assertIsNone(record["media"])
+        self.assertEqual(record["request"]["images"], 1)
+        metadata = record["request"]["metadata"]
+        self.assertEqual(metadata["resolution"], "2K")
+        self.assertEqual(metadata["image_url"], "<url omitted>")
+        self.assertEqual(metadata["reference_audio_urls"], ["<url omitted>"])
+        self.assertNotIn("media.example", text)
+
+    def test_sidecar_falls_back_to_requested_seed(self) -> None:
+        self.generate({"data": {"status": "SUCCESS"}}, "--seed", "7")
+        self.assertEqual(json.loads(self.sidecar.read_text(encoding="utf-8"))["seed"], 7)
+
+    def test_report_media_warns_without_audio(self) -> None:
+        media = {"codec": "h264", "width": 720, "height": 1280, "fps": 24.0, "duration": 6.208, "audio_streams": 0}
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with (
+            patch.object(VIDEO, "probe_media", return_value=media),
+            contextlib.redirect_stdout(stdout),
+            contextlib.redirect_stderr(stderr),
+        ):
+            self.assertEqual(VIDEO.report_media(self.output), media)
+        self.assertEqual(stdout.getvalue(), "MEDIA codec=h264 pixels=720x1280 fps=24 duration=6.21 audio_streams=0\n")
+        self.assertIn("no audio stream", stderr.getvalue())
+
+    def test_summarize_probe(self) -> None:
+        probe = {
+            "streams": [
+                {"codec_type": "video", "codec_name": "h264", "width": 720, "height": 1280, "avg_frame_rate": "24/1"},
+                {"codec_type": "audio", "codec_name": "aac", "avg_frame_rate": "0/0"},
+            ],
+            "format": {"duration": "6.208333"},
+        }
+        self.assertEqual(
+            VIDEO.summarize_probe(probe),
+            {"codec": "h264", "width": 720, "height": 1280, "fps": 24.0, "duration": 6.208, "audio_streams": 1},
+        )
+        self.assertIsNone(VIDEO.summarize_probe({"streams": [{"codec_type": "audio"}]}))
+
+    @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "ffmpeg and ffprobe are required")
+    def test_probe_media_reads_a_real_file(self) -> None:
+        clip = self.output.with_name("probe.mp4")
+        subprocess.run(
+            [
+                "ffmpeg", "-v", "error", "-f", "lavfi", "-i", "testsrc=size=160x120:rate=24:duration=1",
+                "-f", "lavfi", "-i", "sine=frequency=440:duration=1",
+                "-c:v", "mpeg4", "-c:a", "aac", "-shortest", str(clip),
+            ],
+            check=True,
+            capture_output=True,
+        )
+        media = VIDEO.probe_media(clip)
+        self.assertEqual(
+            {key: media[key] for key in ("codec", "width", "height", "fps", "audio_streams")},
+            {"codec": "mpeg4", "width": 160, "height": 120, "fps": 24.0, "audio_streams": 1},
+        )
+        self.assertAlmostEqual(media["duration"], 1.0, delta=0.1)
+
+    def test_help_states_the_audio_contract(self) -> None:
+        result = subprocess.run(
+            [sys.executable, "-B", str(SCRIPT), "generate", "--help"],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("audio longer than 14.8 s is clipped to its first 14.8 s", " ".join(result.stdout.split()))
 
 
 if __name__ == "__main__":

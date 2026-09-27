@@ -6,12 +6,15 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
+import subprocess
 import sys
 import tempfile
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +22,9 @@ MAX_RESPONSE_BYTES = 256 * 1024 * 1024
 DEFAULT_BASE_URL = "https://newapi.1234bot.com/v1"
 SUCCESS_STATES = {"success", "succeeded", "completed"}
 FAILURE_STATES = {"failure", "failed", "expired", "cancelled", "canceled"}
+# fal contract: audio must be at least 5 s; longer audio is clipped to its first 14.8 s.
+MIN_AUDIO_SECONDS = 5
+AUDIO_CLIP_SECONDS = 14.8
 
 LIP_SYNC_MODEL = "minimax/h3-max/lip-sync/image-to-video"
 LIP_SYNC_FAL_MODEL = "fal-ai/minimax/h3-max/lip-sync/image-to-video"
@@ -287,7 +293,8 @@ def wait_for_task(
     poll_timeout: float,
     poll_interval: float,
     controller: Any,
-) -> None:
+) -> dict:
+    """Poll until the task succeeds and return the final task response."""
     deadline = time.monotonic() + poll_timeout
     quoted_id = urllib.parse.quote(task_id, safe="")
     while True:
@@ -302,7 +309,7 @@ def wait_for_task(
         )
         state, message = task_state(response)
         if state in SUCCESS_STATES:
-            return
+            return response
         if state in FAILURE_STATES:
             raise VideoGenerationError(f"video task {state}: {message or 'upstream returned no reason'}")
         if time.monotonic() >= deadline:
@@ -339,6 +346,126 @@ def write_output(path: Path, data: bytes, overwrite: bool) -> None:
         except FileNotFoundError:
             pass
         raise
+
+
+def parse_rate(value: object) -> float | None:
+    if not isinstance(value, str) or not value:
+        return None
+    numerator, _, denominator = value.partition("/")
+    try:
+        rate = float(numerator) / float(denominator or 1)
+    except (ValueError, ZeroDivisionError):
+        return None
+    return round(rate, 3) if rate > 0 else None
+
+
+def _int_or_zero(value: object) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
+
+def summarize_probe(probe: object) -> dict[str, Any] | None:
+    if not isinstance(probe, dict):
+        return None
+    streams = [stream for stream in probe.get("streams") or () if isinstance(stream, dict)]
+    video = next((stream for stream in streams if stream.get("codec_type") == "video"), None)
+    if video is None:
+        return None
+    format_info = probe.get("format") if isinstance(probe.get("format"), dict) else {}
+    try:
+        duration = round(float(format_info.get("duration")), 3)
+    except (TypeError, ValueError):
+        duration = None
+    return {
+        "codec": str(video.get("codec_name") or "unknown"),
+        "width": _int_or_zero(video.get("width")),
+        "height": _int_or_zero(video.get("height")),
+        "fps": parse_rate(video.get("avg_frame_rate")),
+        "duration": duration,
+        "audio_streams": sum(1 for stream in streams if stream.get("codec_type") == "audio"),
+    }
+
+
+def probe_media(path: Path) -> dict[str, Any] | None:
+    ffprobe = shutil.which("ffprobe")
+    if ffprobe is None:
+        return None
+    command = [
+        ffprobe,
+        "-v",
+        "error",
+        "-show_entries",
+        "format=duration:stream=codec_type,codec_name,width,height,avg_frame_rate",
+        "-of",
+        "json",
+        str(path),
+    ]
+    try:
+        completed = subprocess.run(
+            command,
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=60,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if completed.returncode != 0:
+        return None
+    try:
+        return summarize_probe(json.loads(completed.stdout))
+    except json.JSONDecodeError:
+        return None
+
+
+def report_media(path: Path) -> dict[str, Any] | None:
+    media = probe_media(path)
+    if media is None:
+        print("MEDIA unavailable (ffprobe not found or failed)")
+        return None
+    fps = f"{media['fps']:g}" if media["fps"] else "unknown"
+    duration = f"{media['duration']:.2f}" if media["duration"] is not None else "unknown"
+    print(
+        f"MEDIA codec={media['codec']} pixels={media['width']}x{media['height']} fps={fps} "
+        f"duration={duration} audio_streams={media['audio_streams']}"
+    )
+    if media["audio_streams"] == 0:
+        print("WARNING: the result has no audio stream; lip-sync output should carry the supplied audio", file=sys.stderr)
+    return media
+
+
+def find_value(value: object, key: str, depth: int = 0) -> Any:
+    """First non-empty value stored under ``key`` in a nested response."""
+    if depth > 6:
+        return None
+    if isinstance(value, dict):
+        found = value.get(key)
+        if found is not None and found != "" and found != [] and found != {}:
+            return found
+        children = list(value.values())
+    elif isinstance(value, list):
+        children = value
+    else:
+        return None
+    for child in children:
+        found = find_value(child, key, depth + 1)
+        if found is not None:
+            return found
+    return None
+
+
+def without_urls(value: Any) -> Any:
+    """Copy of a request value with media URLs replaced, for the sidecar."""
+    if isinstance(value, dict):
+        return {key: without_urls(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [without_urls(item) for item in value]
+    if isinstance(value, str) and value.lower().startswith(("http:", "https:", "data:")):
+        return "<url omitted>"
+    return value
 
 
 def resolve_model(args: argparse.Namespace) -> tuple[str, dict]:
@@ -403,6 +530,17 @@ def metadata_from(args: argparse.Namespace, model: str, profile: dict) -> dict[s
 
 
 def run_generate(args: argparse.Namespace) -> None:
+    model, profile = resolve_model(args)
+    metadata = metadata_from(args, model, profile)
+    payload = {
+        "model": model,
+        "metadata": metadata,
+        "images": args.image,
+        "audio_url": args.audio,
+    }
+    output = Path(args.output).expanduser().resolve()
+    if output.exists() and not args.overwrite:
+        raise VideoGenerationError(f"output already exists: {output} (pass --overwrite to replace it)")
     base_url = resolve_base_url(args.base_url)
     api_key = read_api_key(base_url, args.timeout)
     recharge = _load_akasha_recharge()
@@ -413,14 +551,6 @@ def run_generate(args: argparse.Namespace) -> None:
         cli_recharge_usd=getattr(args, "recharge_usd", None),
         request_timeout=args.timeout,
     )
-    model, profile = resolve_model(args)
-    metadata = metadata_from(args, model, profile)
-    payload = {
-        "model": model,
-        "metadata": metadata,
-        "images": args.image,
-        "audio_url": args.audio,
-    }
     response = parse_json(
         request(
             base_url,
@@ -432,7 +562,7 @@ def run_generate(args: argparse.Namespace) -> None:
         )[0]
     )
     task_id = task_id_from(response)
-    wait_for_task(
+    final = wait_for_task(
         base_url,
         api_key,
         task_id,
@@ -449,9 +579,27 @@ def run_generate(args: argparse.Namespace) -> None:
         controller=controller,
     )
     validate_mp4(raw, content_type)
-    output = Path(args.output).expanduser().resolve()
     write_output(output, raw, args.overwrite)
     print(f"OK task_id={task_id} output={output} bytes={len(raw)}")
+
+    media = report_media(output)
+    result_seed = find_value(final, "seed")
+    record = {
+        "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "task_id": task_id,
+        "model": model,
+        "output": str(output),
+        "request": {"metadata": without_urls(metadata), "images": len(args.image)},
+        "seed": result_seed if result_seed is not None else args.seed,
+        "media": media,
+    }
+    sidecar = output.with_name(output.name + ".json")
+    try:
+        write_output(sidecar, (json.dumps(record, ensure_ascii=False, indent=2) + "\n").encode(), True)
+    except OSError as exc:
+        print(f"WARNING: could not write sidecar {sidecar}: {exc}", file=sys.stderr)
+        return
+    print(f"SIDECAR {sidecar}")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -474,9 +622,10 @@ def build_parser() -> argparse.ArgumentParser:
     generate.add_argument("--image", required=True, action="append", default=[], type=validate_public_https_url,
                           help="public HTTPS portrait image (aspect ratio 0.4-2.5)")
     generate.add_argument("--audio", required=True, type=validate_public_https_url,
-                          help="public HTTPS audio at least 5s; output length follows the audio, clipped at 15s")
+                          help=f"public HTTPS audio, at least {MIN_AUDIO_SECONDS} s; the output follows the audio length, "
+                               f"and audio longer than {AUDIO_CLIP_SECONDS:g} s is clipped to its first {AUDIO_CLIP_SECONDS:g} s")
     generate.add_argument("--resolution", choices=("480P", "768P", "1080P", "2K"), default="768P")
-    generate.add_argument("--seed", type=int)
+    generate.add_argument("--seed", type=int, help="fixed seed for A/B comparisons (the used seed is saved in the sidecar)")
     generate.add_argument("--no-transcription", action="store_true", help="disable audio transcription guidance")
     generate.add_argument("--no-safety-checker", action="store_true", help="disable content safety checks")
     generate.add_argument(
@@ -498,6 +647,7 @@ def main() -> int:
         args.handler(args)
         return 0
     except (VideoGenerationError, OSError, ValueError) as exc:
+        sys.stdout.flush()
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
 
