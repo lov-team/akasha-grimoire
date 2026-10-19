@@ -15,6 +15,7 @@
 9. 提示词扩写
 10. 示例
 11. 提交前检查
+12. 电影叙事序列：风格圣经与镜头内句序
 
 ## 1. 制作单与模型 Prompt 的分工
 
@@ -42,7 +43,7 @@
 
 - 全英文。只有 `<d>…</d>` 里的台词和双引号里的画面文字保留原语言。
 - 三个字段顺序固定，字段名后同一行开始写内容，字段之间空一行：`integrated_multimodal_description:`、`overall_soundscape:`、`non_diegetic_music:`。
-- `[Shot 1]` 后先写逗号分隔的风格词，例如 `Live-action, cinematic, warm tungsten light,` 或 `2D anime, cel-shaded, flat colors,`，再写画面。
+- `[Shot 1]` 后先写逗号分隔的风格词，例如 `Live-action, cinematic, warm tungsten light,` 或 `2D anime, cel-shaded, flat colors,`，再写画面。多镜头剧情片的风格词是全片统一的风格圣经，写法见第 12 节。
 - 写陈述，不写命令：写 `The camera pushes in slowly as she looks up.`，不写 `Make sure the camera...`、`Do not add text.`。不想出现的东西不写，写出来反而可能出现。
 - 人物首次出现时写清年龄段、发型、服装和关键道具，之后固定一个称呼，例如 `the woman in the grey coat`。
 - 情绪写成可见表情和动作：`her jaw tightens and she looks away`，不写 `she feels betrayed`。
@@ -203,4 +204,113 @@ A low analog synth drone sustains beneath slow, sparse electric piano notes at a
 - 摄影机用官方词表写成自然句，没有“固定同时推进”等冲突；
 - 首帧已经锁定的外观没有被改写；FL2VA 首尾帧差异可以在一个连续动作内完成；
 - 声音字段不含对白和情绪词；需要后期声音的镜头已写 `N/A` 并计划替换模型音轨；
-- A/B 实验的 Prompt 逐字相同，只改一个请求变量，并固定 `--seed`。
+- A/B 实验的 Prompt 逐字相同，只改一个请求变量，并固定 `--seed`；
+- 剧情序列的风格圣经与上一个生成单元逐字相同，回切镜头沿用原焦段和主光方向（第 12 节）。
+
+## 12. 电影叙事序列：风格圣经与镜头内句序
+
+多角色、多场景的剧情片由多个 10–15 秒生成单元剪成。相邻单元能接上，靠的是三件事：同一段风格圣经，角色和场景各自绑定参考，每个镜头按固定句序描写。这套方法来自中文导演稿常见的「场景环境 / 镜头设计 / 可见动作 / 光影布光」四字段写法，这里把它改写成 Context-IR 认得的英文自然段。
+
+### 12.1 风格圣经
+
+开拍前写一段英文风格圣经：先是一串逗号分隔的风格词，再接一句调色板。所有生成单元逐字复制它，放在 I2VA／T2VA 的 `[Shot 1]` 之后，或 Ref2VA `detailed_description:` 的开头。中文风格圣经只写在制作单里。必须覆盖：
+
+- 媒介与质感：`Live-action, cinematic, fine film grain, highly realistic skin, hair, and fabric texture`。
+- 主光型与光学：`split lighting with warm rim light, wide aperture, high contrast, shallow depth of field with layered depth`。
+- 空气介质，少量：`faint god rays, light haze, and floating dust in the torchlight`。
+- 调色板：`The palette is warm amber against deep brown shadow, with cool night blue only in the high windows.`
+- 声音策略不写进风格圣经。要「无配乐、只保留人声与环境声」，就让 `non_diegetic_music: N/A`，`overall_soundscape:` 只写环境声与动作音。按第 3 节，不写 `no subtitles` 这类否定句。
+
+### 12.2 角色与场景都是 Subject
+
+- Ref2VA 中，角色定妆图和场景图各定义成一个 `<Subject N>`，例如 `<Subject 3> is the torch-lit stone grand staircase hall in <Picture 3>.`。场景的 retention 通常写 `partially_preserved`，并说明新加了光源、天气或道具。
+- 回切同一场景或同一角色时，写 `the camera cuts back to ...`，沿用原焦段和主光方向。
+- I2VA 的场景由首帧锁定；同一场景的不同镜头，用同一张场景参考生成各自的首帧。
+
+### 12.3 镜头内句序
+
+每个 `[Shot N]` 的内容按以下顺序写，对应中文四字段：
+
+1. **环境**（场景环境）：空间结构、画内光源、背景人物或活动。
+2. **镜头**（镜头设计）：景别与机位 → 构图与主体位置 → 焦距 + 摄影机距离 + 透视结果 → 焦点落点 → 一句官方词表运镜（第 4 节）。
+3. **动作**（可见动作）：在场人物的微动作链与结果；台词按第 5 节写。
+4. **光线**（光影布光）：主光来自哪个画内光源、哪个方向，半张脸受光／半张脸进阴影，轮廓光，背景色块。
+
+### 12.4 焦距语法
+
+焦距只写数字不够，要写成「焦距 + 机距 + 结果」的因果句：
+
+| 焦距 | 英文写法 | 用途 |
+|---|---|---|
+| 24mm | `on a 24mm wide lens close to the center line of the steps, so the lines converge sharply and the space feels deep and towering` | 全景、低角度对称、进入宏大空间 |
+| 35mm | `on a 35mm lens close behind the two of them, so the foreground shoulder looms large and the corridor stretches deep` | 过肩、框架构图、手持环绕 |
+| 85mm | `on an 85mm lens from a distance, so the background appears enlarged and pressed close behind him, compressing the space, with focus locked on his eyes` | 胸像近景、反应镜头、双人近景 |
+
+光同理：写 `torchlight from the left warms half of his face while the other half falls into soft shadow`，而不是 `warm lighting`。同一场景里主光方向跨镜头不变。
+
+二分光要写成「唯一近处光源」：`The torch on his left is the only nearby light: it paints the left half of his face warm amber while the right half falls into deep brown shadow`。参考图里如果光源左右对称（两排火把、两侧壁灯），只写方向，模型会给出正面平光。2026-10 实测：即使写成「唯一近处光源」，Ref2VA 的人物近景仍偏向正面平光。剧情镜头要可靠的二分光，先用 `$gpt-image-generation` 生成已经带二分光的首帧，再用 I2VA，让首帧锁定光线。
+
+### 12.5 视线与空间地理
+
+正反打最容易出错的是背景。人物看着某样东西时，那样东西在他**对面**，他身后是另一侧的空间：
+
+- 人物在看楼梯，背景就写他身后的大厅或人群，不写楼梯。写成 `stone steps stretch behind him` 会让他背对着自己在看的东西。
+- 视线写成离镜头一点点的方向：`his eyeline stays just past the left edge of the lens, up toward the staircase off-screen`。只写 `his gaze drifts left` 时，近景人物常常直视镜头。
+- 被看的一方用相反方向的视线或运动，和看的一方对上，例如他视线朝画左上，她从楼梯上朝画右下走来。
+
+### 12.6 描述密度上限（2026-10 实测）
+
+同一组参考图、同一 seed、15 秒 Ref2VA、6 段或 5 段：
+
+| detailed_description | 约每秒词数 | 切点误差 | 镜头顺序与内容 |
+|---|---|---|---|
+| 1126 词 | 75 | ≤0.1 秒 | 正确 |
+| 1884 词 | 125 | ≤0.3 秒 | 正确，环境与道具细节明显增多 |
+| 4809 词 | 320 | 1–2 秒漂移 | 错乱：揭示提前、人物串进别的场景、末镜缺失 |
+
+单次请求的正文控制在约 2000 词（约每秒 130 词）以内。需要每 3 秒写到约 1500 个中文字（约 950 英文词）的密度时，把每一段拆成一个独立的 5 秒请求，剪辑时取其中的 3 秒；每个请求只写一个 `[Shot 1]`，不要把多段高密度描述塞进同一次生成。
+
+### 12.7 直接提交中文导演稿（2026-10 实测）
+
+`$seedance-video-generation` 写作规范第 8 节的中文导演稿（`镜头 N` + 风格段 + 「形象参考@图 N」 + 每 3 秒一段的四字段，约 8200 字）也可以原样交给 H3：`--model h3-max-reference --prompt-expansion disabled --duration 15`，参考图顺序与 @图 N 一致。lint 只给出「非 Context-IR」提示，不阻止提交。
+
+同一份导演稿、同一组参考图对比：
+
+| | H3（中文原样） | Seedance `seedance2` |
+|---|---|---|
+| 五段顺序 | 首段拖到约 5 秒，后段被压缩，一段缺失 | 五段顺序全部正确，切点误差约 1 秒 |
+| 动作细节 | 整理领结、按小腹、别头发等进入画面 | 大多进入画面 |
+| 揭示时机 | 被揭示的人提前出现 | 按导演稿保持空楼梯 |
+| 参考图还原 | 角色与场景更贴近参考图，暖调保持好 | 发色、场景偏离，整体偏冷 |
+
+结构要求高的叙事片段优先用 Seedance；需要贴近参考图和暖调质感时用 H3，并按第 12.6 节把导演稿翻成约 2000 词以内的英文 Context-IR，结构更可靠。
+
+### 12.8 示例：Ref2VA 剧情序列（10 秒；3 张图片）
+
+请求：`--model h3-max-reference --image BOY_SHEET --image GIRL_SHEET --image STAIR_HALL --aspect-ratio 16:9 --duration 10`
+
+该示例可通过 `lint`。
+
+```text
+subject_definitions:
+<Subject 1> is the dark-haired boy in round glasses, a white bow tie, and black dress robes shown in the turnaround sheet in <Picture 1>.
+<Subject 2> is the platinum-blonde girl in the dark green velvet square-neck gown shown in the turnaround sheet in <Picture 2>.
+<Subject 3> is the torch-lit stone grand staircase hall in <Picture 3>.
+
+summary:
+[reference generation] The target video shows <Subject 1> waiting in <Subject 3> on a winter ball night and falling silent as <Subject 2> descends the staircase.
+
+retention_analysis:
+<Subject 1> (appears in [Shot 1], [Shot 3]): fully_preserved - His face, messy black hair, round glasses, white bow tie, and black dress robe match the reference.
+<Subject 2> (appears in [Shot 2]): fully_preserved - Her face, platinum-blonde updo with small white flowers, emerald hair chain, and dark green velvet gown with gold-dotted bell sleeves match the reference.
+<Subject 3> (appears in [Shot 1], [Shot 2], [Shot 3]): partially_preserved - The stone steps, pillars, and gold-framed portraits follow the reference, while burning torches, holly garlands, and drifting dust are added.
+
+detailed_description:
+Live-action, cinematic, fine film grain, highly realistic skin, hair, and fabric texture, split lighting with warm rim light, wide aperture, high contrast, shallow depth of field with layered depth, faint god rays, light haze, and floating dust in the torchlight. The palette is warm amber against deep brown shadow, with cool night blue only in the high windows. [Shot 1] <Subject 1> stands at the foot of the staircase in <Subject 3> with his back to the open lower hall, where a crowd of students in dress robes blurs into soft dark shapes behind him, and a single iron torch burns on the stone wall just to his left. A chest-up close-up holds <Subject 1> at eye level in the center of the frame, shot on an 85mm lens from a distance so the blurred crowd and torches appear enlarged and pressed close behind him, compressing the space, with focus locked on his eyes. The camera holds a static shot. His eyeline stays just past the left edge of the lens, up toward the staircase off-screen, as his gaze drifts upward, the corner of his mouth lifts into a faint smile, and he quickly presses his lips together to hide it as his throat moves in a small swallow. The torch on his left is the only nearby light: it paints the left half of his face warm amber while the right half falls into deep brown shadow, a thin rim light traces his messy black hair, and a tiny point of firelight glints in each lens of his round glasses. [Shot 2] At 00:03.500, the camera cuts to a full shot of the gothic grand staircase from a low angle in strict symmetry, with <Subject 2> centered at the top of the stairs beneath a tall pointed arch window. The shot is on a 24mm wide lens close to the center line of the steps, so the steps, stone pillars, and holly garlands converge sharply toward her and the space feels deep and towering. The camera pulls out at slow speed along the center line as she descends, keeping her steady in the middle of the frame. She walks down one step at a time with her hands relaxed at her sides, the dark green velvet gown rippling with each step and the emerald chain in her hair catching sparks of firelight. Wall sconces on both sides lay warm light across the steps, a bright rim outlines her platinum hair and the sheer gold-dotted sleeves, and night blue fills the arch window behind her. [Shot 3] At 00:07.500, the camera cuts back to the chest-up close-up of <Subject 1> on the same 85mm lens, with the same blurred crowd behind him and the same single torch on his left. His eyes widen behind his glasses, his lips part, and his jaw slackens slightly as his eyeline stays just past the left edge of the lens, fixed up on the staircase off-screen, while the left half of his face glows amber and the right half stays in shadow. <Subject 1> (S1) says in a soft, breathless voice: <d>[English] She looks beautiful.</d> He stays completely still afterward, eyes on the stairs beyond the frame, while dust drifts slowly through the torchlight beside him.
+
+overall_soundscape:
+Torches crackle softly along the stone walls while a low murmur of students drifts from the far end of the hall. Velvet brushes against stone with a faint rustle as she descends, and her shoes tap lightly on each step. The murmur fades almost to silence as she reaches the lower stairs.
+
+non_diegetic_music:
+N/A
+```

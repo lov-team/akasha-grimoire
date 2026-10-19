@@ -26,11 +26,14 @@ SEEDANCE_1_LITE_I2V_MODEL = "doubao-seedance-1-0-lite-i2v-250428"
 SEEDANCE_1_5_PRO_MODEL = "doubao-seedance-1-5-pro-251215"
 SEEDANCE_2_PRO_MODEL = "doubao-seedance-2-0-260128"
 SEEDANCE_2_FAST_MODEL = "doubao-seedance-2-0-fast-260128"
+# The LovBrowser gateways route Seedance 2.0 only under this id; the Ark ids above return
+# "no available channel" there and stay available for private Ark deployments.
+SEEDANCE_2_GATEWAY_MODEL = "seedance2"
 
 MODEL_ALIASES = {
     "seedance-1.0-pro": SEEDANCE_1_PRO_MODEL,
     "seedance-1.5-pro": SEEDANCE_1_5_PRO_MODEL,
-    "seedance-2": SEEDANCE_2_PRO_MODEL,
+    "seedance-2": SEEDANCE_2_GATEWAY_MODEL,
     "seedance-2-fast": SEEDANCE_2_FAST_MODEL,
 }
 MODEL_PROFILES = {
@@ -65,6 +68,12 @@ MODEL_PROFILES = {
         "generate_audio": True,
     },
     SEEDANCE_2_FAST_MODEL: {
+        "max_duration": 15,
+        "input_mode": "either",
+        "reference_media": True,
+        "generate_audio": True,
+    },
+    SEEDANCE_2_GATEWAY_MODEL: {
         "max_duration": 15,
         "input_mode": "either",
         "reference_media": True,
@@ -206,7 +215,12 @@ def request(
 ) -> tuple[bytes, str]:
     recharge = _load_akasha_recharge()
     body = None
-    headers = {"Authorization": f"Bearer {api_key}", "Accept": "application/json"}
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Accept": "application/json",
+        # The official gateway rejects urllib's default User-Agent with HTTP 403.
+        "User-Agent": "akasha-seedance-video/1.0",
+    }
     if payload is not None:
         body = json.dumps(payload, separators=(",", ":")).encode()
         headers["Content-Type"] = "application/json"
@@ -486,8 +500,8 @@ def build_parser() -> argparse.ArgumentParser:
     generate = subparsers.add_parser("generate", parents=[recharge_parent])
     generate.add_argument(
         "--model",
-        default=SEEDANCE_2_PRO_MODEL,
-        help="Seedance Ark model ID or alias (seedance-1.0-pro, seedance-1.0-lite, seedance-1.5-pro, seedance-2, seedance-2-fast)",
+        default=SEEDANCE_2_GATEWAY_MODEL,
+        help="Seedance model ID or alias: seedance2 / seedance-2 (gateway id, default), seedance-2-fast, seedance-1.0-pro, seedance-1.0-lite, seedance-1.5-pro, or an explicit Ark ID",
     )
     prompt_source = generate.add_mutually_exclusive_group(required=True)
     prompt_source.add_argument("--prompt", help="inline Seedance prompt")

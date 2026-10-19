@@ -32,6 +32,8 @@ H3 只按官方 **Context-IR** 格式理解 Prompt：英文、固定字段、`[S
 - I2VA／FL2VA 第一行是固定对齐行；Ref2VA 用六段结构和 `<Subject N>`／`<Picture N>`／`<Video N>`／`<Audio N>` 标签，编号与请求素材顺序一致。
 - 对白写 `(S1) says: <d>[English] ...</d>`；画面文字写在英文双引号里；正式字幕交给后期。
 - Context-IR Prompt 默认以 `prompt_expansion_mode=disabled` 提交，不让网关再次改写。
+- 已有 Seedance 中文导演稿（`$seedance-video-generation` 第 8 节）时，可原样以 `--prompt-expansion disabled` 提交 H3 做对比，结果差异见写作规范第 12.7 节。
+- 多角色、多场景剧情片按写作规范第 12 节：所有单元逐字复用同一段英文风格圣经；Ref2VA 把角色和场景都定义为 `<Subject N>`；每个镜头按环境 → 镜头（景别、构图、焦距 + 机距 + 透视结果、焦点、运镜）→ 微动作 → 画内光源与光向的顺序写。
 
 | 用途 | 模式 | CLI |
 | --- | --- | --- |

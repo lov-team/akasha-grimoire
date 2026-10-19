@@ -62,7 +62,8 @@ class Handler(BaseHTTPRequestHandler):
 
 class SeedanceVideoScriptTest(unittest.TestCase):
     def test_base_url_default_and_override_precedence(self) -> None:
-        with patch.dict(os.environ, {}, clear=True):
+        # Point at an empty credential dir so a saved Akasha login on this machine cannot leak in.
+        with patch.dict(os.environ, {"AKASHA_CONFIG_DIR": self.temp_dir.name}, clear=True):
             self.assertEqual(
                 SEEDANCE_VIDEO.resolve_base_url(None),
                 "https://newapi.1234bot.com/v1",
@@ -98,7 +99,11 @@ class SeedanceVideoScriptTest(unittest.TestCase):
             )
 
     def test_missing_key_message_links_lovbrowser_and_payment_flow(self) -> None:
-        with patch.dict(os.environ, {"AKASHA_DISABLE_AUTO_BOOTSTRAP": "1"}, clear=True), self.assertRaises(
+        with patch.dict(
+            os.environ,
+            {"AKASHA_DISABLE_AUTO_BOOTSTRAP": "1", "AKASHA_CONFIG_DIR": self.temp_dir.name},
+            clear=True,
+        ), self.assertRaises(
             SEEDANCE_VIDEO.SeedanceVideoError
         ) as caught:
             SEEDANCE_VIDEO.read_api_key()
@@ -218,6 +223,37 @@ class SeedanceVideoScriptTest(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("not allowed with argument", result.stderr)
         self.assertFalse([request for request in Handler.requests if request[1] != "/v1/models"])
+
+    def test_seedance_2_default_and_alias_send_gateway_model_id(self) -> None:
+        for extra in ((), ("--model", "seedance-2")):
+            Handler.requests.clear()
+            output = Path(self.temp_dir.name) / f"s2-{len(extra)}.mp4"
+            result = self.invoke(
+                "generate",
+                *extra,
+                "--prompt", "a quiet staircase at night",
+                "--duration", "15",
+                "--reference-image", "https://media.example/hero.png",
+                "--poll-interval", "0.01",
+                "--output", str(output),
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads([request for request in Handler.requests if request[1] != "/v1/models"][0][2])
+            self.assertEqual(payload["model"], "seedance2")
+            self.assertEqual(payload["metadata"]["content"][0]["role"], "reference_image")
+
+    def test_explicit_ark_id_is_sent_unchanged(self) -> None:
+        output = Path(self.temp_dir.name) / "ark.mp4"
+        result = self.invoke(
+            "generate",
+            "--model", "doubao-seedance-2-0-260128",
+            "--prompt", "a quiet staircase at night",
+            "--poll-interval", "0.01",
+            "--output", str(output),
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads([request for request in Handler.requests if request[1] != "/v1/models"][0][2])
+        self.assertEqual(payload["model"], "doubao-seedance-2-0-260128")
 
     def test_seedance_1_pro_uses_ark_model_and_twelve_second_limit(self) -> None:
         output = Path(self.temp_dir.name) / "pro.mp4"

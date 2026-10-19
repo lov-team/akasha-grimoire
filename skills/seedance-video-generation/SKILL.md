@@ -24,9 +24,10 @@ description: 为 Seedance 编排秒级时间轴、导演级景别运镜、参考
 ## 编排导演级 Prompt
 
 - 4–6 秒、单主体、单动作时，按“起始构图 → 一个主要动作 → 运镜反应 → 结束构图 → 同步声音”写紧凑 Prompt，不强拆多段。
-- 7–15 秒、多镜头、参考运镜、动作卡点、广告或剧情请求，读取 [`references/director-prompting.md`](references/director-prompting.md)，复制并填写 [`assets/director-prompt-template.txt`](assets/director-prompt-template.txt)。
+- 7–15 秒、多镜头、参考运镜、动作卡点或广告请求，读取 [`references/director-prompting.md`](references/director-prompting.md)，复制并填写 [`assets/director-prompt-template.txt`](assets/director-prompt-template.txt)。
+- 多角色、多场景的剧情片段，读取写作规范第 8 节，按「角色三视图 → 场景图 → 上传核验 → 导演稿 → 一口气 15 秒 → 抽帧验收」执行。导演稿照搬 [`assets/cinematic-sequence-template.txt`](assets/cinematic-sequence-template.txt)：`镜头 N` → 逐字复用的风格段 → 「【称呼】形象参考@图 N」→ 每 3 秒一段，固定写场景环境、镜头设计、可见动作、光影布光四个字段，每段约 1500 字。完整范例见 [`assets/examples/winter-ball-15s.txt`](assets/examples/winter-ball-15s.txt)。导演稿先交用户审阅，再整段 `--duration 15` 提交，不拆成短请求。
 - 每个时间段只安排一个主要动作；时间段从 `0.00` 连续覆盖到命令的 `--duration`。运镜写清类型、必要的幅度/速度和目标，不堆叠互相冲突的摄影词。
-- new-api 通过 CLI 参数结构化标记首帧、尾帧和参考媒体。Prompt 用自然语言说明素材职责，不写即梦网页端的 `@图片1` / `@视频1` 标记。
+- new-api 通过 CLI 参数结构化标记首帧、尾帧和参考媒体。多张参考图在 Prompt 里写「@图 N」，N 与 `content` 中图片项的顺序一致（`--first-frame`、`--last-frame`、`--reference-image` 依次排列）。
 - 完整片超过 5 秒时，为 smoke 另写只覆盖前 5 秒的 Prompt；不要把完整 15 秒时间轴与 `--duration 5` 混用。
 
 长 Prompt 写入 UTF-8 文件并使用 `--prompt-file`，避免 shell 引号与换行破坏时间轴：
@@ -53,7 +54,7 @@ python3 skills/seedance-video-generation/scripts/seedance_video.py generate \
   --output /tmp/seedance.mp4
 ```
 
-默认模型为 `doubao-seedance-2-0-260128`。快速模型需显式传 `--model doubao-seedance-2-0-fast-260128`。Seedance 2.x 时长为 4–15 秒。
+默认模型为 `seedance2`（LovBrowser 网关路由 Seedance 2.0 的唯一 ID；`--model seedance-2` 等价）。网关对 Ark ID `doubao-seedance-2-0-260128` 返回 `503 no available channel`，只在私有 Ark 部署时显式传 Ark ID。Seedance 2.x 时长为 4–15 秒。
 
 `--prompt` 与 `--prompt-file` 必须且只能选择一个。`--prompt-file` 接受不超过 256 KiB 的非空 UTF-8 普通文件。
 
@@ -62,7 +63,7 @@ python3 skills/seedance-video-generation/scripts/seedance_video.py generate \
 - `seedance-1.0-pro` → `doubao-seedance-1-0-pro-250528`，4–12 秒，支持文字或图片输入。
 - `seedance-1.0-lite` 根据是否传入图片，自动选择 `doubao-seedance-1-0-lite-t2v-250428` 或 `doubao-seedance-1-0-lite-i2v-250428`，4–12 秒。
 - `seedance-1.5-pro` → `doubao-seedance-1-5-pro-251215`，4–12 秒，支持文字或图片输入与原生音频生成。
-- `seedance-2` / `seedance-2-fast`：映射到对应 2.0 Ark ID，4–15 秒，支持图片、视频和音频参考。
+- `seedance2` / `seedance-2`：网关 ID，4–15 秒，支持图片、视频和音频参考。`seedance-2-fast` 仍映射到 Ark ID `doubao-seedance-2-0-fast-260128`，尚未在网关上验证。
 
 Seedance 1.x 不接受视频或音频参考；脚本会在发起计费请求前拒绝不兼容的组合。使用前确认 new-api 渠道已启用该 Ark 模型并配置定价。
 
@@ -97,5 +98,9 @@ python3 skills/seedance-video-generation/scripts/seedance_video.py generate \
 - `400/404 channel not found`：new-api 尚未启用包含该模型的 DoubaoVideo/VolcEngine 渠道。
 - `resolution ... not valid`：改用 720p，尤其是带参考素材时。
 - `queued` / `IN_PROGRESS`：继续轮询；超时后明确报告任务未完成，不伪造成功。
+- `503 No available channel for model doubao-seedance-2-0-260128`：网关不路由 Ark ID，改用默认的 `seedance2`。`400 invalid api platform` 同样表示传了网关不认的模型 ID。
+- `403 Forbidden` 且无消息：请求缺少 User-Agent 时被网关拦截；脚本已固定发送 User-Agent，自行写请求时也要带上。
+- `video task failure: ... copyright restrictions`：成片形象接近知名 IP，上游在生成后拒绝。改成原创造型、配色和道具，不要改写措辞绕过检测（见写作规范 8.6）。
+- 任务长时间停在 `SUBMITTED` / 10%：上游排队，可延长 `--poll-timeout`；参考图托管链接要在任务真正开始前一直有效。
 
 脚本只在最终成功后原子写入输出；失败时不要把 JSON、HTML 或空响应保存成视频。

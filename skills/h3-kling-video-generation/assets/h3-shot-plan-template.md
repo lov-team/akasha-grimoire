@@ -9,6 +9,13 @@
 - 起始可见状态：{{START_STATE}}
 - 结束可见状态：{{END_STATE}}
 
+- 风格圣经：{{STYLE_BIBLE_FILE_OR_NONE}}（剧情序列每个单元逐字复用，见写作规范第 12 节）
+- 中文四字段草稿（剧情镜头填写，再按第 12.3 节句序改写成英文）：
+  - 场景环境：{{LOCATION_REFERENCE_SPACE_PRACTICAL_LIGHT_AMBIENCE}}
+  - 镜头设计：{{SHOT_SIZE_ANGLE_COMPOSITION_FOCAL_LENGTH_DISTANCE_RESULT_FOCUS}}
+  - 可见动作：{{MICRO_ACTION_CHAIN_AND_LINES}}
+  - 光影布光：{{KEY_SOURCE_DIRECTION_FACE_SPLIT_RIM_BACKGROUND}}
+
 ## 2. 请求参数（写进 CLI，不写进 Prompt）
 
 - 模式与模型：{{T2VA_I2VA_FL2VA_OR_REF2VA}} / {{MODEL}}
