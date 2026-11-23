@@ -104,6 +104,8 @@ Graph Engineering 把交付建模为一张可追踪的工作图，而不是一�
 | [`seedance-video-generation`](skills/seedance-video-generation/) | Seedance 文生、图生、首尾帧和多参考视频 | 秒级导演提示、模型级约束、异步轮询、安全下载和成片探测 |
 | [`seedance-video-continuation`](skills/seedance-video-continuation/) | 从已有 MP4 尾帧继续生成 | 最后有效帧提取、首帧续拍、连续性提示、分段拼接与复验 |
 | [`h3-kling-video-generation`](skills/h3-kling-video-generation/) | MiniMax H3 Max/H3、Kling 镜头和游戏 PV | T2V/I2V/参考生视频、导演式 Prompt、二维动画/MG/UI 合成、模型校验和 MP4 下载 |
+| [`comfyui-minimax-h3`](skills/comfyui-minimax-h3/) | 本地 ComfyUI + MiniMax H3 视频生成/编辑/2K 超分与设定卡底层引擎 | FastH3 二采有声 T2V、多参考 Ref2VA、首帧 I2V、Regenerate-2K 超分、MOSS 设定卡与双卡 WDDM 锁页内存护栏 |
+| [`minimax-h3-op-remix`](skills/minimax-h3-op-remix/) | 本地 ComfyUI + MiniMax H3 Ref2VA 动画 OP/MV 角色与文字全片替换 | Cast 连续性合同、帧级零穿帮切镜、六段式 Context-IR、多人双轮级联、全片 MAD 穿帮扫描与视频号 9:16 导出 |
 | [`gemini-omni-video-generation`](skills/gemini-omni-video-generation/) | Gemini Omni 视频生成与视频编辑 | 公开素材/历史任务续接、任务轮询、MP4 校验和意外音轨诊断 |
 | [`multi-platform-video-publishing`](skills/multi-platform-video-publishing/) | 将已验收成片发布到四个平台 | 并行账号校验与上传、平台化文案、SHA 防重、台账、远端状态核验与恢复 |
 

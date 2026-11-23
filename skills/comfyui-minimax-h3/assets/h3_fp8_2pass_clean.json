@@ -1,0 +1,317 @@
+{
+  "1": {
+    "class_type": "BSAI_SolH3_Loader",
+    "inputs": {
+      "model_name": "fastvideo_fasth3_trim_8step_fp8.safetensors",
+      "precision": "int8",
+      "sol_attn": false,
+      "tau_start": 0.5,
+      "tau_end": 1,
+      "sink_conditioning": "exact_kv",
+      "int8_qk": true,
+      "fused_modulation": true,
+      "chunk_ff": true,
+      "chunk_size": 2,
+      "fast_h3_steps": "8-step FastH3 Enhanced",
+      "sampler": "euler",
+      "cfg": 1,
+      "shift": 8,
+      "audio_shift": 3,
+      "min_tokens": 1024,
+      "sol_tau": 1.3,
+      "start_percent": 0.2,
+      "end_percent": 0.9,
+      "morton": false,
+      "morton_curve": "2d_frame",
+      "centroid_tail": true,
+      "routed_cap_percent": 0,
+      "reuse_qkv_memory": false,
+      "verbose": false,
+      "dense_blocks": "",
+      "tau_profile": "",
+      "sol_tau_ramp": true,
+      "dense_first_blocks": 2,
+      "spark_mode": "rep_block",
+      "spark_keep_percent": 10,
+      "spark_token_aug": 128,
+      "lora_name": "(none)",
+      "lora_strength": 0.75
+    }
+  },
+  "2": {
+    "class_type": "LoraLoaderModelOnly",
+    "inputs": {
+      "lora_name": "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors",
+      "strength_model": 0,
+      "model": [
+        "1",
+        0
+      ]
+    }
+  },
+  "3": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
+      "type": "minimax",
+      "device": "default"
+    }
+  },
+  "4": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "A cinematic live-action shot, beautiful natural lighting, shallow depth of field, smooth motion. The camera slowly pushes in on a hero standing in a rain-soaked neon alley, wind rustling their coat, with rich ambient audio: rain, distant city hum, footsteps.",
+      "clip": [
+        "51",
+        0
+      ]
+    }
+  },
+  "5": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "blurry, low quality, distorted, extra limbs, bad anatomy, watermark, static, silent, robotic voice",
+      "clip": [
+        "51",
+        0
+      ]
+    }
+  },
+  "6": {
+    "class_type": "EmptyHunyuanLatentVideo",
+    "inputs": {
+      "width": 672,
+      "height": 384,
+      "length": 361,
+      "batch_size": 1
+    }
+  },
+  "7": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "minimax_h3_video_vae_int8_convrot.safetensors"
+    }
+  },
+  "9": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "80",
+        0
+      ],
+      "positive": [
+        "4",
+        0
+      ],
+      "negative": [
+        "5",
+        0
+      ],
+      "latent_image": [
+        "6",
+        0
+      ],
+      "seed": 42,
+      "control_after_generate": "fixed",
+      "steps": 8,
+      "cfg": 1,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1
+    }
+  },
+  "10": {
+    "class_type": "RandomNoise",
+    "inputs": {
+      "noise_seed": 43
+    }
+  },
+  "11": {
+    "class_type": "BasicScheduler",
+    "inputs": {
+      "model": [
+        "2",
+        0
+      ],
+      "scheduler": "beta",
+      "steps": 4,
+      "denoise": 0.55
+    }
+  },
+  "12": {
+    "class_type": "BSAI_SolH3_LatentUpscaleAlign",
+    "inputs": {
+      "samples": [
+        "9",
+        0
+      ],
+      "model": [
+        "2",
+        0
+      ],
+      "noise": [
+        "10",
+        0
+      ],
+      "sigmas": [
+        "11",
+        0
+      ],
+      "scale": 2,
+      "align_to": 32,
+      "method": "bilinear",
+      "upscaler_model": "minimax_h3_latent_upscaler_3d_fp16.safetensors",
+      "add_noise": true,
+      "audio_denoise": 0
+    }
+  },
+  "13": {
+    "class_type": "BasicGuider",
+    "inputs": {
+      "model": [
+        "2",
+        0
+      ],
+      "conditioning": [
+        "4",
+        0
+      ]
+    }
+  },
+  "14": {
+    "class_type": "KSamplerSelect",
+    "inputs": {
+      "sampler_name": "euler"
+    }
+  },
+  "15": {
+    "class_type": "SamplerCustomAdvanced",
+    "inputs": {
+      "noise": [
+        "16",
+        0
+      ],
+      "guider": [
+        "13",
+        0
+      ],
+      "sampler": [
+        "14",
+        0
+      ],
+      "sigmas": [
+        "11",
+        0
+      ],
+      "latent_image": [
+        "12",
+        0
+      ]
+    }
+  },
+  "16": {
+    "class_type": "DisableNoise",
+    "inputs": {}
+  },
+  "17": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "15",
+        0
+      ],
+      "vae": [
+        "7",
+        0
+      ]
+    }
+  },
+  "20": {
+    "class_type": "CreateVideo",
+    "inputs": {
+      "images": [
+        "17",
+        0
+      ],
+      "fps": 24,
+      "audio": [
+        "19",
+        0
+      ]
+    }
+  },
+  "21": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "video": [
+        "20",
+        0
+      ],
+      "filename_prefix": "h3_fp8_2pass",
+      "format": "auto",
+      "codec": "auto"
+    }
+  },
+  "51": {
+    "class_type": "SelectCLIPDevice",
+    "inputs": {
+      "clip": [
+        "3",
+        0
+      ],
+      "device": "default"
+    }
+  },
+  "52": {
+    "class_type": "SelectVAEDevice",
+    "inputs": {
+      "vae": [
+        "7",
+        0
+      ],
+      "device": "default"
+    }
+  },
+  "8": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
+    }
+  },
+  "53": {
+    "class_type": "SelectVAEDevice",
+    "inputs": {
+      "vae": [
+        "8",
+        0
+      ],
+      "device": "default"
+    }
+  },
+  "19": {
+    "class_type": "VAEDecodeAudio",
+    "inputs": {
+      "samples": [
+        "15",
+        0
+      ],
+      "vae": [
+        "8",
+        0
+      ]
+    }
+  },
+  "80": {
+    "class_type": "MiniMaxH3TeaCache",
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ],
+      "rel_l1_thresh": 0.15,
+      "start_step": 2,
+      "end_step": -2,
+      "total_steps": 8
+    }
+  }
+}

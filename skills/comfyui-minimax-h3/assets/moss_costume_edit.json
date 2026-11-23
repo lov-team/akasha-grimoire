@@ -1,0 +1,41 @@
+{
+  "1": {"class_type": "UNETLoader", "inputs": {"unet_name": "moss_image_sft_bf16.safetensors", "weight_dtype": "default"}},
+  "4": {"class_type": "LoraLoaderModelOnly", "inputs": {"model": ["1", 0], "lora_name": "moss_image_edit_lora_rank_64_bf16.safetensors", "strength_model": 1.0}},
+  "5": {"class_type": "CLIPLoader", "inputs": {"clip_name": "qwen3.5_9b_bf16.safetensors", "type": "moss_image"}},
+  "8": {"class_type": "VAELoader", "inputs": {"vae_name": "flux2-vae.safetensors"}},
+  "20": {"class_type": "LoadImage", "inputs": {"image": "padded_front.png"}},
+  "6": {
+    "class_type": "TextEncodeQwenImageEdit",
+    "inputs": {
+      "clip": ["5", 0],
+      "vae": ["8", 0],
+      "image": ["20", 0],
+      "prompt": ""
+    }
+  },
+  "60": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": ["5", 0],
+      "text": "cropped head, cut off head, out of frame, extra floating objects, text, watermark"
+    }
+  },
+  "7": {"class_type": "EmptyLatentImage", "inputs": {"width": 768, "height": 1280, "batch_size": 1}},
+  "9": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": ["4", 0],
+      "positive": ["6", 0],
+      "negative": ["60", 0],
+      "latent_image": ["7", 0],
+      "seed": 202601,
+      "steps": 24,
+      "cfg": 4.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1.0
+    }
+  },
+  "10": {"class_type": "VAEDecode", "inputs": {"samples": ["9", 0], "vae": ["8", 0]}},
+  "11": {"class_type": "SaveImage", "inputs": {"images": ["10", 0], "filename_prefix": "moss_sheet"}}
+}

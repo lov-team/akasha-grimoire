@@ -1,0 +1,4 @@
+interface:
+  display_name: "MiniMax H3 动画 OP 改"
+  short_description: "本地 ComfyUI + H3 Ref2VA 番剧角色与文字全片替换"
+  default_prompt: "使用 $minimax-h3-op-remix 按帧级分镜、六段式 Context-IR 提示词、多人双轮级联替换与逐镜四帧质检流程完成动画 OP/MV 角色替换。"

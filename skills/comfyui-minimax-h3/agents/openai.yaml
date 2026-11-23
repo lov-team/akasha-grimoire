@@ -1,0 +1,4 @@
+interface:
+  display_name: "ComfyUI MiniMax H3 本地引擎"
+  short_description: "本地 H3 文生/图生/多参考编辑/2K超分与设定卡引擎"
+  default_prompt: "使用 $comfyui-minimax-h3 在本地 ComfyUI 上运行 MiniMax H3（FastH3 二采 T2V、Ref2VA 视频参考编辑、首帧 I2V、Regenerate-2K 高清超分或 MOSS 白底服装设定卡生成）。"

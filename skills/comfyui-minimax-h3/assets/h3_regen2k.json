@@ -1,0 +1,227 @@
+{
+ "1": {
+  "class_type": "LoadVideo",
+  "inputs": {
+   "file": "h3_draft.mp4"
+  }
+ },
+ "2": {
+  "class_type": "GetVideoComponents",
+  "inputs": {
+   "video": [
+    "1",
+    0
+   ]
+  }
+ },
+ "3": {
+  "class_type": "VAELoader",
+  "inputs": {
+   "vae_name": "minimax_h3_video_vae_int8_convrot.safetensors"
+  }
+ },
+ "4": {
+  "class_type": "VAEEncode",
+  "inputs": {
+   "pixels": [
+    "2",
+    0
+   ],
+   "vae": [
+    "3",
+    0
+   ]
+  }
+ },
+ "5": {
+  "class_type": "MinimaxH3LatentUpscaler3D",
+  "inputs": {
+   "latent": [
+    "4",
+    0
+   ],
+   "model_name": "minimax_h3_latent_upscaler_3d_fp16.safetensors",
+   "align": 32,
+   "enable_temporal_chunking": true,
+   "force_unload": true,
+   "device": "cuda",
+   "precision": "bf16",
+   "mode": "target dimensions",
+   "mode.width": 2560,
+   "mode.height": 1440
+  }
+ },
+ "6": {
+  "class_type": "UNETLoader",
+  "inputs": {
+   "unet_name": "minimax_h3_fl2va_pruned_w6a8.safetensors",
+   "weight_dtype": "default"
+  }
+ },
+ "7": {
+  "class_type": "LoraLoaderModelOnly",
+  "inputs": {
+   "model": [
+    "6",
+    0
+   ],
+   "lora_name": "minimax_h3_open_regenerate_2k_r128.safetensors",
+   "strength_model": 1.0
+  }
+ },
+ "9": {
+  "class_type": "CLIPLoader",
+  "inputs": {
+   "clip_name": "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
+   "type": "minimax"
+  }
+ },
+ "10": {
+  "class_type": "PrimitiveStringMultiline",
+  "inputs": {
+   "value": "A cinematic live-action shot, beautiful natural lighting, shallow depth of field, smooth motion. The camera slowly pushes in on a hero standing in a rain-soaked neon alley, wind rustling their coat, with rich ambient audio: rain, distant city hum, footsteps."
+  }
+ },
+ "11": {
+  "class_type": "MiniMaxH3ImageToVideo",
+  "inputs": {
+   "clip": [
+    "9",
+    0
+   ],
+   "vae": [
+    "3",
+    0
+   ],
+   "prompt": [
+    "10",
+    0
+   ],
+   "width": 2560,
+   "height": 1440,
+   "length": 124
+  }
+ },
+ "12": {
+  "class_type": "LTXVSeparateAVLatent",
+  "inputs": {
+   "av_latent": [
+    "11",
+    1
+   ]
+  }
+ },
+ "13": {
+  "class_type": "LTXVConcatAVLatent",
+  "inputs": {
+   "video_latent": [
+    "5",
+    0
+   ],
+   "audio_latent": [
+    "12",
+    1
+   ]
+  }
+ },
+ "14": {
+  "class_type": "BasicGuider",
+  "inputs": {
+   "model": [
+    "7",
+    0
+   ],
+   "conditioning": [
+    "11",
+    0
+   ]
+  }
+ },
+ "15": {
+  "class_type": "KSamplerSelect",
+  "inputs": {
+   "sampler_name": "euler"
+  }
+ },
+ "16": {
+  "class_type": "ManualSigmas",
+  "inputs": {
+   "sigmas": "0.909375, 0.857143, 0.666667, 0.0"
+  }
+ },
+ "17": {
+  "class_type": "RandomNoise",
+  "inputs": {
+   "noise_seed": 42
+  }
+ },
+ "18": {
+  "class_type": "SamplerCustomAdvanced",
+  "inputs": {
+   "noise": [
+    "17",
+    0
+   ],
+   "guider": [
+    "14",
+    0
+   ],
+   "sampler": [
+    "15",
+    0
+   ],
+   "sigmas": [
+    "16",
+    0
+   ],
+   "latent_image": [
+    "13",
+    0
+   ]
+  }
+ },
+ "19": {
+  "class_type": "LTXVSeparateAVLatent",
+  "inputs": {
+   "av_latent": [
+    "18",
+    0
+   ]
+  }
+ },
+ "20": {
+  "class_type": "VAEDecode",
+  "inputs": {
+   "samples": [
+    "19",
+    0
+   ],
+   "vae": [
+    "3",
+    0
+   ]
+  }
+ },
+ "21": {
+  "class_type": "CreateVideo",
+  "inputs": {
+   "images": [
+    "20",
+    0
+   ],
+   "fps": 24
+  }
+ },
+ "22": {
+  "class_type": "SaveVideo",
+  "inputs": {
+   "video": [
+    "21",
+    0
+   ],
+   "filename_prefix": "h3_regen2k",
+   "format": "mp4",
+   "codec": "auto"
+  }
+ }
+}

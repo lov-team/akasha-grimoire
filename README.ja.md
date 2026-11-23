@@ -104,6 +104,8 @@ Graph Engineering は、納品を一時的な prompt の列ではなく、追跡
 | [`seedance-video-generation`](skills/seedance-video-generation/) | Seedance の text-to-video、image-to-video、first/last-frame、multi-reference 生成 | 秒単位の演出 prompt、model-level 制約、非同期 polling、安全な download、出力 probe |
 | [`seedance-video-continuation`](skills/seedance-video-continuation/) | 既存 MP4 の最終 frame から続きを生成 | 最後の有効 frame 抽出、first-frame continuation、連続性 prompt、segment 結合、再検証 |
 | [`h3-kling-video-generation`](skills/h3-kling-video-generation/) | MiniMax H3 Max/H3、Kling の shot とゲーム PV | T2V/I2V/reference-to-video、director-style prompt、2D animation/MG/UI 合成、model 検証、MP4 download |
+| [`comfyui-minimax-h3`](skills/comfyui-minimax-h3/) | ローカル ComfyUI + MiniMax H3 動画生成・編集・2K 超解像・衣装シート基盤エンジン | FastH3 2-pass 音声付き T2V、Ref2VA、先頭フレーム I2V、Regenerate-2K、MOSS 衣装シート、WDDM ピンメモリ保護 |
+| [`minimax-h3-op-remix`](skills/minimax-h3-op-remix/) | MiniMax H3 Ref2VA によるアニメ OP/MV キャラクター・テキスト全編差し替え | Cast 連続性台帳、フレーム単位分割、6 セクション Context-IR、多人数 2-pass cascade、全編 MAD リーク検査、9:16 縦型書き出し |
 | [`gemini-omni-video-generation`](skills/gemini-omni-video-generation/) | Gemini Omni の動画生成と編集 | 公開素材や過去 task からの継続、job polling、MP4 検証、予期しない音声の診断 |
 | [`multi-platform-video-publishing`](skills/multi-platform-video-publishing/) | 受け入れ済み動画を四つのプラットフォームへ配信 | 並列 account check/upload、プラットフォーム別コピー、SHA 重複防止、台帳、remote status 検証、復旧 |
 
